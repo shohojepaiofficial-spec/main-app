@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fdfbf5;
+  --foreground: #1e241f;
+  --surface: #ffffff;
+  --nav-surface: #edf1e8;
+  --muted: #667165;
+  --border: #e6e2d6;
+  --primary: #15914f;
+  --primary-foreground: #ffffff;
+  --primary-hover: #0f7a41;
+  /* Fallback before Navbar measures its real height on mount; keep in sync
+     with its approximate rendered height (top strip + main row). */
+  --navbar-height: 92px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-nav-surface: var(--nav-surface);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --font-sans: var(--font-inter);
+}
+
+/* Dark mode is opt-in only (no toggle exists yet) — gated behind an explicit
+   class rather than the OS's prefers-color-scheme, so a visitor's system
+   dark-mode setting doesn't silently override the site's light/cream design. */
+:root[data-theme="dark"] {
+  --background: #161915;
+  --foreground: #eef2ec;
+  --surface: #1f2420;
+  --nav-surface: #10140f;
+  --muted: #93a08f;
+  --border: #303a2d;
+  --primary: #2fbf6b;
+  --primary-foreground: #0b1f13;
+  --primary-hover: #4ad57f;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}

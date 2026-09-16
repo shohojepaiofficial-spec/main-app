@@ -1,0 +1,18 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# root-level safety net (server/ and frontend/ each have their own too)
+node_modules/
+dist/
+build/
+.next/
+out/
+*.log
+.env
+.env.*
+!*.env.example
+.vercel
+*.tsbuildinfo

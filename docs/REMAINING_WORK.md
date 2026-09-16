@@ -1,0 +1,138 @@
+# Remaining Work
+
+Reference an item by its number (e.g. "let's do 2.6") to discuss it one at a
+time — nothing here is meant to be done in one shot. Finished items are
+collapsed to one line each below (full detail, including how each was
+verified, lives in `docs/PROGRESS.md`'s dated entries) so this file stays
+focused on what's actually still open.
+
+Last updated: 2026-09-15.
+
+---
+
+## Still open
+
+### Priority 1 — Launch blockers
+
+Nothing downstream fully works until these exist, no matter how much other
+code gets written.
+
+**1.1 — SMTP email isn't configured** (`server/.env`'s `SMTP_*` are blank).
+Email verification, password reset, contact-form notifications, and the
+marketing campaign system are all fully coded but silently do nothing right
+now — every send just fails quietly (by design, so it doesn't break the
+request that triggered it) and no email ever arrives. Needs a real SMTP
+provider (Gmail app password, SendGrid, Mailgun, etc.) and its credentials
+pasted into `server/.env`.
+
+**1.2 — Everything points at localhost.** `CLIENT_URL`, `NEXT_PUBLIC_SITE_URL`,
+`NEXT_PUBLIC_API_URL`, `AUTH_URL` are all `http://localhost:...`. A real
+domain + hosting deployment is needed before any real customer can reach the
+site. Instagram's ad-posting integration specifically can't even be tested
+until `SERVER_PUBLIC_URL` is a real public HTTPS address (Meta's servers
+fetch the image directly — they can't reach your laptop) — though once
+Cloudinary is configured (see 3.6 below), a *new* ad's image is already a
+real public URL on its own, so this matters less than it used to.
+
+**1.3 — Payment is Cash-on-Delivery only.** bKash/Nagad/Card show as "Coming
+soon" in the checkout UI but nothing behind them actually charges anyone.
+This needs an explicit decision: stay COD-only (fine for a small local
+store), or integrate a real gateway (SSLCommerz is the common Bangladesh
+choice, or bKash/Nagad directly) — each is its own project with its own
+merchant account.
+
+**1.4 — Contact info is still placeholder.** `frontend/src/lib/contact.ts`
+(phone/email/address, shown in the navbar, footer, and WhatsApp button) and
+`server/.env`'s `CONTACT_EMAIL` need your real details.
+
+**1.5 — No admin account exists on a fresh database.** Run
+`npm run promote-admin -- <your-email>` in `server/` once, after you've
+registered a normal account through the site. Easy to forget when setting up
+a new environment.
+
+### Priority 2 — Feature gaps customers/you will actually hit
+
+**2.5 — Google/Facebook sign-in buttons are live but will fail.** They're
+fully wired to NextAuth, but `AUTH_GOOGLE_ID/SECRET` and
+`AUTH_FACEBOOK_ID/SECRET` are blank, so clicking them 401s. Needs real OAuth
+app registrations from Google Cloud Console / Facebook Developers.
+
+**2.6 — SMS is unconfigured.** Still open — this one genuinely can't be
+"finished" by writing code, only by you (or me, with credentials you
+provide) setting it up. The opt-in and campaign-sending system built earlier
+works end-to-end, but `SMS_API_URL`/`SMS_API_KEY` aren't set, so every SMS
+attempt fails. Needs an account with a Bangladeshi bulk-SMS gateway
+(BulkSMSBD, MimSMS, SSL Wireless, etc.).
+
+**2.7 — The language switcher doesn't actually translate anything.** It
+stores which language you picked, but there's no Bangla translation catalog
+behind it — English is the only real language right now.
+
+### Priority 3 — Security & reliability hardening
+
+**3.7 — MongoDB Atlas connection string looks like the free/shared tier**
+(`cluster0.8goaquo.mongodb.net`, the default free-tier naming). That tier
+caps storage at 512MB and throttles under real concurrent load — fine for
+development and even initial launch, but worth upgrading before a real
+sales event or if the catalog/order volume grows.
+
+**3.8 — No backup strategy documented** beyond whatever Atlas does by
+default on its own tier.
+
+### Priority 4 — Smaller, lower-priority polish
+
+**4.5 — Social media ads have platform-specific gaps.** Not done — this
+one's genuinely blocked, not skipped by choice: X (Twitter) needs a paid API
+tier to actually post; Instagram needs a real public HTTPS domain to even
+test (see 1.2); the "4th platform" was mentioned once early on but never
+specified, so there's nothing concrete to build.
+
+**4.7 — `STORE_CITY` is duplicated** in `frontend/src/lib/seo.ts` and
+`server/src/utils/store.ts`. **Not a token problem — a design tradeoff I
+didn't think was mine to make silently, so I left it and I'm flagging it
+here instead.** A real fix means either a shared package/monorepo tooling
+change (both projects would need their build/import setup restructured) or
+having the frontend fetch this one constant from the backend at runtime
+(adds a network dependency for a value that's used in synchronous contexts
+like `sitemap.ts` and Zod schemas). Given it's one string, changed rarely,
+already documented in both places — I'd rather ask before restructuring
+either project's build than "fix" this in a way that risks breaking the
+build for marginal benefit. Say the word if you want me to do it anyway.
+
+**4.8 — Protected pages briefly flash "Checking your session..."** **Not a
+token problem either — skipped because a real fix conflicts with a
+deliberate, already-shipped UX decision.** Dashboard/Orders/Settings/Admin
+pages currently open the login modal *in place* when you're not logged in
+(rather than bouncing you away) — a real fix for the flash would mean
+checking auth in Next.js Middleware before the page even renders, which
+would have to redirect immediately instead, undoing that in-place-login
+behavior. Doing it without a UX regression would need either your call on
+which behavior wins, or a shared JWT-verification secret duplicated into
+the frontend (arguably its own "token needed" situation). Flagging rather
+than guessing which way you'd want this to go.
+
+---
+
+## Already finished
+
+Each fixed on 2026-09-15 — see `docs/PROGRESS.md`'s entries of that date for
+the full design and how it was verified live.
+
+- ✅ **2.1** — Overselling race under concurrent checkout, fixed with a real MongoDB transaction + atomic conditional stock decrement.
+- ✅ **2.2** — Customers can now cancel a still-`"pending"` order; cancellation (self-service or admin) restores stock exactly once.
+- ✅ **2.3** — `/dashboard` shows admins/coadmins an operational overview (pending orders, revenue, low stock) instead of the customer view.
+- ✅ **2.4** — `/admin/messages` inbox for contact-form submissions (read/unread, reply-by-email, delete).
+- ✅ **3.1** — Rate limiting on auth endpoints and the public contact form.
+- ✅ **3.2** — `helmet` security headers, tuned so uploaded images still load cross-origin.
+- ✅ **3.3** — Vitest test suites in both packages (28 backend + 15 frontend tests) and a `.github/workflows/ci.yml` — **note: still can't actually run, this repo has no `.git` yet.**
+- ✅ **3.4** — Error monitoring (`utils/errorMonitoring.ts`), reports to Sentry once `SENTRY_DSN` is set (still blank).
+- ✅ **3.5** — Process-crash handling (`uncaughtException`/`unhandledRejection`) paired with a PM2 `ecosystem.config.js` for auto-restart on a self-managed host.
+- ✅ **3.6** — Image uploads are Cloudinary-ready (`utils/cloudinary.ts` + `storeUploadedFile()`), but credentials are deliberately left blank per your request — uploads keep working locally until you add them.
+- ✅ **4.1** — Review "verified purchase" badge + admin moderation (delete) via a new `reviews:manage` permission.
+- ✅ **4.2** — Wishlist "Move all to cart" (a real move, not a copy).
+- ✅ **4.3** — Category matching/grouping is now case-insensitive ("Shoes" and "shoes" merge).
+- ✅ **4.4** — `AnalyticsEvent` now has a 180-day MongoDB TTL index for automatic retention.
+- ✅ **4.6** — Campaign emails have a one-click, per-recipient unsubscribe link (HMAC-signed, no new secret) and `Campaign.recipients` logs every individual send.
+- ✅ **4.9** — Real `/privacy` and `/terms` pages, linked from the footer — **worth a lawyer's review before relying on commercially.**
+- ✅ **Extra, not from the original list** — an admin-only, filtered "Reset analytics data" section on `/admin/analytics` (checkboxes for which event field, an age cutoff, a real count preview before deleting) — added on request, not part of the original audit.
+- ✅ **Extra, not from the original list** — fixed two real hydration-mismatch bugs found via user report: the navbar cart-count badge (`useCartStore`) and the language switcher (`useUIStore`), both caused by zustand's `persist` middleware reading `localStorage` synchronously before the server/client first render could agree.
