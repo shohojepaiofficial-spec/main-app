@@ -25,15 +25,6 @@ request that triggered it) and no email ever arrives. Needs a real SMTP
 provider (Gmail app password, SendGrid, Mailgun, etc.) and its credentials
 pasted into `server/.env`.
 
-**1.2 — Everything points at localhost.** `CLIENT_URL`, `NEXT_PUBLIC_SITE_URL`,
-`NEXT_PUBLIC_API_URL`, `AUTH_URL` are all `http://localhost:...`. A real
-domain + hosting deployment is needed before any real customer can reach the
-site. Instagram's ad-posting integration specifically can't even be tested
-until `SERVER_PUBLIC_URL` is a real public HTTPS address (Meta's servers
-fetch the image directly — they can't reach your laptop) — though once
-Cloudinary is configured (see 3.6 below), a *new* ad's image is already a
-real public URL on its own, so this matters less than it used to.
-
 **1.3 — Payment is Cash-on-Delivery only.** bKash/Nagad/Card show as "Coming
 soon" in the checkout UI but nothing behind them actually charges anyone.
 This needs an explicit decision: stay COD-only (fine for a small local
@@ -45,17 +36,7 @@ merchant account.
 (phone/email/address, shown in the navbar, footer, and WhatsApp button) and
 `server/.env`'s `CONTACT_EMAIL` need your real details.
 
-**1.5 — No admin account exists on a fresh database.** Run
-`npm run promote-admin -- <your-email>` in `server/` once, after you've
-registered a normal account through the site. Easy to forget when setting up
-a new environment.
-
 ### Priority 2 — Feature gaps customers/you will actually hit
-
-**2.5 — Google/Facebook sign-in buttons are live but will fail.** They're
-fully wired to NextAuth, but `AUTH_GOOGLE_ID/SECRET` and
-`AUTH_FACEBOOK_ID/SECRET` are blank, so clicking them 401s. Needs real OAuth
-app registrations from Google Cloud Console / Facebook Developers.
 
 **2.6 — SMS is unconfigured.** Still open — this one genuinely can't be
 "finished" by writing code, only by you (or me, with credentials you
@@ -124,7 +105,10 @@ the full design and how it was verified live.
 - ✅ **2.4** — `/admin/messages` inbox for contact-form submissions (read/unread, reply-by-email, delete).
 - ✅ **3.1** — Rate limiting on auth endpoints and the public contact form.
 - ✅ **3.2** — `helmet` security headers, tuned so uploaded images still load cross-origin.
-- ✅ **3.3** — Vitest test suites in both packages (28 backend + 15 frontend tests) and a `.github/workflows/ci.yml` — **note: still can't actually run, this repo has no `.git` yet.**
+- ✅ **3.3** — Vitest test suites in both packages (28 backend + 15 frontend tests) and a `.github/workflows/ci.yml`, now actually running — the repo is live at `github.com/shohojepaiofficial-spec/main-app`.
+- ✅ **1.2** — Real domain live: frontend on Vercel at `shohojepai.com` (`www` redirects to it), backend on Railway at `api.shohojepai.com`, both with valid SSL. `CLIENT_URL`/`NEXT_PUBLIC_SITE_URL`/`NEXT_PUBLIC_API_URL`/`AUTH_URL` all updated off `localhost`.
+- ✅ **1.5** — Admin account created (`npm run promote-admin`) against the production database.
+- ✅ **2.5** — Google sign-in fully working end-to-end in production (`AUTH_GOOGLE_ID/SECRET` set, OAuth consent screen configured, `oauth-sync` verified live). Facebook sign-in still has blank `AUTH_FACEBOOK_ID/SECRET` — not done.
 - ✅ **3.4** — Error monitoring (`utils/errorMonitoring.ts`), reports to Sentry once `SENTRY_DSN` is set (still blank).
 - ✅ **3.5** — Process-crash handling (`uncaughtException`/`unhandledRejection`) paired with a PM2 `ecosystem.config.js` for auto-restart on a self-managed host.
 - ✅ **3.6** — Image uploads are Cloudinary-ready (`utils/cloudinary.ts` + `storeUploadedFile()`), but credentials are deliberately left blank per your request — uploads keep working locally until you add them.

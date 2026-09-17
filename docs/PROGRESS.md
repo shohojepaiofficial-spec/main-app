@@ -414,3 +414,24 @@ The plain flat-color `SITE_NAME` text read as an afterthought next to the colore
 ## 2026-09-15 (Rebrand correction: "Shoje Pai" -> "Shohoje Pai")
 User caught that the previous same-day rebrand used the wrong transliteration of the Bengali name. Since `SITE_NAME` in `frontend/src/lib/seo.ts` is the single source of truth (already threaded through metadata, /privacy, /terms, checkout share text, print view, Navbar/Footer via `Logo.tsx`), the fix was a one-line change there - no other files needed edits.
 
+## 2026-09-16 to 2026-09-18 (First production deployment: GitHub, Vercel, Railway, real domain, Google OAuth live)
+The site went from local-only to actually live on the internet at `shohojepai.com`. Not a code feature, but worth logging since it's the biggest state change so far and several real bugs were caught and fixed along the way.
+
+- **Git installed and repo created** — this machine had no git at all (installed via `winget install Git.Git`). Root `.gitignore` added; first commit (242 files, verified clean — no `node_modules`/`.env`/build artifacts/`.claude/` before committing). Pushed to `github.com/shohojepaiofficial-spec/main-app`. Pushing over HTTPS needs an interactive browser login (Git Credential Manager) — doesn't work from a fully non-interactive shell, works fine from a real terminal.
+- **Fixed a real dependency conflict blocking every Vercel build**: `frontend/package.json` pinned `@types/node: "^20"`, but `vitest@5.0.1` peer-requires `@types/node@^22`. Worked locally only because existing `node_modules` predated the mismatch; Vercel's clean install hit it immediately (`ERESOLVE`). Fixed by bumping to `^22`.
+- **Deployed backend to Railway** (root directory `server`, Nixpacks auto-detects `npm run build`/`npm start`, `process.env.PORT` already handled correctly in `server.ts`) and **frontend to Vercel** (root directory `frontend`).
+- **Connected the real domain** (`shohojepai.com`, bought + mailbox set up on Namecheap): apex + `www` on Vercel, `api.shohojepai.com` on Railway (CNAME + TXT ownership-verification record, cert auto-issued once both verified). `www` was initially left as an independent live domain instead of redirecting to the apex — caused a CORS failure (see below) until set to redirect.
+- **Debugged a chain of production-only issues, one at a time, each confirmed via direct HTTP/DNS checks rather than guessing**:
+  - CORS blocked by a trailing slash on Railway's `CLIENT_URL` (`https://shohojepai.vercel.app/` vs the browser's origin with no trailing slash — exact-string CORS match, so one character broke it).
+  - `www.shohojepai.com` serving independently (200, no redirect) instead of redirecting to the apex — since `app.ts`'s CORS `origin` is a single static string (not real multi-origin matching), any request from `www` got back an `Access-Control-Allow-Origin` for the apex only, and browsers correctly blocked the mismatch. Fixed by setting `www` to redirect to the apex in Vercel, not by changing the CORS code.
+  - A bulk/paste edit to Vercel's env vars wiped `AUTH_SECRET`/`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` without the user noticing, causing NextAuth's generic `Configuration` error — re-added individually.
+  - `POST /api/auth/oauth-sync` 403s — `INTERNAL_API_SECRET` missing/mismatched between Vercel and Railway (shared-secret header check in `middleware/internalAuth.ts`).
+  - Fresh Atlas database from switching connection strings meant no admin existed; `npm run promote-admin` needs to be re-run against whichever database is actually live.
+- **Google OAuth verified working end-to-end in production**: real `AUTH_GOOGLE_ID/SECRET`, redirect URI added in Google Cloud Console for the real domain, consent screen still in "Testing" (publish attempt didn't go through — user hit a wall, not yet resolved, low priority since it only limits *which* Google accounts can sign in, not whether the feature works).
+- Updated `docs/REMAINING_WORK.md`: checked off 1.2 (real domain), 1.5 (admin account), 2.5 (Google sign-in) as done.
+
+### Known follow-ups (new)
+- OAuth consent screen is still in "Testing" publishing status — only accounts added as test users can sign in with Google right now. Revisit "Publish App" in Google Cloud Console when there's time to debug why it wouldn't go through.
+- Facebook sign-in (`AUTH_FACEBOOK_ID/SECRET`) still blank — Google-only for now.
+- The secrets that appeared in this chat session's history while debugging (`AUTH_SECRET`, `AUTH_GOOGLE_SECRET`, `INTERNAL_API_SECRET`) are good candidates to rotate later as routine hygiene, not because of any known compromise.
+
