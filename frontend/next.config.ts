@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
       { protocol: "http", hostname: "localhost", port: "5000", pathname: "/uploads/**" },
+      { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "platform-lookaside.fbsbx.com" },
       { protocol: "https", hostname: "picsum.photos" },

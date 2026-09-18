@@ -88,9 +88,14 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
 
   const onFilesSelected = (files: FileList | null) => {
     if (!files) return;
-    setNewImages((prev) =>
-      [...prev, ...Array.from(files)].slice(0, MAX_IMAGES - existingImages.length)
-    );
+    // Read the FileList into a plain array right away: the caller resets
+    // the <input>'s value immediately after calling this (see below), which
+    // clears this same live FileList — reading it lazily inside the
+    // setNewImages updater (React defers that callback until after this
+    // event handler returns) used to see an already-emptied FileList and
+    // silently drop every selected file.
+    const selected = Array.from(files);
+    setNewImages((prev) => [...prev, ...selected].slice(0, MAX_IMAGES - existingImages.length));
   };
 
   const onSubmit = async (values: ProductFormValues) => {
