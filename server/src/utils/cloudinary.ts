@@ -13,7 +13,14 @@ export function isCloudinaryConfigured(): boolean {
   );
 }
 
-if (isCloudinaryConfigured()) {
+// Configuring at call time, not at module load, is deliberate: tsx/esbuild
+// hoists this module's static import ahead of server.ts's own
+// `dotenv.config()` call, so reading `process.env` at the top level here
+// would always see it empty (and silently leave the SDK unconfigured for
+// the life of the process, even once the env vars are loaded) — see
+// docs/PROGRESS.md. Re-calling `cloudinary.config()` on every upload is
+// cheap (just sets a few fields on the SDK's in-memory config object).
+function configureCloudinary() {
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -26,6 +33,7 @@ if (isCloudinaryConfigured()) {
 // this app's assets grouped separately from anything else that might share
 // the same Cloudinary account.
 export function uploadBufferToCloudinary(buffer: Buffer): Promise<string> {
+  configureCloudinary();
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder: "new-ecommerce" },
