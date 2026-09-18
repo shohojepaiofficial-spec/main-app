@@ -16,10 +16,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// Saturated two-stop gradients (not pastel tints) — a flat light-tinted box
-// read as "dull/generic" the first time around, so these lean into real
-// color instead of a subtle background wash. Cycled deterministically by
-// category name (not index), so a category keeps the same color as the
+// Saturated two-stop gradients (not pastel tints) — cycled deterministically
+// by category name (not index), so a category keeps the same color as the
 // list re-sorts/filters instead of reshuffling on every reload. Shared by
 // the homepage showcase and the full /categories page so both read as the
 // same design language.
@@ -63,7 +61,7 @@ function hashIndex(category: string, length: number) {
 export function CategoryTile({
   category,
   count,
-  className = "h-36",
+  className = "",
 }: {
   category: string;
   count: number;
@@ -75,26 +73,38 @@ export function CategoryTile({
   return (
     <Link
       href={`/shop?category=${encodeURIComponent(category)}`}
-      className={`group relative flex flex-col justify-end overflow-hidden rounded-xl p-4 text-white transition-all duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-xl ${className}`}
-      style={{ background: gradient }}
+      className={`group grid grid-rows-[56px_auto] ${className}`}
     >
-      <div className="absolute inset-0 bg-white/0 transition-colors duration-500 ease-out group-hover:bg-white/10" />
-      {/* Icon is resolved dynamically from a fixed, stable set of
-          module-level lucide components (never created on the fly), but
-          JSX's <Icon /> tag trips the static-components lint heuristic
-          regardless — createElement says the same thing without the
-          false positive. */}
-      {createElement(Icon, {
-        size: 80,
-        strokeWidth: 1.25,
-        className:
-          "absolute -right-4 -top-4 text-white/15 transition-transform duration-500 ease-out group-hover:rotate-6 group-hover:scale-125",
-      })}
-      {createElement(Icon, { size: 20, className: "relative mb-2 text-white/90" })}
-      <p className="relative font-medium">{category}</p>
-      <p className="relative text-xs text-white/75">
-        {count} product{count === 1 ? "" : "s"}
-      </p>
+      {/* Colored strip slides down on hover, revealing more of the dark
+          panel's rounded top corner underneath it — same layered-card
+          trick as the reference, recolored to this category's own themed
+          gradient instead of a fixed accent color. */}
+      <div
+        className="relative rounded-t-[10px] transition-transform duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:translate-y-4"
+        style={{ background: gradient }}
+      >
+        {createElement(Icon, {
+          size: 26,
+          className: "absolute right-3 top-3 text-white/90",
+        })}
+      </div>
+
+      {/* Overlaps the strip by 10px (rounded on all corners, unlike the
+          strip's top-only rounding) — the same reveal trick, just recolored
+          to the site's own dark foreground tone instead of the reference's
+          navy. */}
+      <div className="relative top-[-10px] grid gap-2 rounded-[10px] bg-foreground p-4 text-background">
+        <div className="flex items-center">
+          <p className="flex-1 truncate text-sm font-medium">{category}</p>
+          <div className="flex shrink-0 gap-1">
+            <span className="h-[5px] w-[5px] rounded-full bg-background/30" />
+            <span className="h-[5px] w-[5px] rounded-full bg-background/30" />
+            <span className="h-[5px] w-[5px] rounded-full bg-background/30" />
+          </div>
+        </div>
+        <p className="text-2xl leading-none font-medium">{count}</p>
+        <p className="text-xs text-background/60">product{count === 1 ? "" : "s"} in stock</p>
+      </div>
     </Link>
   );
 }

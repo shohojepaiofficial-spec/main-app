@@ -18,7 +18,7 @@ export default async function CategoriesPage() {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {categories.map(({ category, count }) => (
-            <CategoryTile key={category} category={category} count={count} className="h-40" />
+            <CategoryTile key={category} category={category} count={count} />
           ))}
         </div>
       )}
