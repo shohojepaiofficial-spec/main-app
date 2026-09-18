@@ -16,19 +16,25 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// Saturated two-stop gradients (not pastel tints) — cycled deterministically
-// by category name (not index), so a category keeps the same color as the
-// list re-sorts/filters instead of reshuffling on every reload. Shared by
-// the homepage showcase and the full /categories page so both read as the
-// same design language.
+// All in the site's own green family (was a different hue per tile —
+// orange/teal/purple/blue/red — which read as off-brand) — cycled
+// deterministically by category name (not index), so a category keeps the
+// same shade as the list re-sorts/filters instead of reshuffling on every
+// reload. Shared by the homepage showcase and the full /categories page so
+// both read as the same design language.
 const TILE_GRADIENTS = [
-  "linear-gradient(150deg, #1a9d57, #0d5c30)",
-  "linear-gradient(150deg, #e08a3c, #a85a1a)",
-  "linear-gradient(150deg, #2596a6, #145a68)",
-  "linear-gradient(150deg, #8b5cc9, #5a3591)",
-  "linear-gradient(150deg, #3a86c8, #1f5686)",
-  "linear-gradient(150deg, #d1595f, #973638)",
+  "linear-gradient(150deg, #3fbf7f, #15914f)",
+  "linear-gradient(150deg, #5fd39a, #22a366)",
+  "linear-gradient(150deg, #2fae6a, #0f7a41)",
+  "linear-gradient(150deg, #7ee0ab, #3fbf7f)",
+  "linear-gradient(150deg, #34c37a, #16824f)",
+  "linear-gradient(150deg, #56cf8f, #1f9c5a)",
 ];
+
+// The dark panel below the strip — was bg-foreground (a near-black,
+// read as flat "black" rather than on-brand) — now a deep green gradient
+// instead, keeping the whole card in the same green family top to bottom.
+const PANEL_GRADIENT = "linear-gradient(160deg, #163a26, #0a1f13)";
 
 // Best-effort icon per common category name, falling back to a generic tag
 // — categories are free-text (no fixed taxonomy, see productController.ts),
@@ -93,17 +99,20 @@ export function CategoryTile({
           strip's top-only rounding) — the same reveal trick, just recolored
           to the site's own dark foreground tone instead of the reference's
           navy. */}
-      <div className="relative top-[-10px] grid gap-2 rounded-[10px] bg-foreground p-4 text-background">
+      <div
+        className="relative top-[-10px] grid gap-2 rounded-[10px] p-4 text-white"
+        style={{ background: PANEL_GRADIENT }}
+      >
         <div className="flex items-center">
           <p className="flex-1 truncate text-sm font-medium">{category}</p>
           <div className="flex shrink-0 gap-1">
-            <span className="h-[5px] w-[5px] rounded-full bg-background/30" />
-            <span className="h-[5px] w-[5px] rounded-full bg-background/30" />
-            <span className="h-[5px] w-[5px] rounded-full bg-background/30" />
+            <span className="h-[5px] w-[5px] rounded-full bg-white/30" />
+            <span className="h-[5px] w-[5px] rounded-full bg-white/30" />
+            <span className="h-[5px] w-[5px] rounded-full bg-white/30" />
           </div>
         </div>
         <p className="text-2xl leading-none font-medium">{count}</p>
-        <p className="text-xs text-background/60">product{count === 1 ? "" : "s"} in stock</p>
+        <p className="text-xs text-white/60">product{count === 1 ? "" : "s"} in stock</p>
       </div>
     </Link>
   );
