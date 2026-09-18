@@ -194,6 +194,13 @@ export const publishAd = async (req: AuthRequest, res: Response) => {
   res.json(shapeAd(ad));
 };
 
+// Deliberately does NOT clean up `ad.image` the way productController and
+// bannerController clean up theirs (see utils/upload.ts#deleteUploadedFile)
+// — unlike those, an ad's image is often *borrowed* from a product
+// (createAd above falls back to `product.images[0]` when nothing was
+// uploaded specifically for the ad), so deleting it here could delete an
+// image a live product still depends on. Only safe to add if the model
+// starts distinguishing "own upload" from "borrowed reference".
 export const deleteAd = async (req: AuthRequest, res: Response) => {
   const ad = await Ad.findByIdAndDelete(req.params.id);
   if (!ad) return res.status(404).json({ message: "Ad not found" });

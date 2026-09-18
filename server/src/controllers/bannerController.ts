@@ -2,7 +2,7 @@ import { Response, Request } from "express";
 import { Banner, CtaLink } from "../models/Banner";
 import { PromoCode, IPromoCode } from "../models/PromoCode";
 import { AuthRequest } from "../middleware/auth";
-import { storeUploadedFile } from "../utils/upload";
+import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 
 // Matches a product id out of a CTA href like "/shop/<id>" or
 // "https://site.com/shop/<id>?promo=X" — how a banner "points at" a product.
@@ -153,7 +153,16 @@ export const updateBanner = async (req: Request, res: Response) => {
   // Same pattern as secondaryCta: an explicit empty string unlinks it,
   // undefined leaves whatever's there alone.
   if (req.body.promoCodeId !== undefined) update.promoCode = req.body.promoCodeId || null;
-  if (file) update.image = await storeUploadedFile(file);
+
+  // Same before/after pattern as productController#updateProduct: upload
+  // the new image and save it first, and only delete the old one once
+  // that's succeeded — never the other way around, so a failed upload or
+  // DB write can't leave a banner with no image at all.
+  let previousImage: string | undefined;
+  if (file) {
+    previousImage = (await Banner.findById(req.params.id).select("image"))?.image;
+    update.image = await storeUploadedFile(file);
+  }
 
   const banner = await Banner.findByIdAndUpdate(req.params.id, update, {
     new: true,
@@ -161,6 +170,8 @@ export const updateBanner = async (req: Request, res: Response) => {
   });
   if (!banner) return res.status(404).json({ message: "Banner not found" });
   res.json(shapeBanner(banner));
+
+  if (previousImage) await deleteUploadedFile(previousImage);
 };
 
 export const moveBanner = async (req: AuthRequest, res: Response) => {
@@ -193,4 +204,6 @@ export const deleteBanner = async (req: Request, res: Response) => {
   const banner = await Banner.findByIdAndDelete(req.params.id);
   if (!banner) return res.status(404).json({ message: "Banner not found" });
   res.json({ message: "Banner deleted" });
+
+  await deleteUploadedFile(banner.image);
 };

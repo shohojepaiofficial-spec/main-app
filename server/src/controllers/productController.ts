@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { Product } from "../models/Product";
-import { storeUploadedFile } from "../utils/upload";
+import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 
 const DEFAULT_PAGE_SIZE = 12;
 
@@ -102,10 +102,18 @@ export const updateProduct = async (req: Request, res: Response) => {
   const newImages = await Promise.all(files.map((file) => storeUploadedFile(file)));
 
   const update: Record<string, unknown> = { ...fields };
-  if (existingImages !== undefined || newImages.length > 0) {
+  const imagesChanging = existingImages !== undefined || newImages.length > 0;
+  if (imagesChanging) {
     const kept: string[] = existingImages ? JSON.parse(existingImages) : [];
     update.images = [...kept, ...newImages];
   }
+
+  // Read the old image list before it's overwritten — the only way to know
+  // which URLs are being dropped, so they can be cleaned up from
+  // Cloudinary/disk afterward instead of accumulating forever.
+  const previousImages = imagesChanging
+    ? ((await Product.findById(req.params.id).select("images"))?.images ?? [])
+    : [];
 
   const product = await Product.findByIdAndUpdate(req.params.id, update, {
     new: true,
@@ -113,10 +121,22 @@ export const updateProduct = async (req: Request, res: Response) => {
   });
   if (!product) return res.status(404).json({ message: "Product not found" });
   res.json(product);
+
+  // After responding: cleanup is maintenance, not something the client
+  // should wait on. New images are already saved and the DB already points
+  // at them, so only images that are no longer referenced anywhere in the
+  // updated product get removed here.
+  if (imagesChanging) {
+    const stillUsed = new Set(product.images);
+    const removed = previousImages.filter((img) => !stillUsed.has(img));
+    await Promise.all(removed.map((img) => deleteUploadedFile(img)));
+  }
 };
 
 export const deleteProduct = async (req: Request, res: Response) => {
   const product = await Product.findByIdAndDelete(req.params.id);
   if (!product) return res.status(404).json({ message: "Product not found" });
   res.json({ message: "Product deleted" });
+
+  await Promise.all(product.images.map((img) => deleteUploadedFile(img)));
 };

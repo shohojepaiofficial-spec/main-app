@@ -48,3 +48,16 @@ export function uploadBufferToCloudinary(buffer: Buffer): Promise<string> {
     stream.end(buffer);
   });
 }
+
+// Deletes one asset by its `public_id` (the folder-qualified id, e.g.
+// `new-ecommerce/abc123` — see `parseCloudinaryPublicId` in upload.ts for
+// how that's recovered from a stored `secure_url`). `result: "not found"`
+// counts as success here, not an error — the asset being already gone is
+// exactly the outcome the caller wants, whatever got it there.
+export async function deleteFromCloudinary(publicId: string): Promise<void> {
+  configureCloudinary();
+  const result = await cloudinary.uploader.destroy(publicId);
+  if (result.result !== "ok" && result.result !== "not found") {
+    throw new Error(`Cloudinary destroy failed for ${publicId}: ${result.result}`);
+  }
+}

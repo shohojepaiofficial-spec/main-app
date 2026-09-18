@@ -4,7 +4,7 @@ import { User } from "../models/User";
 import { sendEmail } from "../utils/sendEmail";
 import { generateRawAndHash, hashToken } from "../utils/authTokens";
 import { verifyUnsubscribeToken } from "../utils/campaignTokens";
-import { storeUploadedFile } from "../utils/upload";
+import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { AuthRequest } from "../middleware/auth";
 
 const signToken = (id: string, role: string) =>
@@ -109,11 +109,21 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
   }
   if (phone !== undefined) user.phone = phone.trim() || undefined;
 
+  // `user.image` may be a self-uploaded file or an OAuth avatar URL (Google/
+  // Facebook) — deleteUploadedFile below only ever acts on our own
+  // Cloudinary folder or local /uploads path, so an OAuth URL here is
+  // safely left alone rather than needing a separate check.
   const file = req.file as Express.Multer.File | undefined;
-  if (file) user.image = await storeUploadedFile(file);
+  let previousImage: string | undefined;
+  if (file) {
+    previousImage = user.image;
+    user.image = await storeUploadedFile(file);
+  }
 
   await user.save();
   res.json(shapeUser(user));
+
+  if (previousImage) await deleteUploadedFile(previousImage);
 };
 
 export const changePassword = async (req: AuthRequest, res: Response) => {
