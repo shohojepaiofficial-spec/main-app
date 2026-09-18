@@ -478,3 +478,12 @@ User noticed a real gap (already flagged as a known follow-up back in the 2026-0
 - Ad image cleanup remains unimplemented for the borrowed-reference reason above.
 - No cleanup runs for images that were *already* orphaned before this feature existed (any product/banner deleted prior to today). Would need a one-off script cross-referencing every stored image URL against Cloudinary's asset list, not something to run unattended.
 
+## 2026-09-19 (Replaced the generated "SP" mark with the real logo)
+User supplied a real logo (`logo.png`, downloaded locally) — a cart/checkmark/arrow icon with a "Shohoje Pai" wordmark baked into the same image. The "transparent" background in every preview was actually a checkerboard pattern rendered as opaque pixels (confirmed via `sharp`'s channel stats — alpha was `255` everywhere in the source file), not real alpha, so it had to be chroma-keyed out before the icon could be used anywhere: any near-neutral (low-saturation) pixel in the checker's lightness range (~130–240) got its alpha zeroed, which cleanly preserved the logo's true blacks and saturated greens. Verified the result had genuine variable alpha (not just visually — the "transparent" checkerboard in image previews looks identical to a real one) by checking `sharp` stats directly and by compositing onto a solid color.
+
+- Cropped just the icon (no wordmark) out to `public/logo-icon.png`, and a pure-white-silhouette variant (`public/logo-icon-white.png`, alpha preserved, RGB forced to white) for low-opacity use on colored backgrounds.
+- **`Logo.tsx`**: swapped the generated `<svg>` rounded-square "SP" mark for `next/image` pointed at `logo-icon.png`. Kept the wordmark as live text (unchanged) rather than cropping that from the source image too — it still follows the theme's color tokens and dark mode instead of becoming a fixed-color raster.
+- **`HeroSlider.tsx`**: the brand watermark added earlier this session (see the "banner containing black box" redesign entry) now uses `logo-icon-white.png` instead of a hand-drawn SVG approximation of the same mark — same treatment (low opacity, rotated, corner-anchored).
+- **`src/app/icon.png`**: added a square (512×512), padded, transparent-background version as a Next.js `icon` file-convention favicon — coexists with the existing `favicon.ico` (Next.js emits both `<link>` tags; browsers prefer the more specific PNG). Confirmed both render in the page `<head>` rather than one silently overriding the other.
+
+

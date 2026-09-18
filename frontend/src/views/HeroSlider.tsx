@@ -47,27 +47,18 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   background: `linear-gradient(155deg, ${slide.accentColor}, color-mix(in srgb, ${slide.accentColor}, black 35%))`,
                 }}
               >
-                {/* Same rounded-square + "SP" mark as the navbar logo, blown
-                    up and near-invisible — light brand texture instead of a
+                {/* Same brand mark as the navbar logo (a white silhouette
+                    cut from public/logo-icon.png — see Logo.tsx), blown up
+                    and near-invisible — light brand texture instead of a
                     flat, generic color fill. */}
-                <svg
-                  viewBox="0 0 32 32"
+                <Image
+                  src="/logo-icon-white.png"
+                  alt=""
+                  width={424}
+                  height={291}
                   aria-hidden="true"
-                  className="pointer-events-none absolute -bottom-10 -right-10 h-48 w-48 rotate-[-8deg] text-white md:h-60 md:w-60"
-                >
-                  <rect width="32" height="32" rx="8" fill="currentColor" fillOpacity="0.07" />
-                  <text
-                    x="50%"
-                    y="50%"
-                    dy="0.35em"
-                    textAnchor="middle"
-                    fill="currentColor"
-                    fillOpacity="0.14"
-                    style={{ fontSize: 13, fontWeight: 700 }}
-                  >
-                    SP
-                  </text>
-                </svg>
+                  className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-auto rotate-[-8deg] opacity-10 md:h-44"
+                />
 
                 <span className="relative w-fit rounded-full bg-white/20 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-white">
                   {slide.eyebrow}

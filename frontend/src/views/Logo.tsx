@@ -1,11 +1,18 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/seo";
 
-// A generic "SP" monogram mark — no external image asset, so it's crisp at
-// any size and follows the theme's own color tokens (bg-primary/
-// primary-foreground) rather than a hardcoded color, same convention as the
-// rest of the app (see docs/ARCHITECTURE.md's "Theming"). Used wherever the
-// brand wordmark previously appeared as plain "Shop." text (Navbar, Footer).
+// The real brand mark — a cart/checkmark/arrow icon, cropped out of the
+// supplied logo.png (which also had a "Shohoje Pai" wordmark baked into the
+// same image) and re-exported as its own transparent asset at
+// public/logo-icon.png. Kept as an image rather than tracing it as an SVG so
+// its actual gradient gets used as-is; the wordmark next to it stays live
+// text (see splitWordmark below) rather than being cropped from the same
+// image too, so it still follows the theme's color tokens and dark mode
+// instead of a fixed raster color.
+const ICON_WIDTH = 47;
+const ICON_HEIGHT = 32;
+
 // Splits off the last word of the site name to give it the primary-color
 // accent below — derived from SITE_NAME rather than hardcoded, so this stays
 // correct if the name ever changes instead of silently drifting out of sync.
@@ -30,19 +37,14 @@ export function Logo({
 
   return (
     <Link href="/" className={`flex shrink-0 items-center gap-2 ${className}`}>
-      <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" className="shrink-0">
-        <rect width="32" height="32" rx="8" className="fill-primary" />
-        <text
-          x="50%"
-          y="50%"
-          dy="0.35em"
-          textAnchor="middle"
-          className="fill-primary-foreground"
-          style={{ fontSize: 13, fontWeight: 700 }}
-        >
-          SP
-        </text>
-      </svg>
+      <Image
+        src="/logo-icon.png"
+        alt=""
+        width={ICON_WIDTH}
+        height={ICON_HEIGHT}
+        priority
+        className="shrink-0 object-contain"
+      />
       {showWordmark && (
         <span className={`text-xl font-bold tracking-tight ${wordmarkClassName}`}>
           {lead && `${lead} `}
