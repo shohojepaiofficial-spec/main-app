@@ -40,26 +40,16 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               {/* A solid-color panel beside the photo, not text floating on
                   top of it — a boxed overlay is the exact "dull, templatey"
                   look this replaced, so the text needs its own real estate
-                  instead of another translucent box over the image. */}
+                  instead of another translucent box over the image. The
+                  logo lives only in the seam badge below now (not also as a
+                  watermark here) — one intentional placement beats two
+                  competing ones. */}
               <div
-                className="relative order-2 flex h-[44%] w-full flex-col justify-center gap-2.5 overflow-hidden px-6 py-5 md:order-1 md:h-full md:w-[38%] md:px-9 md:py-8"
+                className="relative order-2 z-0 flex h-[44%] w-full flex-col justify-center gap-2.5 px-6 py-5 md:order-1 md:h-full md:w-[38%] md:px-9 md:py-8"
                 style={{
                   background: `linear-gradient(155deg, ${slide.accentColor}, color-mix(in srgb, ${slide.accentColor}, black 35%))`,
                 }}
               >
-                {/* Same brand mark as the navbar logo (a white silhouette
-                    cut from public/logo-icon.png — see Logo.tsx), blown up
-                    and near-invisible — light brand texture instead of a
-                    flat, generic color fill. */}
-                <Image
-                  src="/logo-icon-white.png"
-                  alt=""
-                  width={424}
-                  height={291}
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-auto rotate-[-8deg] opacity-10 md:h-44"
-                />
-
                 <span className="relative w-fit rounded-full bg-white/20 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-white">
                   {slide.eyebrow}
                 </span>
@@ -89,9 +79,48 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                     </Link>
                   )}
                 </div>
+                <p className="relative pt-1 text-xs italic text-white/60">
+                  Simple shopping, happier days.
+                </p>
               </div>
 
-              <div className="relative order-1 h-[56%] w-full md:order-2 md:h-full md:flex-1">
+              {/* The "arch": a curved divider bulging from the panel/photo
+                  seam into the photo, blending the site's own green with
+                  this banner's own accent color — replaces the flat panel
+                  fill's dead corner with an actual shape instead of a
+                  second static color block. Starts exactly at the panel's
+                  own right edge (md:w-[38%] above), so it never has to
+                  fight the panel's text for stacking — only the photo's
+                  left edge, which it's meant to sit on top of. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-[38%] z-10 hidden w-24 rounded-r-full md:block lg:w-28"
+                style={{
+                  background: `linear-gradient(160deg, #15914f, ${slide.accentColor})`,
+                }}
+              />
+
+              {/* The logo's one placement on this banner — a shaded badge
+                  (radial-gradient in the banner's own accent color, same
+                  "glossy" treatment the reference's discount badge used)
+                  straddling the seam, in place of a discount-percentage
+                  callout this store doesn't run. */}
+              <div
+                className="absolute left-[38%] top-1/2 z-20 hidden h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-lg ring-4 ring-white md:flex lg:h-24 lg:w-24"
+                style={{
+                  background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${slide.accentColor}, white 25%), ${slide.accentColor} 65%, color-mix(in srgb, ${slide.accentColor}, black 30%) 100%)`,
+                }}
+              >
+                <Image
+                  src="/logo-icon-white.png"
+                  alt=""
+                  width={424}
+                  height={291}
+                  className="h-8 w-auto lg:h-10"
+                />
+              </div>
+
+              <div className="relative order-1 z-0 h-[56%] w-full md:order-2 md:h-full md:flex-1">
                 <Image
                   src={slide.image}
                   alt={slide.title}
