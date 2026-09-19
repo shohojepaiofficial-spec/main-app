@@ -37,7 +37,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   return (
     <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
       <div
-        className={`group relative ${aspectClass} isolate w-full overflow-hidden rounded-2xl shadow-[0_35px_70px_rgba(15,40,30,0.35)]`}
+        className={`group relative ${aspectClass} isolate w-full overflow-hidden rounded-2xl shadow-[0_10px_25px_rgba(15,40,30,0.15)]`}
         onMouseEnter={pause}
         onMouseLeave={resume}
       >
@@ -129,62 +129,71 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 />
               </div>
 
-              <div className="relative z-30 flex h-full min-h-0 w-1/2 flex-col justify-center py-[5%] pr-[4%] pl-[7%]">
-                {/* In focus at rest; softens on hover as the photo/buttons
-                    take over as the focus instead — the actual "motive" of
-                    hovering this banner, not a generic card-lift. The CTA
-                    row is deliberately its own block below, outside this
-                    dimming treatment — it gets the opposite, see there. */}
-                <div className="max-w-full transition-opacity duration-300 group-hover:opacity-70">
-                  <span
-                    className="block text-[clamp(13px,2vw,20px)] text-muted italic"
-                    style={{ fontFamily: "var(--font-playfair)" }}
-                  >
-                    {slide.eyebrow}
-                  </span>
-                  <h1 className="mt-0.5 block text-[clamp(18px,3.4vw,32px)] leading-none font-extrabold text-foreground">
-                    {slide.title}
-                  </h1>
-                  <p className="mt-2 max-w-[260px] text-[clamp(9px,1vw,12px)] leading-relaxed text-muted">
-                    {slide.subtitle}
-                  </p>
-                  {/* The offer lives here, left-aligned with the rest of
-                      the text column, instead of as text inside the middle
-                      badge — the badge is the logo's one spot on this
-                      banner now, always, not conditional on whether there's
-                      a promo. */}
-                  {slide.promo && (
-                    <p
-                      className="mt-2 w-fit rounded-full px-3 py-1 text-[clamp(9px,1vw,12px)] font-semibold text-white"
+              <div className="relative z-30 flex h-full min-h-0 w-1/2 flex-col py-[5%] pr-[4%] pl-[7%]">
+                {/* Centered in the space above the footer — not the full
+                    card height, so the footer's thin line stays pinned to
+                    the bottom instead of drifting up with everything else
+                    when this centers. */}
+                <div className="flex min-h-0 flex-1 flex-col justify-center">
+                  {/* In focus at rest; softens on hover as the photo/
+                      buttons take over as the focus instead — the actual
+                      "motive" of hovering this banner, not a generic
+                      card-lift. The CTA row is deliberately its own block
+                      below, outside this dimming treatment — it gets the
+                      opposite, see there. */}
+                  <div className="max-w-full transition-opacity duration-300 group-hover:opacity-70">
+                    <span
+                      className="block text-[clamp(13px,2vw,20px)] text-muted italic"
+                      style={{ fontFamily: "var(--font-playfair)" }}
+                    >
+                      {slide.eyebrow}
+                    </span>
+                    <h1 className="mt-0.5 block text-[clamp(18px,3.4vw,32px)] leading-none font-extrabold text-foreground">
+                      {slide.title}
+                    </h1>
+                    <p className="mt-2 max-w-[260px] text-[clamp(9px,1vw,12px)] leading-relaxed text-muted">
+                      {slide.subtitle}
+                    </p>
+                    {/* The offer lives here, left-aligned with the rest of
+                        the text column, instead of as text inside the
+                        middle badge — the badge is the logo's one spot on
+                        this banner now, always, not conditional on
+                        whether there's a promo. */}
+                    {slide.promo && (
+                      <p
+                        className="mt-2 w-fit rounded-full px-3 py-1 text-[clamp(9px,1vw,12px)] font-semibold text-white"
+                        style={{ background: darkAccent }}
+                      >
+                        {formatPromoDiscount(slide.promo)} with code {slide.promo.code}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* The other half of the hover's focus-shift: buttons
+                      pop slightly forward instead of dimming with the
+                      text above them. */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2.5">
+                    <span className="hidden h-6 w-[2px] sm:block" style={{ background: darkAccent }} />
+                    <Link
+                      href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
+                      className="rounded-full px-5 py-2 text-[clamp(10px,1.1vw,13px)] font-semibold text-white transition-transform duration-300 group-hover:scale-105"
                       style={{ background: darkAccent }}
                     >
-                      {formatPromoDiscount(slide.promo)} with code {slide.promo.code}
-                    </p>
-                  )}
-                </div>
-
-                {/* The other half of the hover's focus-shift: buttons pop
-                    slightly forward instead of dimming with the text above
-                    them. */}
-                <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                  <span className="hidden h-6 w-[2px] sm:block" style={{ background: darkAccent }} />
-                  <Link
-                    href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
-                    className="rounded-full px-5 py-2 text-[clamp(10px,1.1vw,13px)] font-semibold text-white transition-transform duration-300 group-hover:scale-105"
-                    style={{ background: darkAccent }}
-                  >
-                    {slide.primaryCta.label}
-                  </Link>
-                  {slide.secondaryCta && (
-                    <Link
-                      href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
-                      className="text-[clamp(10px,1.1vw,13px)] font-semibold text-foreground underline underline-offset-4 transition-transform duration-300 group-hover:scale-105"
-                    >
-                      {slide.secondaryCta.label}
+                      {slide.primaryCta.label}
                     </Link>
-                  )}
+                    {slide.secondaryCta && (
+                      <Link
+                        href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
+                        className="text-[clamp(10px,1.1vw,13px)] font-semibold text-foreground underline underline-offset-4 transition-transform duration-300 group-hover:scale-105"
+                      >
+                        {slide.secondaryCta.label}
+                      </Link>
+                    )}
+                  </div>
                 </div>
 
+                {/* Pinned to the bottom, with its thin top line, regardless
+                    of how the block above centers. */}
                 <div
                   className="flex items-center gap-2 border-t pt-2 text-[clamp(8px,0.9vw,12px)] font-medium text-foreground transition-opacity duration-300 group-hover:opacity-70"
                   style={{ borderColor: `color-mix(in srgb, ${slide.accentColor}, transparent 75%)` }}

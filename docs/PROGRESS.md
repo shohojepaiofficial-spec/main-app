@@ -547,4 +547,10 @@ User called out that the divider's white-lightened gradient read as washed out a
 - Badge logo: `h-[38%]` of a `w-[12%]` badge -> `h-[32%]` of a `w-[9%]` badge — smaller, as asked.
 - Text column: `justify-between` (spread to the top/bottom of the card) -> `justify-center` (vertically centered as a group, still left-aligned within its own half) — "the text should align in the middle left".
 
+### Same-day follow-up: footer pinned back to the bottom, shadow toned down
+The previous `justify-center` change centered *everything*, including the footer motto row — user wanted just the headline/CTA block centered, with the footer's thin-line row staying pinned to the bottom like before.
+
+- Restructured the text column into two pieces: a `flex-1 justify-center` wrapper around the headline block + CTA row (centers within the space *above* the footer, not the full column), and the footer as a separate sibling after it — since the wrapper claims all available space via `flex-1`, the footer naturally lands at the very bottom regardless of how the block above it centers.
+- Card shadow: `0 35px 70px rgba(15,40,30,0.35)` -> `0 10px 25px rgba(15,40,30,0.15)` — read as too elevated compared to every other card on the site (`ProductCard`/`CategoryTile` use much subtler shadows).
+
 
