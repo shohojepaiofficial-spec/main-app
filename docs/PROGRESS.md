@@ -539,4 +539,12 @@ User feedback: banner still too tall, wanted the two halves exactly 50/50 (were 
 - Removed the small icon-only `<Logo>` that sat top-left of the text column — the badge on the arch is the logo's one placement on this banner; having it twice was left over from an earlier pass, not something asked for this round.
 - Divider gradient: was a flat `slide.accentColor` fill; now `linear-gradient(to left, ...)` across the bar's own ~25px width (a lighter tint of the accent color on the photo-facing edge fading into the pure accent color on the text-facing edge) rather than the previous top-to-bottom treatment — gives the thin bar a rounded/glossy look instead of reading as a flat rectangle.
 
+### Same-day follow-up: divider readability, and a real hover concept instead of a whole-card lift
+User called out that the divider's white-lightened gradient read as washed out and the bar itself was too fat, clarified they never asked for the whole card to lift on hover, and described what hover *should* do: text in focus at rest, buttons/photo pulling focus on hover instead, plus a smaller badge logo and vertically-centered ("middle left") text.
+
+- Divider: `16–25px` -> `8–12px`, and the gradient no longer lightens toward white (`color-mix(..., white 35%)`) — now stays within the accent color's own richness, pure color on the photo-facing edge fading to a *darkened* shade on the text-facing edge.
+- Removed the whole-card `hover:-translate-y-1`/shadow-boost from the previous entry entirely — replaced with a deliberate focus-shift interaction instead: the eyebrow/title/description/offer-pill block and the footer motto both dim to 70% opacity on hover (text recedes), while the photo zooms in slightly (`scale-105`) and the CTA buttons scale up — buttons and photo are the two things hover is supposed to draw the eye to, not a generic "the whole thing perks up" lift. The decorative dots get a small rightward drift on hover too, per the user's own suggestion.
+- Badge logo: `h-[38%]` of a `w-[12%]` badge -> `h-[32%]` of a `w-[9%]` badge — smaller, as asked.
+- Text column: `justify-between` (spread to the top/bottom of the card) -> `justify-center` (vertically centered as a group, still left-aligned within its own half) — "the text should align in the middle left".
+
 

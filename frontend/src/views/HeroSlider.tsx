@@ -37,7 +37,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   return (
     <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
       <div
-        className={`relative ${aspectClass} isolate w-full overflow-hidden rounded-2xl shadow-[0_35px_70px_rgba(15,40,30,0.35)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_45px_80px_rgba(15,40,30,0.45)]`}
+        className={`group relative ${aspectClass} isolate w-full overflow-hidden rounded-2xl shadow-[0_35px_70px_rgba(15,40,30,0.35)]`}
         onMouseEnter={pause}
         onMouseLeave={resume}
       >
@@ -62,10 +62,14 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               style={{ background: cardTint }}
               aria-hidden={!active}
             >
+              {/* A gentle rightward drift + a richer border on hover — the
+                  one purely decorative thing that's allowed to move when
+                  the rest of the hover treatment below pulls focus toward
+                  the buttons/photo instead of adding to it. */}
               {DOTS.map((dot, dotIdx) => (
                 <span
                   key={dotIdx}
-                  className="absolute z-20 hidden aspect-square rounded-full sm:block"
+                  className="absolute z-20 hidden aspect-square rounded-full transition-all duration-500 ease-out group-hover:translate-x-2 sm:block"
                   style={{
                     width: dot.size,
                     top: dot.top,
@@ -75,31 +79,37 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 />
               ))}
 
-              {/* Two equal halves (content / photo), divided by a thin
-                  ~25px bar exactly on the 50% seam, rounded into a pill so
-                  it still reads as an arch rather than a hard rule.
-                  Gradient runs right-to-left across the bar's own width
-                  (not top-to-bottom) — a lighter tint of the accent color
-                  on the photo-facing edge fading into the pure accent
-                  color on the text-facing edge, for a rounded/glossy look
-                  rather than a flat fill. */}
+              {/* Two equal halves (content / photo), divided by a thin bar
+                  exactly on the 50% seam, rounded into a pill so it still
+                  reads as an arch rather than a hard rule. Was 16-25px
+                  (too fat) with a white-lightened gradient (read as washed
+                  out) — thinner now, and the gradient stays inside the
+                  accent color's own richness (pure color on the
+                  photo-facing edge, darkened on the text-facing edge)
+                  instead of lightening toward white. */}
               <div
                 aria-hidden="true"
-                className="absolute inset-y-0 z-10 w-[16px] rounded-full sm:w-[20px] md:w-[25px]"
+                className="absolute inset-y-0 z-10 w-[8px] rounded-full sm:w-[10px] md:w-[12px]"
                 style={{
                   left: "50%",
                   transform: "translateX(-50%)",
-                  background: `linear-gradient(to left, color-mix(in srgb, ${slide.accentColor}, white 35%), ${slide.accentColor})`,
+                  background: `linear-gradient(to left, ${slide.accentColor}, color-mix(in srgb, ${slide.accentColor}, black 25%))`,
                 }}
               />
 
-              <div className="absolute inset-y-0 right-0 z-0" style={{ left: "50%" }}>
+              {/* Hover's whole point: pull focus toward the photo and the
+                  buttons, not lift the card as a block — a gentle zoom
+                  here is half of that. */}
+              <div
+                className="absolute inset-y-0 right-0 z-0 overflow-hidden"
+                style={{ left: "50%" }}
+              >
                 <Image
                   src={slide.image}
                   alt={slide.title}
                   fill
                   priority={i === 0}
-                  className="object-cover"
+                  className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                 />
               </div>
 
@@ -107,7 +117,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   this banner, always (the offer, when there is one, is a
                   pill in the text column below instead — see there). */}
               <div
-                className="absolute z-20 flex aspect-square w-[12%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 shadow-lg"
+                className="absolute z-20 flex aspect-square w-[9%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 shadow-lg"
                 style={{ left: "50%", top: "50%", background: darkAccent, borderColor: cardTint }}
               >
                 <Image
@@ -115,12 +125,17 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   alt=""
                   width={424}
                   height={291}
-                  className="h-[38%] w-auto"
+                  className="h-[32%] w-auto"
                 />
               </div>
 
-              <div className="relative z-30 flex h-full min-h-0 w-1/2 flex-col justify-between py-[5%] pr-[4%] pl-[7%]">
-                <div className="max-w-full">
+              <div className="relative z-30 flex h-full min-h-0 w-1/2 flex-col justify-center py-[5%] pr-[4%] pl-[7%]">
+                {/* In focus at rest; softens on hover as the photo/buttons
+                    take over as the focus instead — the actual "motive" of
+                    hovering this banner, not a generic card-lift. The CTA
+                    row is deliberately its own block below, outside this
+                    dimming treatment — it gets the opposite, see there. */}
+                <div className="max-w-full transition-opacity duration-300 group-hover:opacity-70">
                   <span
                     className="block text-[clamp(13px,2vw,20px)] text-muted italic"
                     style={{ fontFamily: "var(--font-playfair)" }}
@@ -146,28 +161,32 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                       {formatPromoDiscount(slide.promo)} with code {slide.promo.code}
                     </p>
                   )}
-                  <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                    <span className="hidden h-6 w-[2px] sm:block" style={{ background: darkAccent }} />
+                </div>
+
+                {/* The other half of the hover's focus-shift: buttons pop
+                    slightly forward instead of dimming with the text above
+                    them. */}
+                <div className="mt-3 flex flex-wrap items-center gap-2.5">
+                  <span className="hidden h-6 w-[2px] sm:block" style={{ background: darkAccent }} />
+                  <Link
+                    href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
+                    className="rounded-full px-5 py-2 text-[clamp(10px,1.1vw,13px)] font-semibold text-white transition-transform duration-300 group-hover:scale-105"
+                    style={{ background: darkAccent }}
+                  >
+                    {slide.primaryCta.label}
+                  </Link>
+                  {slide.secondaryCta && (
                     <Link
-                      href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
-                      className="rounded-full px-5 py-2 text-[clamp(10px,1.1vw,13px)] font-semibold text-white"
-                      style={{ background: darkAccent }}
+                      href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
+                      className="text-[clamp(10px,1.1vw,13px)] font-semibold text-foreground underline underline-offset-4 transition-transform duration-300 group-hover:scale-105"
                     >
-                      {slide.primaryCta.label}
+                      {slide.secondaryCta.label}
                     </Link>
-                    {slide.secondaryCta && (
-                      <Link
-                        href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
-                        className="text-[clamp(10px,1.1vw,13px)] font-semibold text-foreground underline underline-offset-4"
-                      >
-                        {slide.secondaryCta.label}
-                      </Link>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 <div
-                  className="flex items-center gap-2 border-t pt-2 text-[clamp(8px,0.9vw,12px)] font-medium text-foreground"
+                  className="flex items-center gap-2 border-t pt-2 text-[clamp(8px,0.9vw,12px)] font-medium text-foreground transition-opacity duration-300 group-hover:opacity-70"
                   style={{ borderColor: `color-mix(in srgb, ${slide.accentColor}, transparent 75%)` }}
                 >
                   <span
