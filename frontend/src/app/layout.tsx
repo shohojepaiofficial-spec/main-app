@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { Providers } from "./providers";
 import { WhatsAppButton } from "@/views/WhatsAppButton";
@@ -15,6 +15,15 @@ const inter = Inter({
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+});
+
+// Italic-only — used for the hero banner's small script-style accent line
+// (HeroSlider.tsx), nowhere else, so no need for the regular (non-italic)
+// weight.
+const playfairDisplay = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  style: ["italic"],
 });
 
 export const metadata: Metadata = {
@@ -53,7 +62,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
+      <body
+        className={`${inter.variable} ${jetbrainsMono.variable} ${playfairDisplay.variable} antialiased`}
+      >
         <Providers>
           {children}
           <WhatsAppButton />

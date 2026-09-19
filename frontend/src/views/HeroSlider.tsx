@@ -2,20 +2,40 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { HeroSlide } from "@/models";
 import { useHeroSlider } from "@/controllers/useHeroSlider";
-import { formatPromoDiscount, withPromoParam } from "@/lib/promo";
+import { withPromoParam } from "@/lib/promo";
+import { formatCurrency } from "@/lib/currency";
+import { Logo } from "@/views/Logo";
+
+// Decorative dots + side line, positioned in the same 1024x585 coordinate
+// space as the arch's own SVG viewBox below (as percentages, so they track
+// it exactly) — cosmetic only, matches the user-supplied reference.
+const DOTS = [
+  { size: "1.6%", top: "9%", left: "34%" },
+  { size: "2.6%", top: "22%", left: "41%" },
+  { size: "1.2%", top: "40%", left: "39%" },
+  { size: "3%", top: "62%", left: "36%" },
+];
+
+// The badge shows this banner's actual offer when it has one (in place of
+// the reference's hardcoded "75% DISCOUNT"), falling back to the logo mark
+// for a banner with no linked promo.
+function badgeOffer(slide: HeroSlide): { big: string; small: string } | null {
+  if (!slide.promo) return null;
+  return slide.promo.discountType === "percentage"
+    ? { big: `${slide.promo.value}%`, small: "OFF" }
+    : { big: formatCurrency(slide.promo.value), small: "OFF" };
+}
 
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const { activeIndex, next, prev, goTo, pause, resume } = useHeroSlider(slides);
 
-  const heightClasses = "h-[420px] md:h-[440px]";
-
   if (slides.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
-        <div className={`${heightClasses} w-full rounded-2xl bg-border animate-pulse`} />
+        <div className="aspect-[1024/585] w-full animate-pulse rounded-2xl bg-border" />
       </div>
     );
   }
@@ -23,104 +43,64 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   return (
     <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
       <div
-        className={`relative ${heightClasses} w-full overflow-hidden rounded-2xl border border-border shadow-sm`}
+        className="relative aspect-[1024/585] w-full overflow-hidden rounded-2xl bg-white shadow-[0_35px_70px_rgba(15,40,30,0.35)]"
         onMouseEnter={pause}
         onMouseLeave={resume}
       >
         {slides.map((slide, i) => {
           const active = i === activeIndex;
+          const offer = badgeOffer(slide);
+          // Every color on the banner derives from this one admin-picked
+          // accentColor — a pale tint for the arch's glow tips, and a
+          // darkened shade standing in for the reference's fixed --dark for
+          // every solid UI element (badge, button, icon, stub line).
+          const paleAccent = `color-mix(in srgb, ${slide.accentColor}, white 78%)`;
+          const darkAccent = `color-mix(in srgb, ${slide.accentColor}, black 45%)`;
+
           return (
             <div
               key={slide.id}
-              className={`absolute inset-0 flex flex-col md:flex-row transition-opacity duration-700 ease-in-out ${
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
                 active ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
               aria-hidden={!active}
             >
-              {/* A solid-color panel beside the photo, not text floating on
-                  top of it — a boxed overlay is the exact "dull, templatey"
-                  look this replaced, so the text needs its own real estate
-                  instead of another translucent box over the image. The
-                  logo lives only in the seam badge below now (not also as a
-                  watermark here) — one intentional placement beats two
-                  competing ones. */}
-              <div
-                className="relative order-2 z-0 flex h-[44%] w-full flex-col justify-center gap-2.5 px-6 py-5 md:order-1 md:h-full md:w-[38%] md:px-9 md:py-8"
-                style={{
-                  background: `linear-gradient(155deg, ${slide.accentColor}, color-mix(in srgb, ${slide.accentColor}, black 35%))`,
-                }}
-              >
-                <span className="relative w-fit rounded-full bg-white/20 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-white">
-                  {slide.eyebrow}
-                </span>
-                <h1 className="relative text-xl leading-tight font-semibold text-white sm:text-2xl md:text-3xl">
-                  {slide.title}
-                </h1>
-                <p className="relative hidden text-sm text-white/85 sm:block">{slide.subtitle}</p>
-                {slide.promo && (
-                  <p className="relative w-fit rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
-                    {formatPromoDiscount(slide.promo)} with code {slide.promo.code}
-                  </p>
-                )}
-                <div className="relative flex flex-wrap items-center gap-3 pt-1">
-                  <Link
-                    href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
-                    className="rounded-md bg-white px-4 py-2 text-sm font-medium hover:bg-white/90"
-                    style={{ color: slide.accentColor }}
-                  >
-                    {slide.primaryCta.label}
-                  </Link>
-                  {slide.secondaryCta && (
-                    <Link
-                      href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
-                      className="rounded-md border border-white/70 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
-                    >
-                      {slide.secondaryCta.label}
-                    </Link>
-                  )}
-                </div>
-                <p className="relative pt-1 text-xs italic text-white/60">
-                  Simple shopping, happier days.
-                </p>
-              </div>
-
-              {/* The "arch": a curved divider bulging from the panel/photo
-                  seam into the photo, blending the site's own green with
-                  this banner's own accent color — replaces the flat panel
-                  fill's dead corner with an actual shape instead of a
-                  second static color block. Starts exactly at the panel's
-                  own right edge (md:w-[38%] above), so it never has to
-                  fight the panel's text for stacking — only the photo's
-                  left edge, which it's meant to sit on top of. */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 left-[38%] z-10 hidden w-24 rounded-r-full md:block lg:w-28"
-                style={{
-                  background: `linear-gradient(160deg, #15914f, ${slide.accentColor})`,
-                }}
+              {DOTS.map((dot, dotIdx) => (
+                <span
+                  key={dotIdx}
+                  className="absolute z-20 hidden aspect-square rounded-full border border-border sm:block"
+                  style={{ width: dot.size, top: dot.top, left: dot.left }}
+                />
+              ))}
+              <span
+                className="absolute z-20 hidden w-[2px] sm:block"
+                style={{ left: "2.5%", top: "62%", bottom: "8%", background: darkAccent }}
               />
 
-              {/* The logo's one placement on this banner — a shaded badge
-                  (radial-gradient in the banner's own accent color, same
-                  "glossy" treatment the reference's discount badge used)
-                  straddling the seam, in place of a discount-percentage
-                  callout this store doesn't run. */}
-              <div
-                className="absolute left-[38%] top-1/2 z-20 hidden h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-lg ring-4 ring-white md:flex lg:h-24 lg:w-24"
-                style={{
-                  background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${slide.accentColor}, white 25%), ${slide.accentColor} 65%, color-mix(in srgb, ${slide.accentColor}, black 30%) 100%)`,
-                }}
+              {/* The arch: a single circle (same technique as the reference
+                  — an SVG circle whose right half is simply painted over by
+                  the photo layer below, rather than any clipping math),
+                  glowing pale-to-vivid-to-pale top-to-bottom in this
+                  banner's own accent color. */}
+              <svg
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+                viewBox="0 0 1024 585"
+                preserveAspectRatio="none"
               >
-                <Image
-                  src="/logo-icon-white.png"
-                  alt=""
-                  width={424}
-                  height={291}
-                  className="h-8 w-auto lg:h-10"
-                />
-              </div>
+                <defs>
+                  <linearGradient id={`arch-${slide.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={paleAccent} />
+                    <stop offset="18%" stopColor={slide.accentColor} />
+                    <stop offset="50%" stopColor={slide.accentColor} />
+                    <stop offset="82%" stopColor={slide.accentColor} />
+                    <stop offset="100%" stopColor={paleAccent} />
+                  </linearGradient>
+                </defs>
+                <circle cx="614" cy="292.5" r="255" fill={`url(#arch-${slide.id})`} />
+              </svg>
 
-              <div className="relative order-1 z-0 h-[56%] w-full md:order-2 md:h-full md:flex-1">
+              <div className="absolute inset-y-0 right-0 z-10" style={{ left: "60%" }}>
                 <Image
                   src={slide.image}
                   alt={slide.title}
@@ -128,42 +108,116 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   priority={i === 0}
                   className="object-cover"
                 />
+              </div>
 
-                {slides.length > 1 && (
+              {/* Sits on the arch's peak, same spot the reference's
+                  "75% DISCOUNT" circle occupied — shows this banner's real
+                  offer instead, or the logo mark when it doesn't have one. */}
+              <div
+                className="absolute z-20 flex aspect-square w-[14%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-[6px] border-white text-center text-white shadow-lg"
+                style={{ left: "60%", top: "50%", background: darkAccent }}
+              >
+                {offer ? (
                   <>
-                    <button
-                      onClick={prev}
-                      aria-label="Previous slide"
-                      className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <button
-                      onClick={next}
-                      aria-label="Next slide"
-                      className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-
-                    <div className="absolute bottom-3 right-3 z-20 flex gap-1.5">
-                      {slides.map((s, dotIndex) => (
-                        <button
-                          key={s.id}
-                          onClick={() => goTo(dotIndex)}
-                          aria-label={`Go to slide ${dotIndex + 1}`}
-                          className={`h-1.5 rounded-full transition-all ${
-                            dotIndex === activeIndex ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/70"
-                          }`}
-                        />
-                      ))}
-                    </div>
+                    <span className="text-[clamp(16px,2.2vw,27px)] leading-tight font-extrabold">
+                      {offer.big}
+                    </span>
+                    <span className="text-[clamp(8px,0.9vw,11px)] font-semibold tracking-wide">
+                      {offer.small}
+                    </span>
                   </>
+                ) : (
+                  <Image
+                    src="/logo-icon-white.png"
+                    alt=""
+                    width={424}
+                    height={291}
+                    className="h-[40%] w-auto"
+                  />
                 )}
+              </div>
+
+              <div className="relative z-30 flex h-full w-[56%] flex-col justify-between py-[6%] pr-0 pl-[8%]">
+                <Logo showWordmark={false} />
+
+                <div className="max-w-[88%]">
+                  <span
+                    className="block text-[clamp(18px,3vw,32px)] text-muted italic"
+                    style={{ fontFamily: "var(--font-playfair)" }}
+                  >
+                    {slide.eyebrow}
+                  </span>
+                  <h1 className="mt-0.5 block text-[clamp(28px,5vw,50px)] leading-none font-extrabold text-foreground">
+                    {slide.title}
+                  </h1>
+                  <p className="mt-3.5 max-w-[260px] text-[clamp(10px,1.1vw,13px)] leading-relaxed text-muted">
+                    {slide.subtitle}
+                  </p>
+                  <div className="mt-5 flex flex-wrap items-center gap-3.5">
+                    <span className="hidden h-8 w-[2px] sm:block" style={{ background: darkAccent }} />
+                    <Link
+                      href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
+                      className="rounded-full px-7 py-3 text-[clamp(11px,1.2vw,14px)] font-semibold text-white"
+                      style={{ background: darkAccent }}
+                    >
+                      {slide.primaryCta.label}
+                    </Link>
+                    {slide.secondaryCta && (
+                      <Link
+                        href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
+                        className="text-[clamp(11px,1.2vw,14px)] font-semibold text-foreground underline underline-offset-4"
+                      >
+                        {slide.secondaryCta.label}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 border-t border-border pt-3.5 text-[clamp(9px,1vw,13px)] font-medium text-foreground">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white"
+                    style={{ background: darkAccent }}
+                  >
+                    <Sparkles size={12} />
+                  </span>
+                  Simple shopping, happier days.
+                </div>
               </div>
             </div>
           );
         })}
+
+        {slides.length > 1 && (
+          <>
+            <button
+              onClick={prev}
+              aria-label="Previous slide"
+              className="absolute top-1/2 left-3 z-40 -translate-y-1/2 rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <button
+              onClick={next}
+              aria-label="Next slide"
+              className="absolute top-1/2 right-3 z-40 -translate-y-1/2 rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
+            >
+              <ChevronRight size={20} />
+            </button>
+
+            <div className="absolute right-3 bottom-3 z-40 flex gap-1.5">
+              {slides.map((s, dotIndex) => (
+                <button
+                  key={s.id}
+                  onClick={() => goTo(dotIndex)}
+                  aria-label={`Go to slide ${dotIndex + 1}`}
+                  className={`h-1.5 rounded-full transition-all ${
+                    dotIndex === activeIndex ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/70"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
