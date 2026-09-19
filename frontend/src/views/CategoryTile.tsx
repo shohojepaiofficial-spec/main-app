@@ -31,10 +31,13 @@ const TILE_GRADIENTS = [
   "linear-gradient(150deg, #56cf8f, #1f9c5a)",
 ];
 
-// The dark panel below the strip — was bg-foreground (a near-black,
-// read as flat "black" rather than on-brand) — now a deep green gradient
-// instead, keeping the whole card in the same green family top to bottom.
-const PANEL_GRADIENT = "linear-gradient(160deg, #163a26, #0a1f13)";
+// The dark panel below the strip has gone through two passes: bg-foreground
+// (read as flat "black") -> an opaque dark-green gradient (still read as
+// too close to black) -> this: a genuinely vibrant, translucent green with
+// backdrop-blur/a light border for an actual glass panel, not just a dark
+// tinted one. Semi-transparent (not solid), so it reads as glass sitting
+// over the page rather than another opaque block.
+const PANEL_GRADIENT = "linear-gradient(160deg, rgba(63,191,127,0.55), rgba(21,145,79,0.6))";
 
 // Best-effort icon per common category name, falling back to a generic tag
 // — categories are free-text (no fixed taxonomy, see productController.ts),
@@ -97,10 +100,12 @@ export function CategoryTile({
 
       {/* Overlaps the strip by 10px (rounded on all corners, unlike the
           strip's top-only rounding) — the same reveal trick, just recolored
-          to the site's own dark foreground tone instead of the reference's
-          navy. */}
+          to the site's own green instead of the reference's navy, and
+          glassmorphic: translucent + blurred backdrop + a thin light border
+          standing in for glass's edge highlight, rather than an opaque
+          fill. */}
       <div
-        className="relative top-[-10px] grid gap-2 rounded-[10px] p-4 text-white"
+        className="relative top-[-10px] grid gap-2 rounded-[10px] border border-white/25 p-4 text-white shadow-lg backdrop-blur-md"
         style={{ background: PANEL_GRADIENT }}
       >
         <div className="flex items-center">
