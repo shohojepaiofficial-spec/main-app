@@ -6,7 +6,6 @@ import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { HeroSlide } from "@/models";
 import { useHeroSlider } from "@/controllers/useHeroSlider";
 import { formatPromoDiscount, withPromoParam } from "@/lib/promo";
-import { Logo } from "@/views/Logo";
 
 // Positioned as percentages of the card, same coordinate space the arch/
 // badge use below (both anchored at the 50% seam) — cosmetic only.
@@ -38,7 +37,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   return (
     <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
       <div
-        className={`relative ${aspectClass} w-full overflow-hidden rounded-2xl shadow-[0_35px_70px_rgba(15,40,30,0.35)]`}
+        className={`relative ${aspectClass} isolate w-full overflow-hidden rounded-2xl shadow-[0_35px_70px_rgba(15,40,30,0.35)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_45px_80px_rgba(15,40,30,0.45)]`}
         onMouseEnter={pause}
         onMouseLeave={resume}
       >
@@ -77,15 +76,21 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               ))}
 
               {/* Two equal halves (content / photo), divided by a thin
-                  solid-color bar exactly on the 50% seam — was a big
-                  255px-radius glowing circle; now a fixed, thin ~25px
-                  divider in the banner's own accentColor as-is (no tint),
-                  rounded into a pill so it still reads as an arch rather
-                  than a hard rule. */}
+                  ~25px bar exactly on the 50% seam, rounded into a pill so
+                  it still reads as an arch rather than a hard rule.
+                  Gradient runs right-to-left across the bar's own width
+                  (not top-to-bottom) — a lighter tint of the accent color
+                  on the photo-facing edge fading into the pure accent
+                  color on the text-facing edge, for a rounded/glossy look
+                  rather than a flat fill. */}
               <div
                 aria-hidden="true"
                 className="absolute inset-y-0 z-10 w-[16px] rounded-full sm:w-[20px] md:w-[25px]"
-                style={{ left: "50%", transform: "translateX(-50%)", background: slide.accentColor }}
+                style={{
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: `linear-gradient(to left, color-mix(in srgb, ${slide.accentColor}, white 35%), ${slide.accentColor})`,
+                }}
               />
 
               <div className="absolute inset-y-0 right-0 z-0" style={{ left: "50%" }}>
@@ -115,8 +120,6 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               </div>
 
               <div className="relative z-30 flex h-full min-h-0 w-1/2 flex-col justify-between py-[5%] pr-[4%] pl-[7%]">
-                <Logo showWordmark={false} />
-
                 <div className="max-w-full">
                   <span
                     className="block text-[clamp(13px,2vw,20px)] text-muted italic"
