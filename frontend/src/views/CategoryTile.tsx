@@ -19,14 +19,13 @@ function hashOf(input: string): number {
 
 // Procedural instead of a fixed palette — every category name gets its own
 // hue (kept inside the site's own green family, ~90-165°) rather than
-// repeating one of a handful of hand-picked pairs. Strip = lighter/vivid
-// (icon layer), panel = deeper/richer (text layer), same hue so the two
-// layers always read as one card instead of two mismatched colors.
+// repeating one of a handful of hand-picked pairs. `glow` is a lighter tint
+// of the same hue for the decorative background rings.
 function themeFor(category: string) {
   const hue = 90 + (hashOf(category) % 75);
   return {
-    strip: `linear-gradient(150deg, hsl(${hue} 72% 54%), hsl(${hue} 70% 40%))`,
-    panel: `linear-gradient(160deg, hsl(${hue} 62% 26%), hsl(${hue} 58% 14%))`,
+    background: `linear-gradient(135deg, hsl(${hue} 55% 58%), hsl(${hue} 62% 40%))`,
+    glow: `hsl(${hue} 70% 80%)`,
   };
 }
 
@@ -108,32 +107,32 @@ export function CategoryTile({
   return (
     <Link
       href={`/shop?category=${encodeURIComponent(category)}`}
-      className={`group relative block overflow-hidden rounded-xl ${className}`}
+      className={`group relative block overflow-hidden rounded-2xl p-5 text-white ${className}`}
+      style={{ background: theme.background }}
     >
-      {/* Back layer: the full card, always — this is what "the whole
-          thing" hovering reveals. Half of it already shows below the strip
-          at rest (the strip only covers the top half), rather than the
-          previous 10px sliver. */}
-      <div
-        className="absolute inset-0 flex flex-col justify-end gap-1 p-4 text-white"
-        style={{ background: theme.panel }}
-      >
-        <p className="truncate text-sm font-medium">{category}</p>
-        <p className="text-2xl leading-none font-medium">{count}</p>
-        <p className="text-xs text-white/70">product{count === 1 ? "" : "s"} in stock</p>
+      {/* Concentric rings behind the icon — subtle depth instead of a flat
+          fill, same idea as the reference's rippled background. */}
+      <span
+        className="pointer-events-none absolute -right-10 -bottom-10 h-36 w-36 rounded-full opacity-[0.14] transition-transform duration-500 ease-out group-hover:scale-110"
+        style={{ background: theme.glow }}
+      />
+      <span
+        className="pointer-events-none absolute -right-4 -bottom-4 h-24 w-24 rounded-full opacity-[0.18] transition-transform duration-500 ease-out group-hover:scale-110"
+        style={{ background: theme.glow }}
+      />
+
+      <div className="relative z-10">
+        <p className="truncate text-lg font-bold">{category}</p>
+        <p className="text-sm text-white/75">
+          {count} product{count === 1 ? "" : "s"}
+        </p>
       </div>
 
-      {/* Front layer: covers the top half at rest, and lifts straight off
-          the card on hover — a curtain pulling back, not a strip creeping
-          further down over the panel's own text (which is what the
-          previous translate-y-down version actually did). */}
-      <div
-        className="absolute inset-x-0 top-0 h-1/2 transition-transform duration-500 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:-translate-y-full"
-        style={{ background: theme.strip }}
-      >
+      <div className="absolute -right-2 -bottom-2 z-10 transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110">
         {createElement(Icon, {
-          size: 24,
-          className: "absolute right-3 top-3 text-white/90",
+          size: 72,
+          strokeWidth: 1.5,
+          className: "text-white drop-shadow-md",
         })}
       </div>
     </Link>

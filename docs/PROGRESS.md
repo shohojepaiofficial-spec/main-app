@@ -596,4 +596,11 @@ User asked how the category icon selection worked (a fixed ~11-pattern keyword l
 - **Color**: replaced the fixed 6-pair `TILE_THEMES` array with `themeFor()` — hashes the category name into a hue (`90-165°`, kept inside the site's green family) and generates the strip/panel gradient procedurally via `hsl()`, so every category gets its own distinct color instead of cycling through 6 repeating options. Kept saturation/lightness high (`~70%`/`~55%` for the strip) per "modern, not too dull" rather than the muted tones from two entries ago.
 - New dependency: `fuse.js` (added to `frontend/package.json`).
 
+## 2026-09-19 (Category card: simplified to a single-gradient card from a user-supplied reference image)
+User supplied `card.png` — a much simpler design than the curtain-reveal two-layer card: one flat gradient card, subtle concentric rings behind a large bottom-right icon, bold category name + a lighter subtitle line top-left. Rebuilt `CategoryTile.tsx` around it, keeping the icon-matching system from the previous entry unchanged (only the strip/panel layout and two-tone theme were replaced).
+
+- `themeFor()` simplified from a `{strip, panel}` pair to one `{background, glow}` — a single diagonal gradient for the whole card (still procedurally hued per category, same green-family range) plus a lighter tint of the same hue for the decorative rings.
+- Dropped the front/back layered-curtain structure entirely — no more hover-reveal mechanic to get wrong. Icon now renders large (72px, thin stroke) bottom-right, bleeding slightly off the corner like the reference's bag illustration, with a small scale/lift on hover instead.
+- Subtitle line changed from `"{count} product(s) in stock"` to `"{count} product(s)"` — closer to the reference's short second line ("Trendy" under "Shopping").
+
 
