@@ -563,4 +563,16 @@ User's framing: the banner should use two colors, "one is selected and the other
 - Decorative dots: bumped from `transparent 55%` to `transparent 35%` (more opaque) — a semi-transparent accent-colored ring needs more presence against a genuinely dark background than it did against the previous light tint.
 - The divider bar, badge fill, buttons, and offer pill all still derive from `accentColor` unchanged — they're the "dynamic" half of the two-color system; only the base flipped.
 
+## 2026-09-19 (Hero banner rebuilt again — "the design just got destroyed" — from a second, more complete reference)
+The two-color blackish/accent pass above landed badly. User supplied a second, considerably more polished reference (a "Sale Hero Banner": ambient glow, angled-cut photo panel, a pulsing CTA-icon ring, Fraunces italic eyebrow, gradient badge/icon accents) and asked to follow it directly rather than iterate further on the previous structure.
+
+- **Font**: swapped `Playfair Display` for `Fraunces` (italic, weight 500 — `next/font/google`, `--font-fraunces`) to match this reference's actual type pairing, same scoped-to-just-the-eyebrow-line approach as before.
+- **Two-color system, rebuilt around this reference's palette**: fixed `INK` (`#12141a`) card background + `CREAM`/`MUTED` fixed text tones (all constants, not from `accentColor`), paired with a dynamic two-stop `grad` gradient built from each banner's own `accentColor` (pure -> lightened via `color-mix`) standing in for the reference's fixed coral-to-amber `--grad` — badge, footer icon, and the CTA-icon circle all use it.
+- **Ambient glow**: a blurred, low-opacity radial gradient in the top-left, using `accentColor` instead of the reference's fixed coral — was entirely absent from every earlier pass, adds real atmosphere.
+- **Angled photo panel**: `clip-path: polygon(9% 0, 100% 0, 100% 100%, 0% 100%)` on the photo layer — a diagonal cut instead of a straight vertical seam. The reference used this same clip-path on a decorative CSS-illustrated sunset (gradients + clip-path "hills"); swapped that illustration for the banner's real photo since this app needs actual uploaded images, not decoration.
+- **Pulsing CTA icon**: added `@keyframes hero-pulse-ring` to `globals.css` (a continuous ambient scale+fade loop, not hover-triggered — Tailwind has no built-in for a custom keyframe like this) behind a smaller solid icon circle. The reference's icon was a generic bag/tag SVG; put the white logo mark there instead, continuing "the logo's one spot on this banner" from recent rounds rather than reverting to no logo at all.
+- **CTA button**: solid-filled -> outlined/ghost (`border-white/30`, transparent background) matching the reference's `.visit-btn` treatment, a real style change from every previous pass.
+- **Split ratio**: `56%` content / `44%` photo (this reference's own numbers), superseding an earlier explicit "must be 50/50" request — given precise code to follow this time, treated the numbers in it as authoritative over a prior verbal spec.
+- Kept from earlier passes (not asked to change, still applicable): the `min-h-[280px]` floor + `isolate` (navbar-overlap fix), the hover focus-shift concept (text dims, photo zooms, buttons/CTA-group scale up on hover), and the offer as a pill in the text column rather than replacing the badge's logo.
+
 

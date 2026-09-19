@@ -2,38 +2,34 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { HeroSlide } from "@/models";
 import { useHeroSlider } from "@/controllers/useHeroSlider";
 import { formatPromoDiscount, withPromoParam } from "@/lib/promo";
 
-// Positioned as percentages of the card, same coordinate space the arch/
-// badge use below (both anchored at the 50% seam) — cosmetic only.
+// Positioned as percentages of the card — cosmetic only.
 const DOTS = [
-  { size: "1.4%", top: "12%", left: "30%" },
-  { size: "2.2%", top: "26%", left: "38%" },
-  { size: "1%", top: "70%", left: "34%" },
+  { size: "14px", top: "13%", left: "30%" },
+  { size: "22px", top: "27%", left: "38%" },
+  { size: "10px", top: "71%", left: "34%" },
 ];
 
-// The banner's two-color system: this fixed dark base (not derived from
-// accentColor — deliberately the *one* constant across every banner) pairs
-// with each banner's own admin-picked accentColor, which does all the
-// "popping" (divider, badge, buttons, offer pill). Was a light accent-tint
-// with dark text; this is the inverse — a blackish base with light text,
-// so the dynamic color actually reads as an accent against something
-// fixed, instead of the whole card swinging with whatever color's picked.
-const CARD_BASE = "#15181c";
+// Fixed dark base (not derived from any banner's accentColor) paired with
+// each banner's own dynamic accent gradient — same two-color system as
+// before, now built around this reference's actual palette instead of a
+// flat dark tone.
+const INK = "#12141a";
+const CREAM = "#f7f3ee";
+const MUTED = "#9aa0ac";
 
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const { activeIndex, next, prev, goTo, pause, resume } = useHeroSlider(slides);
 
-  // Was aspect-[1024/585] (~1.75:1) — read as too tall. Wider ratio, same
-  // technique, shorter result. min-h floors it on narrow phones — the
-  // aspect-ratio alone let the card get so short that the text column's
-  // flex children (which don't shrink below their own content's min size
-  // by default) overflowed past the card's own bounds and up into the
-  // navbar above it.
-  const aspectClass = "aspect-[1024/380] min-h-[280px]";
+  // min-h floors it on narrow phones — aspect-ratio alone let the card get
+  // short enough that the text column's flex children (which don't shrink
+  // below their own content's min size by default) overflowed past the
+  // card and up into the fixed navbar above it.
+  const aspectClass = "aspect-[1200/460] min-h-[280px]";
 
   if (slides.length === 0) {
     return (
@@ -52,11 +48,10 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
       >
         {slides.map((slide, i) => {
           const active = i === activeIndex;
-          // The dynamic half of the two-color system — this banner's own
-          // accentColor, darkened a touch for solid UI elements (badge,
-          // buttons, footer icon) so it holds up as a fill rather than
-          // just a thin line.
-          const darkAccent = `color-mix(in srgb, ${slide.accentColor}, black 45%)`;
+          // The dynamic half of the two-color system: a two-stop gradient
+          // built from this banner's own accentColor (pure -> lightened),
+          // standing in for the reference's fixed coral-to-amber --grad.
+          const grad = `linear-gradient(120deg, ${slide.accentColor}, color-mix(in srgb, ${slide.accentColor}, white 30%))`;
 
           return (
             <div
@@ -64,50 +59,36 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
                 active ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
-              style={{ background: CARD_BASE }}
+              style={{ background: INK }}
               aria-hidden={!active}
             >
-              {/* A gentle rightward drift + a richer border on hover — the
-                  one purely decorative thing that's allowed to move when
-                  the rest of the hover treatment below pulls focus toward
-                  the buttons/photo instead of adding to it. */}
-              {DOTS.map((dot, dotIdx) => (
-                <span
-                  key={dotIdx}
-                  className="absolute z-20 hidden aspect-square rounded-full transition-all duration-500 ease-out group-hover:translate-x-2 sm:block"
-                  style={{
-                    width: dot.size,
-                    top: dot.top,
-                    left: dot.left,
-                    border: `1px solid color-mix(in srgb, ${slide.accentColor}, transparent 35%)`,
-                  }}
-                />
-              ))}
-
-              {/* Two equal halves (content / photo), divided by a thin bar
-                  exactly on the 50% seam, rounded into a pill so it still
-                  reads as an arch rather than a hard rule. Was 16-25px
-                  (too fat) with a white-lightened gradient (read as washed
-                  out) — thinner now, and the gradient stays inside the
-                  accent color's own richness (pure color on the
-                  photo-facing edge, darkened on the text-facing edge)
-                  instead of lightening toward white. */}
+              {/* Soft ambient glow, kept quiet so the CTA icon/buttons stay
+                  the bold moment — this banner's accentColor at low
+                  opacity, not the reference's fixed coral. */}
               <div
                 aria-hidden="true"
-                className="absolute inset-y-0 z-10 w-[8px] rounded-full sm:w-[10px] md:w-[12px]"
+                className="pointer-events-none absolute z-0 aspect-square w-[55%] blur-[10px]"
                 style={{
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  background: `linear-gradient(to left, ${slide.accentColor}, color-mix(in srgb, ${slide.accentColor}, black 25%))`,
+                  top: "-20%",
+                  left: "-10%",
+                  background: `radial-gradient(circle, color-mix(in srgb, ${slide.accentColor}, transparent 78%), transparent 70%)`,
                 }}
               />
 
-              {/* Hover's whole point: pull focus toward the photo and the
-                  buttons, not lift the card as a block — a gentle zoom
-                  here is half of that. */}
+              {DOTS.map((dot, dotIdx) => (
+                <span
+                  key={dotIdx}
+                  className="absolute z-20 hidden rounded-full border border-white/[0.18] transition-transform duration-500 ease-out group-hover:translate-x-2 sm:block"
+                  style={{ width: dot.size, height: dot.size, top: dot.top, left: dot.left }}
+                />
+              ))}
+
+              {/* Angled photo panel — a diagonal cut (clip-path) instead
+                  of a straight seam, replacing the reference's decorative
+                  CSS sunset illustration with the banner's real photo. */}
               <div
-                className="absolute inset-y-0 right-0 z-0 overflow-hidden"
-                style={{ left: "50%" }}
+                className="absolute inset-y-0 right-0 z-10 w-[44%] overflow-hidden"
+                style={{ clipPath: "polygon(9% 0, 100% 0, 100% 100%, 0% 100%)" }}
               >
                 <Image
                   src={slide.image}
@@ -118,78 +99,81 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 />
               </div>
 
-              {/* Sits centered on the divider — the logo's one spot on
-                  this banner, always (the offer, when there is one, is a
-                  pill in the text column below instead — see there). */}
+              {/* A continuous ambient pulse (not hover-triggered) behind a
+                  smaller solid icon circle — the logo's one spot on this
+                  banner, replacing the reference's generic bag icon. */}
               <div
-                className="absolute z-20 flex aspect-square w-[9%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 shadow-lg"
-                style={{ left: "50%", top: "50%", background: darkAccent, borderColor: CARD_BASE }}
+                aria-hidden="true"
+                className="absolute z-30 aspect-square w-[15%] rounded-full opacity-35"
+                style={{
+                  left: "56%",
+                  top: "50%",
+                  background: grad,
+                  animation: "hero-pulse-ring 2.6s ease-in-out infinite",
+                }}
+              />
+              <div
+                className="absolute z-40 flex aspect-square w-[11%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-lg"
+                style={{ left: "56%", top: "50%", background: grad }}
               >
                 <Image
                   src="/logo-icon-white.png"
                   alt=""
                   width={424}
                   height={291}
-                  className="h-[32%] w-auto"
+                  className="h-[46%] w-auto"
                 />
               </div>
 
-              <div className="relative z-30 flex h-full min-h-0 w-1/2 flex-col py-[5%] pr-[4%] pl-[7%]">
-                {/* Centered in the space above the footer — not the full
-                    card height, so the footer's thin line stays pinned to
-                    the bottom instead of drifting up with everything else
-                    when this centers. */}
-                <div className="flex min-h-0 flex-1 flex-col justify-center">
-                  {/* In focus at rest; softens on hover as the photo/
-                      buttons take over as the focus instead — the actual
-                      "motive" of hovering this banner, not a generic
-                      card-lift. The CTA row is deliberately its own block
-                      below, outside this dimming treatment — it gets the
-                      opposite, see there. */}
-                  <div className="max-w-full transition-opacity duration-300 group-hover:opacity-70">
-                    <span
-                      className="block text-[clamp(13px,2vw,20px)] text-white/70 italic"
-                      style={{ fontFamily: "var(--font-playfair)" }}
-                    >
-                      {slide.eyebrow}
-                    </span>
-                    <h1 className="mt-0.5 block text-[clamp(18px,3.4vw,32px)] leading-none font-extrabold text-white">
-                      {slide.title}
-                    </h1>
-                    <p className="mt-2 max-w-[260px] text-[clamp(9px,1vw,12px)] leading-relaxed text-white/60">
-                      {slide.subtitle}
-                    </p>
-                    {/* The offer lives here, left-aligned with the rest of
-                        the text column, instead of as text inside the
-                        middle badge — the badge is the logo's one spot on
-                        this banner now, always, not conditional on
-                        whether there's a promo. */}
-                    {slide.promo && (
-                      <p
-                        className="mt-2 w-fit rounded-full px-3 py-1 text-[clamp(9px,1vw,12px)] font-semibold text-white"
-                        style={{ background: darkAccent }}
+              <div className="relative z-30 flex h-full w-[56%] flex-col justify-between py-[5.5%] pr-[6%] pb-[5%] pl-[7%]">
+                {/* In focus at rest; softens on hover as the photo/buttons
+                    take over as the focus instead. */}
+                <div className="transition-opacity duration-300 group-hover:opacity-70">
+                  <span
+                    className="block text-[clamp(14px,1.5vw,19px)] italic"
+                    style={{ fontFamily: "var(--font-fraunces)", color: `color-mix(in srgb, ${slide.accentColor}, white 20%)` }}
+                  >
+                    {slide.eyebrow}
+                  </span>
+                  <h1
+                    className="mt-1.5 max-w-[9.5em] text-[clamp(26px,3.4vw,44px)] leading-[1.08] font-extrabold"
+                    style={{ color: CREAM }}
+                  >
+                    {slide.title}
+                  </h1>
+                  <p
+                    className="mt-3.5 max-w-[30em] text-[clamp(11px,1.05vw,14px)] leading-relaxed"
+                    style={{ color: MUTED }}
+                  >
+                    {slide.subtitle}
+                  </p>
+                </div>
+
+                <div className="transition-transform duration-300 group-hover:scale-105">
+                  {slide.promo && (
+                    <div className="mb-4 flex flex-wrap items-center gap-4">
+                      <span
+                        className="inline-flex items-center rounded-full px-5 py-2.5 text-[clamp(11px,1.05vw,14px)] font-bold shadow-[0_10px_24px_rgba(255,130,60,0.35)]"
+                        style={{ background: grad, color: "#1a0f08" }}
                       >
                         {formatPromoDiscount(slide.promo)} with code {slide.promo.code}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* The other half of the hover's focus-shift: buttons
-                      pop slightly forward instead of dimming with the
-                      text above them. */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                    <span className="hidden h-6 w-[2px] sm:block" style={{ background: darkAccent }} />
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3.5">
+                    <span className="hidden h-[30px] w-[2px] bg-white/25 sm:block" />
                     <Link
                       href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
-                      className="rounded-full px-5 py-2 text-[clamp(10px,1.1vw,13px)] font-semibold text-white transition-transform duration-300 group-hover:scale-105"
-                      style={{ background: darkAccent }}
+                      className="rounded-full border-[1.5px] border-white/30 px-6 py-2.5 text-[clamp(11px,1.05vw,14px)] font-semibold"
+                      style={{ color: CREAM }}
                     >
                       {slide.primaryCta.label}
                     </Link>
                     {slide.secondaryCta && (
                       <Link
                         href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
-                        className="text-[clamp(10px,1.1vw,13px)] font-semibold text-white underline underline-offset-4 transition-transform duration-300 group-hover:scale-105"
+                        className="text-[clamp(11px,1.05vw,14px)] font-semibold underline underline-offset-4"
+                        style={{ color: CREAM }}
                       >
                         {slide.secondaryCta.label}
                       </Link>
@@ -197,18 +181,11 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   </div>
                 </div>
 
-                {/* Pinned to the bottom, with its thin top line, regardless
-                    of how the block above centers. */}
-                <div
-                  className="flex items-center gap-2 border-t border-white/15 pt-2 text-[clamp(8px,0.9vw,12px)] font-medium text-white/80 transition-opacity duration-300 group-hover:opacity-70"
-                >
-                  <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white"
-                    style={{ background: darkAccent }}
-                  >
-                    <Sparkles size={10} />
+                <div className="flex items-center gap-3 border-t border-white/[0.12] pt-4 transition-opacity duration-300 group-hover:opacity-70">
+                  <span className="h-[22px] w-[22px] shrink-0 rounded-full" style={{ background: grad }} />
+                  <span className="text-[clamp(10px,0.95vw,13px)]" style={{ color: MUTED }}>
+                    Simple shopping, happier days.
                   </span>
-                  Simple shopping, happier days.
                 </div>
               </div>
             </div>
@@ -217,31 +194,24 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
 
         {slides.length > 1 && (
           <>
-            {/* Both together, centered under the photo half — left-3/
-                right-3 used to put the "previous" button over the text
-                column, which is a light background now, so a white
-                translucent button all but disappeared there. */}
-            <div
-              className="absolute bottom-4 z-40 flex -translate-x-1/2 items-center gap-2"
-              style={{ left: "75%" }}
-            >
+            <div className="absolute right-[6%] bottom-[9%] z-40 flex gap-2.5">
               <button
                 onClick={prev}
                 aria-label="Previous slide"
-                className="rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-white/30 bg-black/45 text-white transition-colors hover:bg-white/20"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={14} strokeWidth={2.4} />
               </button>
               <button
                 onClick={next}
                 aria-label="Next slide"
-                className="rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-white/30 bg-black/45 text-white transition-colors hover:bg-white/20"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={14} strokeWidth={2.4} />
               </button>
             </div>
 
-            <div className="absolute right-3 bottom-3 z-40 flex gap-1.5">
+            <div className="absolute right-[5%] bottom-[5%] z-40 flex items-center gap-1.5">
               {slides.map((s, dotIndex) => (
                 <button
                   key={s.id}

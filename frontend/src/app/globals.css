@@ -48,3 +48,20 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* HeroSlider.tsx's CTA-icon pulse ring — a continuous ambient "breathing"
+   glow, not hover-triggered, so it's a plain keyframe here rather than a
+   Tailwind transition utility. Scale+fade together in one animation (not
+   two separate transitions) because the ring needs to already be
+   translate(-50%,-50%)-centered at every frame, not just at rest. */
+@keyframes hero-pulse-ring {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.22);
+    opacity: 0;
+  }
+}
