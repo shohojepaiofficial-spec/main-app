@@ -518,4 +518,14 @@ The arch/badge redesign two entries above landed badly ("ugliest thing i have ev
 - Slider controls (prev/next/dot-indicators) moved from per-slide (duplicated per slide, only the active one mattering) to rendered once outside the slide map — they're identical regardless of which slide is active, and the photo they sit over is always the same rightmost ~40% region across slides.
 - **Verified**: three consecutive fetches of `/` all `200` (no flakiness this time), gradient `<stop>` colors confirmed rendering with each slide's real `accentColor` (not a static value), and both slides' actual titles/motto text present in the output.
 
+### Same-day follow-up: shorter banner, exact 50/50 split, arch simplified to a thin colored divider
+User feedback: banner still too tall, wanted the two halves exactly 50/50 (were content 56% / photo ~40%, arch offset at the seam rather than centered), the arch itself in the plain selected `accentColor` rather than a pale-to-vivid gradient blend, the color's presence extended beyond just the arch/badge ("the whole banner should contain the flavour of the color"), and the arch reframed as a thin ~25px divider rather than the reference's huge 255px-radius circle.
+
+- Height: `aspect-[1024/585]` (~1.75:1) -> `aspect-[1024/380]` (~2.7:1) — meaningfully shorter at the same container width.
+- Split: content `w-1/2` and photo `left: 50%` (was `w-[56%]` / `left: 60%`) — exact halves, both sides now meeting at the same seam the divider sits on.
+- Arch: swapped the SVG circle + gradient entirely for a thin (`16px` mobile / `20px` sm / `25px` md+) `rounded-full` bar centered exactly on the 50% seam, filled with `slide.accentColor` as-is — no blending, matching "the selected color from the dashboard" literally rather than a derived tint.
+- Added `cardTint` (`color-mix(in srgb, accentColor, white 93%)`) as the per-slide card background, replacing flat white — extends the accent color's presence across the whole card (decorative dots and the footer divider now also derive their color from it) rather than confining it to the arch/badge/button.
+- Scaled down font-size `clamp()` values and internal spacing (margins/gaps/padding) roughly proportionally to the height reduction — clamp() tracks viewport width, not container height, so shrinking the aspect ratio without also shrinking these would have caused text overflow in the now-shorter card.
+- Badge shrunk `14%` -> `12%` of card width and its ring color switched from a fixed white to the new `cardTint` (so it blends with the tinted card instead of standing out starkly against a background that's no longer pure white).
+
 

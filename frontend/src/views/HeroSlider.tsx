@@ -9,19 +9,17 @@ import { withPromoParam } from "@/lib/promo";
 import { formatCurrency } from "@/lib/currency";
 import { Logo } from "@/views/Logo";
 
-// Decorative dots + side line, positioned in the same 1024x585 coordinate
-// space as the arch's own SVG viewBox below (as percentages, so they track
-// it exactly) — cosmetic only, matches the user-supplied reference.
+// Positioned as percentages of the card, same coordinate space the arch/
+// badge use below (both anchored at the 50% seam) — cosmetic only.
 const DOTS = [
-  { size: "1.6%", top: "9%", left: "34%" },
-  { size: "2.6%", top: "22%", left: "41%" },
-  { size: "1.2%", top: "40%", left: "39%" },
-  { size: "3%", top: "62%", left: "36%" },
+  { size: "1.4%", top: "12%", left: "30%" },
+  { size: "2.2%", top: "26%", left: "38%" },
+  { size: "1%", top: "70%", left: "34%" },
 ];
 
 // The badge shows this banner's actual offer when it has one (in place of
-// the reference's hardcoded "75% DISCOUNT"), falling back to the logo mark
-// for a banner with no linked promo.
+// a hardcoded discount figure), falling back to the logo mark for a
+// banner with no linked promo.
 function badgeOffer(slide: HeroSlide): { big: string; small: string } | null {
   if (!slide.promo) return null;
   return slide.promo.discountType === "percentage"
@@ -32,10 +30,14 @@ function badgeOffer(slide: HeroSlide): { big: string; small: string } | null {
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const { activeIndex, next, prev, goTo, pause, resume } = useHeroSlider(slides);
 
+  // Was aspect-[1024/585] (~1.75:1) — read as too tall. Wider ratio, same
+  // technique, shorter result.
+  const aspectClass = "aspect-[1024/380]";
+
   if (slides.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
-        <div className="aspect-[1024/585] w-full animate-pulse rounded-2xl bg-border" />
+        <div className={`${aspectClass} w-full animate-pulse rounded-2xl bg-border`} />
       </div>
     );
   }
@@ -43,7 +45,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   return (
     <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
       <div
-        className="relative aspect-[1024/585] w-full overflow-hidden rounded-2xl bg-white shadow-[0_35px_70px_rgba(15,40,30,0.35)]"
+        className={`relative ${aspectClass} w-full overflow-hidden rounded-2xl shadow-[0_35px_70px_rgba(15,40,30,0.35)]`}
         onMouseEnter={pause}
         onMouseLeave={resume}
       >
@@ -51,11 +53,14 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
           const active = i === activeIndex;
           const offer = badgeOffer(slide);
           // Every color on the banner derives from this one admin-picked
-          // accentColor — a pale tint for the arch's glow tips, and a
-          // darkened shade standing in for the reference's fixed --dark for
-          // every solid UI element (badge, button, icon, stub line).
-          const paleAccent = `color-mix(in srgb, ${slide.accentColor}, white 78%)`;
+          // accentColor: the arch itself is the color as-is (not a blend),
+          // darkAccent (darkened) covers every solid UI element (badge,
+          // button, footer icon, dividers), and cardTint washes the card's
+          // own base so the color's presence isn't confined to just those
+          // two spots — "the whole banner should contain the flavour of
+          // the color", not just the arch and badge.
           const darkAccent = `color-mix(in srgb, ${slide.accentColor}, black 45%)`;
+          const cardTint = `color-mix(in srgb, ${slide.accentColor}, white 93%)`;
 
           return (
             <div
@@ -63,44 +68,35 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
                 active ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
+              style={{ background: cardTint }}
               aria-hidden={!active}
             >
               {DOTS.map((dot, dotIdx) => (
                 <span
                   key={dotIdx}
-                  className="absolute z-20 hidden aspect-square rounded-full border border-border sm:block"
-                  style={{ width: dot.size, top: dot.top, left: dot.left }}
+                  className="absolute z-20 hidden aspect-square rounded-full sm:block"
+                  style={{
+                    width: dot.size,
+                    top: dot.top,
+                    left: dot.left,
+                    border: `1px solid color-mix(in srgb, ${slide.accentColor}, transparent 55%)`,
+                  }}
                 />
               ))}
-              <span
-                className="absolute z-20 hidden w-[2px] sm:block"
-                style={{ left: "2.5%", top: "62%", bottom: "8%", background: darkAccent }}
+
+              {/* Two equal halves (content / photo), divided by a thin
+                  solid-color bar exactly on the 50% seam — was a big
+                  255px-radius glowing circle; now a fixed, thin ~25px
+                  divider in the banner's own accentColor as-is (no tint),
+                  rounded into a pill so it still reads as an arch rather
+                  than a hard rule. */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-y-0 z-10 w-[16px] rounded-full sm:w-[20px] md:w-[25px]"
+                style={{ left: "50%", transform: "translateX(-50%)", background: slide.accentColor }}
               />
 
-              {/* The arch: a single circle (same technique as the reference
-                  — an SVG circle whose right half is simply painted over by
-                  the photo layer below, rather than any clipping math),
-                  glowing pale-to-vivid-to-pale top-to-bottom in this
-                  banner's own accent color. */}
-              <svg
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 z-0 h-full w-full"
-                viewBox="0 0 1024 585"
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <linearGradient id={`arch-${slide.id}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={paleAccent} />
-                    <stop offset="18%" stopColor={slide.accentColor} />
-                    <stop offset="50%" stopColor={slide.accentColor} />
-                    <stop offset="82%" stopColor={slide.accentColor} />
-                    <stop offset="100%" stopColor={paleAccent} />
-                  </linearGradient>
-                </defs>
-                <circle cx="614" cy="292.5" r="255" fill={`url(#arch-${slide.id})`} />
-              </svg>
-
-              <div className="absolute inset-y-0 right-0 z-10" style={{ left: "60%" }}>
+              <div className="absolute inset-y-0 right-0 z-0" style={{ left: "50%" }}>
                 <Image
                   src={slide.image}
                   alt={slide.title}
@@ -110,19 +106,18 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 />
               </div>
 
-              {/* Sits on the arch's peak, same spot the reference's
-                  "75% DISCOUNT" circle occupied — shows this banner's real
-                  offer instead, or the logo mark when it doesn't have one. */}
+              {/* Sits centered on the divider — shows this banner's real
+                  offer, or the logo mark when it doesn't have one. */}
               <div
-                className="absolute z-20 flex aspect-square w-[14%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-[6px] border-white text-center text-white shadow-lg"
-                style={{ left: "60%", top: "50%", background: darkAccent }}
+                className="absolute z-20 flex aspect-square w-[12%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-4 text-center text-white shadow-lg"
+                style={{ left: "50%", top: "50%", background: darkAccent, borderColor: cardTint }}
               >
                 {offer ? (
                   <>
-                    <span className="text-[clamp(16px,2.2vw,27px)] leading-tight font-extrabold">
+                    <span className="text-[clamp(14px,2vw,24px)] leading-tight font-extrabold">
                       {offer.big}
                     </span>
-                    <span className="text-[clamp(8px,0.9vw,11px)] font-semibold tracking-wide">
+                    <span className="text-[clamp(7px,0.8vw,10px)] font-semibold tracking-wide">
                       {offer.small}
                     </span>
                   </>
@@ -132,32 +127,32 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                     alt=""
                     width={424}
                     height={291}
-                    className="h-[40%] w-auto"
+                    className="h-[38%] w-auto"
                   />
                 )}
               </div>
 
-              <div className="relative z-30 flex h-full w-[56%] flex-col justify-between py-[6%] pr-0 pl-[8%]">
+              <div className="relative z-30 flex h-full w-1/2 flex-col justify-between py-[5%] pr-[4%] pl-[7%]">
                 <Logo showWordmark={false} />
 
-                <div className="max-w-[88%]">
+                <div className="max-w-full">
                   <span
-                    className="block text-[clamp(18px,3vw,32px)] text-muted italic"
+                    className="block text-[clamp(13px,2vw,20px)] text-muted italic"
                     style={{ fontFamily: "var(--font-playfair)" }}
                   >
                     {slide.eyebrow}
                   </span>
-                  <h1 className="mt-0.5 block text-[clamp(28px,5vw,50px)] leading-none font-extrabold text-foreground">
+                  <h1 className="mt-0.5 block text-[clamp(18px,3.4vw,32px)] leading-none font-extrabold text-foreground">
                     {slide.title}
                   </h1>
-                  <p className="mt-3.5 max-w-[260px] text-[clamp(10px,1.1vw,13px)] leading-relaxed text-muted">
+                  <p className="mt-2 max-w-[260px] text-[clamp(9px,1vw,12px)] leading-relaxed text-muted">
                     {slide.subtitle}
                   </p>
-                  <div className="mt-5 flex flex-wrap items-center gap-3.5">
-                    <span className="hidden h-8 w-[2px] sm:block" style={{ background: darkAccent }} />
+                  <div className="mt-3 flex flex-wrap items-center gap-2.5">
+                    <span className="hidden h-6 w-[2px] sm:block" style={{ background: darkAccent }} />
                     <Link
                       href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
-                      className="rounded-full px-7 py-3 text-[clamp(11px,1.2vw,14px)] font-semibold text-white"
+                      className="rounded-full px-5 py-2 text-[clamp(10px,1.1vw,13px)] font-semibold text-white"
                       style={{ background: darkAccent }}
                     >
                       {slide.primaryCta.label}
@@ -165,7 +160,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                     {slide.secondaryCta && (
                       <Link
                         href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
-                        className="text-[clamp(11px,1.2vw,14px)] font-semibold text-foreground underline underline-offset-4"
+                        className="text-[clamp(10px,1.1vw,13px)] font-semibold text-foreground underline underline-offset-4"
                       >
                         {slide.secondaryCta.label}
                       </Link>
@@ -173,12 +168,15 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 border-t border-border pt-3.5 text-[clamp(9px,1vw,13px)] font-medium text-foreground">
+                <div
+                  className="flex items-center gap-2 border-t pt-2 text-[clamp(8px,0.9vw,12px)] font-medium text-foreground"
+                  style={{ borderColor: `color-mix(in srgb, ${slide.accentColor}, transparent 75%)` }}
+                >
                   <span
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white"
                     style={{ background: darkAccent }}
                   >
-                    <Sparkles size={12} />
+                    <Sparkles size={10} />
                   </span>
                   Simple shopping, happier days.
                 </div>
