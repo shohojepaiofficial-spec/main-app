@@ -5,8 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { HeroSlide } from "@/models";
 import { useHeroSlider } from "@/controllers/useHeroSlider";
-import { withPromoParam } from "@/lib/promo";
-import { formatCurrency } from "@/lib/currency";
+import { formatPromoDiscount, withPromoParam } from "@/lib/promo";
 import { Logo } from "@/views/Logo";
 
 // Positioned as percentages of the card, same coordinate space the arch/
@@ -17,22 +16,16 @@ const DOTS = [
   { size: "1%", top: "70%", left: "34%" },
 ];
 
-// The badge shows this banner's actual offer when it has one (in place of
-// a hardcoded discount figure), falling back to the logo mark for a
-// banner with no linked promo.
-function badgeOffer(slide: HeroSlide): { big: string; small: string } | null {
-  if (!slide.promo) return null;
-  return slide.promo.discountType === "percentage"
-    ? { big: `${slide.promo.value}%`, small: "OFF" }
-    : { big: formatCurrency(slide.promo.value), small: "OFF" };
-}
-
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const { activeIndex, next, prev, goTo, pause, resume } = useHeroSlider(slides);
 
   // Was aspect-[1024/585] (~1.75:1) — read as too tall. Wider ratio, same
-  // technique, shorter result.
-  const aspectClass = "aspect-[1024/380]";
+  // technique, shorter result. min-h floors it on narrow phones — the
+  // aspect-ratio alone let the card get so short that the text column's
+  // flex children (which don't shrink below their own content's min size
+  // by default) overflowed past the card's own bounds and up into the
+  // navbar above it.
+  const aspectClass = "aspect-[1024/380] min-h-[280px]";
 
   if (slides.length === 0) {
     return (
@@ -51,7 +44,6 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
       >
         {slides.map((slide, i) => {
           const active = i === activeIndex;
-          const offer = badgeOffer(slide);
           // Every color on the banner derives from this one admin-picked
           // accentColor: the arch itself is the color as-is (not a blend),
           // darkAccent (darkened) covers every solid UI element (badge,
@@ -106,33 +98,23 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 />
               </div>
 
-              {/* Sits centered on the divider — shows this banner's real
-                  offer, or the logo mark when it doesn't have one. */}
+              {/* Sits centered on the divider — the logo's one spot on
+                  this banner, always (the offer, when there is one, is a
+                  pill in the text column below instead — see there). */}
               <div
-                className="absolute z-20 flex aspect-square w-[12%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-4 text-center text-white shadow-lg"
+                className="absolute z-20 flex aspect-square w-[12%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 shadow-lg"
                 style={{ left: "50%", top: "50%", background: darkAccent, borderColor: cardTint }}
               >
-                {offer ? (
-                  <>
-                    <span className="text-[clamp(14px,2vw,24px)] leading-tight font-extrabold">
-                      {offer.big}
-                    </span>
-                    <span className="text-[clamp(7px,0.8vw,10px)] font-semibold tracking-wide">
-                      {offer.small}
-                    </span>
-                  </>
-                ) : (
-                  <Image
-                    src="/logo-icon-white.png"
-                    alt=""
-                    width={424}
-                    height={291}
-                    className="h-[38%] w-auto"
-                  />
-                )}
+                <Image
+                  src="/logo-icon-white.png"
+                  alt=""
+                  width={424}
+                  height={291}
+                  className="h-[38%] w-auto"
+                />
               </div>
 
-              <div className="relative z-30 flex h-full w-1/2 flex-col justify-between py-[5%] pr-[4%] pl-[7%]">
+              <div className="relative z-30 flex h-full min-h-0 w-1/2 flex-col justify-between py-[5%] pr-[4%] pl-[7%]">
                 <Logo showWordmark={false} />
 
                 <div className="max-w-full">
@@ -148,6 +130,19 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   <p className="mt-2 max-w-[260px] text-[clamp(9px,1vw,12px)] leading-relaxed text-muted">
                     {slide.subtitle}
                   </p>
+                  {/* The offer lives here, left-aligned with the rest of
+                      the text column, instead of as text inside the middle
+                      badge — the badge is the logo's one spot on this
+                      banner now, always, not conditional on whether there's
+                      a promo. */}
+                  {slide.promo && (
+                    <p
+                      className="mt-2 w-fit rounded-full px-3 py-1 text-[clamp(9px,1vw,12px)] font-semibold text-white"
+                      style={{ background: darkAccent }}
+                    >
+                      {formatPromoDiscount(slide.promo)} with code {slide.promo.code}
+                    </p>
+                  )}
                   <div className="mt-3 flex flex-wrap items-center gap-2.5">
                     <span className="hidden h-6 w-[2px] sm:block" style={{ background: darkAccent }} />
                     <Link
@@ -187,20 +182,29 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
 
         {slides.length > 1 && (
           <>
-            <button
-              onClick={prev}
-              aria-label="Previous slide"
-              className="absolute top-1/2 left-3 z-40 -translate-y-1/2 rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
+            {/* Both together, centered under the photo half — left-3/
+                right-3 used to put the "previous" button over the text
+                column, which is a light background now, so a white
+                translucent button all but disappeared there. */}
+            <div
+              className="absolute bottom-4 z-40 flex -translate-x-1/2 items-center gap-2"
+              style={{ left: "75%" }}
             >
-              <ChevronLeft size={20} />
-            </button>
-            <button
-              onClick={next}
-              aria-label="Next slide"
-              className="absolute top-1/2 right-3 z-40 -translate-y-1/2 rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
-            >
-              <ChevronRight size={20} />
-            </button>
+              <button
+                onClick={prev}
+                aria-label="Previous slide"
+                className="rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={next}
+                aria-label="Next slide"
+                className="rounded-full bg-white/25 p-2 text-white backdrop-blur-sm hover:bg-white/40"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
 
             <div className="absolute right-3 bottom-3 z-40 flex gap-1.5">
               {slides.map((s, dotIndex) => (
