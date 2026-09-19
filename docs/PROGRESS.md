@@ -583,4 +583,8 @@ User: "the behind panel of each card get behind when hovered" + wanted the panel
 - **Color coordination**: replaced the single fixed `PANEL_GRADIENT` (one dark green, paired with six *differently*-hued strip gradients) with `TILE_THEMES` — six `{strip, panel}` pairs, each panel a darker variant of its own strip's exact hue, indexed by the same per-category hash so a card's two layers are always color-coordinated instead of an arbitrary fixed color sitting under six different tile colors.
 - Dropped the glassmorphic treatment (`backdrop-blur-md`, translucent `rgba()` panel, `border-white/25`) from two entries ago — solid color now that the panel is a full, permanent layer rather than a thin translucent sliver; the blur read as part of "the color doesn't feel good" alongside the hue mismatch.
 
+### Same-day: confirmed category count semantics, fixed stale banner image guidance
+- Confirmed (no code change needed) that `getProductCategories`'s `count: { $sum: 1 }` is exactly "how many distinct Product documents exist in that category" — not stock quantity, not variants — matching what the user expected the card's number to mean.
+- **`BannerFormModal.tsx`'s image hint was stale**: said "wide landscape image (1600×900 or larger)", left over from before this session's several hero redesigns. The current `HeroSlider.tsx` photo panel is `44%` of the banner's width at the banner's full height (`aspect-[1200/460]`) — computed out, that's `528:460`, roughly **6:5, nearly square** — not remotely a 16:9 landscape. Updated the hint to the real ratio (`~1200×1000`) and explained why, so an admin uploading a wide landscape photo doesn't get a much tighter crop than they expected.
+
 

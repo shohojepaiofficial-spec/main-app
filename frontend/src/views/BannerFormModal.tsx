@@ -277,7 +277,11 @@ function BannerForm({ editingBanner, promoCodes, onSaved, onClose }: BannerFormP
           onChange={(e) => setImage(e.target.files?.[0] ?? null)}
           className="mt-2 text-sm"
         />
-        <p className="text-xs text-muted mt-1">Recommended: wide landscape image (1600×900 or larger).</p>
+        <p className="text-xs text-muted mt-1">
+          Recommended: near-square, about 6:5 (e.g. 1200×1000 or larger) — the photo fills an
+          angled ~44%-width panel on the banner, not the full width, so a wide 16:9 landscape gets
+          cropped tighter than expected.
+        </p>
       </div>
 
       <button
