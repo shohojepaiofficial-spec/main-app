@@ -553,4 +553,14 @@ The previous `justify-center` change centered *everything*, including the footer
 - Restructured the text column into two pieces: a `flex-1 justify-center` wrapper around the headline block + CTA row (centers within the space *above* the footer, not the full column), and the footer as a separate sibling after it — since the wrapper claims all available space via `flex-1`, the footer naturally lands at the very bottom regardless of how the block above it centers.
 - Card shadow: `0 35px 70px rgba(15,40,30,0.35)` -> `0 10px 25px rgba(15,40,30,0.15)` — read as too elevated compared to every other card on the site (`ProductCard`/`CategoryTile` use much subtler shadows).
 
+### Same-day follow-up: two-color system — a fixed "blackish" base + the dynamic accent
+User's framing: the banner should use two colors, "one is selected and the other is dynamic" — a constant dark tone across every banner, paired with each banner's own admin-picked `accentColor` doing the accenting. Previously *everything* (card background included, via `cardTint`) derived from `accentColor`, so the whole card's mood swung with whatever color was picked rather than the color reading as an accent against something fixed.
+
+- Added `CARD_BASE = "#15181c"` — a fixed dark tone, not derived from any banner's `accentColor`, now the per-slide background (was `cardTint`, a light accent-tinted wash).
+- Flipped every text color from dark-on-light to light-on-dark to match: eyebrow/subtitle/footer text -> `white/70`, `white/60`, `white/80`; title and the secondary CTA -> plain `white`.
+- Footer's top divider line: was accent-color-derived (`color-mix(..., transparent 75%)`); now a neutral `border-white/15`, since it's a plain structural divider, not one of the banner's accent elements.
+- Badge's ring color: was `cardTint`; now `CARD_BASE` — blends seamlessly into the card on the text-column side, reads as a subtle dark separation ring on the photo side.
+- Decorative dots: bumped from `transparent 55%` to `transparent 35%` (more opaque) — a semi-transparent accent-colored ring needs more presence against a genuinely dark background than it did against the previous light tint.
+- The divider bar, badge fill, buttons, and offer pill all still derive from `accentColor` unchanged — they're the "dynamic" half of the two-color system; only the base flipped.
+
 

@@ -15,6 +15,15 @@ const DOTS = [
   { size: "1%", top: "70%", left: "34%" },
 ];
 
+// The banner's two-color system: this fixed dark base (not derived from
+// accentColor — deliberately the *one* constant across every banner) pairs
+// with each banner's own admin-picked accentColor, which does all the
+// "popping" (divider, badge, buttons, offer pill). Was a light accent-tint
+// with dark text; this is the inverse — a blackish base with light text,
+// so the dynamic color actually reads as an accent against something
+// fixed, instead of the whole card swinging with whatever color's picked.
+const CARD_BASE = "#15181c";
+
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const { activeIndex, next, prev, goTo, pause, resume } = useHeroSlider(slides);
 
@@ -43,15 +52,11 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
       >
         {slides.map((slide, i) => {
           const active = i === activeIndex;
-          // Every color on the banner derives from this one admin-picked
-          // accentColor: the arch itself is the color as-is (not a blend),
-          // darkAccent (darkened) covers every solid UI element (badge,
-          // button, footer icon, dividers), and cardTint washes the card's
-          // own base so the color's presence isn't confined to just those
-          // two spots — "the whole banner should contain the flavour of
-          // the color", not just the arch and badge.
+          // The dynamic half of the two-color system — this banner's own
+          // accentColor, darkened a touch for solid UI elements (badge,
+          // buttons, footer icon) so it holds up as a fill rather than
+          // just a thin line.
           const darkAccent = `color-mix(in srgb, ${slide.accentColor}, black 45%)`;
-          const cardTint = `color-mix(in srgb, ${slide.accentColor}, white 93%)`;
 
           return (
             <div
@@ -59,7 +64,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
                 active ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
-              style={{ background: cardTint }}
+              style={{ background: CARD_BASE }}
               aria-hidden={!active}
             >
               {/* A gentle rightward drift + a richer border on hover — the
@@ -74,7 +79,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                     width: dot.size,
                     top: dot.top,
                     left: dot.left,
-                    border: `1px solid color-mix(in srgb, ${slide.accentColor}, transparent 55%)`,
+                    border: `1px solid color-mix(in srgb, ${slide.accentColor}, transparent 35%)`,
                   }}
                 />
               ))}
@@ -118,7 +123,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   pill in the text column below instead — see there). */}
               <div
                 className="absolute z-20 flex aspect-square w-[9%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 shadow-lg"
-                style={{ left: "50%", top: "50%", background: darkAccent, borderColor: cardTint }}
+                style={{ left: "50%", top: "50%", background: darkAccent, borderColor: CARD_BASE }}
               >
                 <Image
                   src="/logo-icon-white.png"
@@ -143,15 +148,15 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                       opposite, see there. */}
                   <div className="max-w-full transition-opacity duration-300 group-hover:opacity-70">
                     <span
-                      className="block text-[clamp(13px,2vw,20px)] text-muted italic"
+                      className="block text-[clamp(13px,2vw,20px)] text-white/70 italic"
                       style={{ fontFamily: "var(--font-playfair)" }}
                     >
                       {slide.eyebrow}
                     </span>
-                    <h1 className="mt-0.5 block text-[clamp(18px,3.4vw,32px)] leading-none font-extrabold text-foreground">
+                    <h1 className="mt-0.5 block text-[clamp(18px,3.4vw,32px)] leading-none font-extrabold text-white">
                       {slide.title}
                     </h1>
-                    <p className="mt-2 max-w-[260px] text-[clamp(9px,1vw,12px)] leading-relaxed text-muted">
+                    <p className="mt-2 max-w-[260px] text-[clamp(9px,1vw,12px)] leading-relaxed text-white/60">
                       {slide.subtitle}
                     </p>
                     {/* The offer lives here, left-aligned with the rest of
@@ -184,7 +189,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                     {slide.secondaryCta && (
                       <Link
                         href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
-                        className="text-[clamp(10px,1.1vw,13px)] font-semibold text-foreground underline underline-offset-4 transition-transform duration-300 group-hover:scale-105"
+                        className="text-[clamp(10px,1.1vw,13px)] font-semibold text-white underline underline-offset-4 transition-transform duration-300 group-hover:scale-105"
                       >
                         {slide.secondaryCta.label}
                       </Link>
@@ -195,8 +200,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 {/* Pinned to the bottom, with its thin top line, regardless
                     of how the block above centers. */}
                 <div
-                  className="flex items-center gap-2 border-t pt-2 text-[clamp(8px,0.9vw,12px)] font-medium text-foreground transition-opacity duration-300 group-hover:opacity-70"
-                  style={{ borderColor: `color-mix(in srgb, ${slide.accentColor}, transparent 75%)` }}
+                  className="flex items-center gap-2 border-t border-white/15 pt-2 text-[clamp(8px,0.9vw,12px)] font-medium text-white/80 transition-opacity duration-300 group-hover:opacity-70"
                 >
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white"
