@@ -42,10 +42,17 @@ async function sendVerificationEmail(user: InstanceType<typeof User>) {
   await user.save();
 
   const link = `${CLIENT_URL}/verify-email?token=${raw}`;
+  // Real prose around a single, non-duplicated link — an HTML-only email
+  // whose body is mostly a bare URL (repeated as both the href and the
+  // visible link text, as this used to do) reads as spam to a lot of
+  // receiving mail servers and can get the whole message bounced outright,
+  // not just filtered. See the `text` fallback part too, added for the
+  // same reason.
   return sendEmail({
     to: user.email,
-    subject: "Verify your email",
-    html: `<p>Hi ${user.name},</p><p>Please confirm your email address:</p><p><a href="${link}">${link}</a></p><p>This link expires in 24 hours.</p>`,
+    subject: "Confirm your email address for Shohoje Pai",
+    html: `<p>Hi ${user.name},</p><p>Thanks for creating an account with Shohoje Pai. Before you can sign in, we just need to confirm this is really your email address.</p><p><a href="${link}" style="display:inline-block;background:#15914f;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">Confirm my email address</a></p><p>This link stays valid for the next 24 hours. If the button above doesn't work, copy this address into your browser: ${link}</p><p>If you didn't create this account, you can safely ignore this email.</p>`,
+    text: `Hi ${user.name},\n\nThanks for creating an account with Shohoje Pai. Before you can sign in, we just need to confirm this is really your email address.\n\nConfirm it here (valid for the next 24 hours):\n${link}\n\nIf you didn't create this account, you can safely ignore this email.`,
   });
 }
 
@@ -245,8 +252,9 @@ export const oauthSync = async (req: Request, res: Response) => {
 
     sendEmail({
       to: user.email,
-      subject: "Welcome to our store",
-      html: `<p>Hi ${user.name}, thanks for signing up!</p>`,
+      subject: "Welcome to Shohoje Pai",
+      html: `<p>Hi ${user.name}, thanks for signing up with Shohoje Pai!</p>`,
+      text: `Hi ${user.name}, thanks for signing up with Shohoje Pai!`,
     }).catch((err) => console.error("Welcome email failed:", err.message));
   } else {
     let changed = false;
@@ -339,8 +347,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
   const link = `${CLIENT_URL}/reset-password?token=${raw}`;
   sendEmail({
     to: user.email,
-    subject: "Reset your password",
-    html: `<p>Hi ${user.name},</p><p>Click below to choose a new password:</p><p><a href="${link}">${link}</a></p><p>This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>`,
+    subject: "Reset your Shohoje Pai password",
+    html: `<p>Hi ${user.name},</p><p>We received a request to reset the password on your Shohoje Pai account.</p><p><a href="${link}" style="display:inline-block;background:#15914f;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">Choose a new password</a></p><p>This link stays valid for the next hour. If the button above doesn't work, copy this address into your browser: ${link}</p><p>If you didn't request this, you can safely ignore this email — your password won't be changed.</p>`,
+    text: `Hi ${user.name},\n\nWe received a request to reset the password on your Shohoje Pai account.\n\nChoose a new password here (valid for the next hour):\n${link}\n\nIf you didn't request this, you can safely ignore this email — your password won't be changed.`,
   }).catch((err) => console.error("Password reset email failed:", err.message));
 
   res.json(genericResponse);

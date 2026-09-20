@@ -4,9 +4,15 @@ interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
+  // A plain-text alternative — nodemailer sends it as the multipart/text
+  // part alongside `html`. An HTML-only email (no text part at all) is one
+  // of the classic recipient-side spam heuristics; every call site that
+  // sends to a real customer (rather than just the store owner) should pass
+  // one rather than let this fall back to HTML-only.
+  text?: string;
 }
 
-export const sendEmail = async ({ to, subject, html }: SendEmailOptions): Promise<void> => {
+export const sendEmail = async ({ to, subject, html, text }: SendEmailOptions): Promise<void> => {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT) || 587,
@@ -22,5 +28,6 @@ export const sendEmail = async ({ to, subject, html }: SendEmailOptions): Promis
     to,
     subject,
     html,
+    ...(text ? { text } : {}),
   });
 };
