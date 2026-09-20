@@ -603,4 +603,11 @@ User supplied `card.png` — a much simpler design than the curtain-reveal two-l
 - Dropped the front/back layered-curtain structure entirely — no more hover-reveal mechanic to get wrong. Icon now renders large (72px, thin stroke) bottom-right, bleeding slightly off the corner like the reference's bag illustration, with a small scale/lift on hover instead.
 - Subtitle line changed from `"{count} product(s) in stock"` to `"{count} product(s)"` — closer to the reference's short second line ("Trendy" under "Shopping").
 
+## 2026-09-20 (SMTP email finished — the last blank field, verified live)
+Returned to `docs/REMAINING_WORK.md`'s item 1.1. `server/.env` already had `SMTP_HOST` (`mail.privateemail.com`, Namecheap Private Email), `SMTP_PORT` (465), `SMTP_USER`/`SMTP_FROM` (`hello@shohojepai.com`) filled in from the earlier domain/mailbox setup — only `SMTP_PASS` was ever blank. User added it directly to `.env` themselves rather than pasting it into chat.
+
+- Confirmed the code side (`utils/sendEmail.ts` + every call site — `authController.ts`'s verify-email/welcome/password-reset, `contactController.ts`, `campaignController.ts`) needed zero changes — all already fire-and-forget with `.catch(err => console.error(...))`, exactly the "never let a down SMTP server break the request that triggered it" pattern from when this was built.
+- **Verified with a real send**, not just checking the env var was non-empty: a temporary script called `sendEmail()` directly with the real `.env` loaded, sending to the mailbox's own address (`hello@shohojepai.com`) — got back a genuine success from the SMTP server, confirming the password is actually correct and the connection/auth work end-to-end, not just that a value exists. Removed the script after.
+- Updated `docs/REMAINING_WORK.md`: moved 1.1 from "Still open" to "Already finished", and corrected a stale line under 3.6 that still said Cloudinary credentials were "deliberately left blank" — they were added and fixed on 2026-09-18/19 (see those dates' entries above) but the tracking doc was never updated to reflect it.
+
 

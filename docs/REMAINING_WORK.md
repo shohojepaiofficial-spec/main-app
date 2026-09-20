@@ -6,7 +6,7 @@ collapsed to one line each below (full detail, including how each was
 verified, lives in `docs/PROGRESS.md`'s dated entries) so this file stays
 focused on what's actually still open.
 
-Last updated: 2026-09-15.
+Last updated: 2026-09-20.
 
 ---
 
@@ -16,14 +16,6 @@ Last updated: 2026-09-15.
 
 Nothing downstream fully works until these exist, no matter how much other
 code gets written.
-
-**1.1 — SMTP email isn't configured** (`server/.env`'s `SMTP_*` are blank).
-Email verification, password reset, contact-form notifications, and the
-marketing campaign system are all fully coded but silently do nothing right
-now — every send just fails quietly (by design, so it doesn't break the
-request that triggered it) and no email ever arrives. Needs a real SMTP
-provider (Gmail app password, SendGrid, Mailgun, etc.) and its credentials
-pasted into `server/.env`.
 
 **1.3 — Payment is Cash-on-Delivery only.** bKash/Nagad/Card show as "Coming
 soon" in the checkout UI but nothing behind them actually charges anyone.
@@ -111,7 +103,8 @@ the full design and how it was verified live.
 - ✅ **2.5** — Google sign-in fully working end-to-end in production (`AUTH_GOOGLE_ID/SECRET` set, OAuth consent screen configured, `oauth-sync` verified live). Facebook sign-in still has blank `AUTH_FACEBOOK_ID/SECRET` — not done.
 - ✅ **3.4** — Error monitoring (`utils/errorMonitoring.ts`), reports to Sentry once `SENTRY_DSN` is set (still blank).
 - ✅ **3.5** — Process-crash handling (`uncaughtException`/`unhandledRejection`) paired with a PM2 `ecosystem.config.js` for auto-restart on a self-managed host.
-- ✅ **3.6** — Image uploads are Cloudinary-ready (`utils/cloudinary.ts` + `storeUploadedFile()`), but credentials are deliberately left blank per your request — uploads keep working locally until you add them.
+- ✅ **3.6** — Image uploads on Cloudinary, fully live in production (`utils/cloudinary.ts` + `storeUploadedFile()`) — credentials added 2026-09-18, plus two real bugs found and fixed the same week (a tsx/esbuild-specific config-timing bug, and a frontend `FileList`-cleared-before-read bug that silently dropped every selected file). See `docs/PROGRESS.md`'s 2026-09-18/19 entries.
+- ✅ **1.1** — SMTP email is live (Namecheap Private Email, `mail.privateemail.com`) — verification, password reset, contact-form notifications, and campaign emails all send for real now. `SMTP_PASS` (the one blank field) added and verified 2026-09-20 with a real test send.
 - ✅ **4.1** — Review "verified purchase" badge + admin moderation (delete) via a new `reviews:manage` permission.
 - ✅ **4.2** — Wishlist "Move all to cart" (a real move, not a copy).
 - ✅ **4.3** — Category matching/grouping is now case-insensitive ("Shoes" and "shoes" merge).
