@@ -20,6 +20,22 @@ import { notFound, errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 
+// Railway (and effectively every PaaS host) sits the app behind exactly one
+// reverse proxy, which adds an `X-Forwarded-For` header for the real client
+// IP. Express doesn't trust that header at all by default, and without this,
+// express-rate-limit's own safety check (added to stop a real spoofing risk:
+// blindly trusting X-Forwarded-For with no trust-proxy setting lets a client
+// fake its rate-limit key) throws `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` on
+// every request through a rate-limited route (confirmed live in Railway's
+// logs — every contact-form/auth-endpoint hit was logging this). Worth
+// fixing regardless of what else turns out to be wrong, since it also means
+// rate limiting itself wasn't working correctly (every request was likely
+// being keyed on the same fallback value instead of the real per-client IP).
+// `1` (not `true`) trusts exactly one hop, matching Railway's actual
+// topology, rather than trusting an arbitrarily long chain a client could
+// forge additional entries onto.
+app.set("trust proxy", 1);
+
 // `contentSecurityPolicy: false` — this is a JSON API plus a static
 // /uploads folder, not an HTML-serving app, so a CSP tuned for pages isn't
 // meaningful here and risks blocking something unexpectedly. `crossOriginResourcePolicy`
