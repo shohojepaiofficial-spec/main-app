@@ -618,4 +618,11 @@ User re-tested through the actual app (not just the isolated script) — submitt
 - **Fixed regardless**: added `app.set("trust proxy", 1)` (trusts exactly one hop, matching Railway's real topology — not `true`, which would trust an arbitrary chain a client could forge). Correct either way, since it also means rate limiting wasn't keying requests by the real per-client IP before this.
 - **Verified after deploying the fix**: pushed, waited for Railway to redeploy, submitted another real contact-form test to production with a timestamped subject line — user confirmed the email arrived this time.
 
+## 2026-09-20 (Real contact info: item 1.4)
+`frontend/src/lib/contact.ts` (the single source every contact-info display reads from — Navbar, Footer, `WhatsAppButton`, `/contact`) had placeholder phone/address; `CONTACT_EMAIL` there and `server/.env`'s `CONTACT_EMAIL` were already real (`hello@shohojepai.com`, set during the SMTP/domain work), so only phone and address needed filling in.
+
+- `CONTACT_PHONE_DISPLAY` -> `+880 1700-502013`, `CONTACT_PHONE_TEL` -> `+8801700502013` (the `tel:` link format), `WHATSAPP_NUMBER` -> `8801700502013` (digits only, no `+`, what `wa.me` links expect), `CONTACT_ADDRESS` -> `55/56 Niloy, Chouhatta, Sylhet`.
+- Grepped the repo for the old placeholder strings (`000-0000`, `123 Market St`, the placeholder digit-only number) to confirm nothing else hardcoded them outside this one file — clean.
+- Updated `docs/REMAINING_WORK.md`: 1.4 moved from "Still open" to "Already finished".
+
 
