@@ -289,12 +289,13 @@ export const resendVerificationEmail = async (req: AuthRequest, res: Response) =
     return res.status(400).json({ message: "This email is already verified" });
   }
 
-  try {
-    await sendVerificationEmail(user);
-  } catch (err) {
-    console.error("Verification email failed:", (err as Error).message);
-    return res.status(500).json({ message: "Failed to send verification email" });
-  }
+  // Fire-and-forget, same convention as every other email in this app
+  // (including this exact template's other call site in `register`, just
+  // above) — this used to `await` the send directly, so a slow/unreachable
+  // SMTP server hung the whole request until nodemailer's connection timed
+  // out (2 minutes) and then 500'd, instead of just logging it server-side
+  // and letting the request succeed immediately like everywhere else.
+  sendVerificationEmail(user).catch((err) => console.error("Verification email failed:", err.message));
 
   res.json({ message: "Verification email sent" });
 };

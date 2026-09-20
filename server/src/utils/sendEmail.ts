@@ -21,6 +21,13 @@ export const sendEmail = async ({ to, subject, html, text }: SendEmailOptions): 
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    // nodemailer's own defaults (2 minutes to connect, 30s to see a
+    // greeting) are far too patient for something every caller here treats
+    // as fire-and-forget — a genuinely unreachable SMTP host should log and
+    // give up in a few seconds, not hold a request/connection open for two
+    // full minutes first (see resendVerificationEmail's real-world hang).
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
   });
 
   await transporter.sendMail({
