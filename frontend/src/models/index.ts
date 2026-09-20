@@ -26,7 +26,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 };
 
 export type UserRole = "user" | "coadmin" | "admin";
-export type AuthProvider = "local" | "google" | "facebook";
+export type AuthProvider = "local" | "google";
 
 export interface DeliveryLocation {
   // Zila (district) and Upazila (sub-district) are picked from a fixed list
@@ -44,16 +44,16 @@ export interface User {
   email: string;
   role: UserRole;
   permissions?: Permission[];
-  // Only OAuth ("google"/"facebook") accounts have no password to change —
-  // see views/SettingsView.tsx.
+  // Only OAuth ("google") accounts have no password to change — see
+  // views/SettingsView.tsx.
   provider?: AuthProvider;
   image?: string | null;
   // Prefills the checkout form's contact field once set — see SettingsView.
   phone?: string;
   deliveryLocation?: DeliveryLocation;
-  // OAuth accounts are always true (Google/Facebook already verified the
-  // address); a local signup starts false until they click the emailed
-  // link — see views/EmailVerificationBanner.tsx.
+  // OAuth accounts are always true (Google already verified the address); a
+  // local signup starts false until they click the emailed link — see
+  // views/EmailVerificationBanner.tsx.
   isEmailVerified?: boolean;
   // Opt-in only (never on by default) — whether promotional campaigns may
   // reach this account by email/SMS. `sms` is meaningless without `phone`
@@ -117,9 +117,9 @@ export interface ReviewList extends Paginated<Review> {
 
 export type OrderStatus = "pending" | "paid" | "shipped" | "delivered" | "cancelled";
 
-// Only "cod" is actually processed today — see server's orderController and
-// views/PaymentMethodPicker for the "coming soon" treatment of the rest.
-export type PaymentMethod = "cod" | "bkash" | "nagad" | "card";
+// "bkash" only actually charges anyone once the server's BKASH_* env vars
+// are set — see server's orderController/integrations/bkash.ts.
+export type PaymentMethod = "cod" | "bkash";
 
 export interface OrderItem {
   // Populated (name/images/delivery fees) by GET /orders/my — null if the
@@ -173,6 +173,10 @@ export interface Order {
   user?: { name: string; email: string } | null;
   shippingAddress: ShippingDetails;
   createdAt: string;
+  // Only present in createOrder's response for a freshly-created "bkash"
+  // order — where to send the browser to actually pay. Never stored, never
+  // present on an order read back later (getMyOrders/getOrderById/etc).
+  bkashRedirectUrl?: string;
 }
 
 // Quick-glance admin dashboard numbers — see server's

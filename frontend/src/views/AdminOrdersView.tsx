@@ -35,8 +35,6 @@ const STATUS_OPTIONS: OrderStatus[] = ["pending", "paid", "shipped", "delivered"
 const PAYMENT_LABEL: Record<string, string> = {
   cod: "Cash on Delivery",
   bkash: "bKash",
-  nagad: "Nagad",
-  card: "Card",
 };
 
 function OrderRow({

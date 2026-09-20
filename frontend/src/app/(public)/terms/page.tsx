@@ -44,9 +44,10 @@ export default function TermsPage() {
           <h2 className="mb-1 text-base font-semibold text-foreground">Orders and payment</h2>
           <ul className="flex list-disc flex-col gap-1 pl-5">
             <li>
-              Every order is currently <strong className="text-foreground">Cash on Delivery</strong> —
-              you pay in cash when your order arrives. Other payment methods shown as
-              &quot;Coming soon&quot; aren&apos;t available yet.
+              You can pay with <strong className="text-foreground">Cash on Delivery</strong> (in cash
+              when your order arrives) or <strong className="text-foreground">bKash</strong> (charged
+              instantly at checkout). A bKash payment that fails or is cancelled isn&apos;t charged,
+              and the order it was for is cancelled automatically.
             </li>
             <li>
               Placing an order is an offer to buy — we confirm it by accepting and preparing your

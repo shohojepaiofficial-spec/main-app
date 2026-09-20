@@ -109,10 +109,10 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
   }
   if (phone !== undefined) user.phone = phone.trim() || undefined;
 
-  // `user.image` may be a self-uploaded file or an OAuth avatar URL (Google/
-  // Facebook) — deleteUploadedFile below only ever acts on our own
-  // Cloudinary folder or local /uploads path, so an OAuth URL here is
-  // safely left alone rather than needing a separate check.
+  // `user.image` may be a self-uploaded file or a Google OAuth avatar URL —
+  // deleteUploadedFile below only ever acts on our own Cloudinary folder or
+  // local /uploads path, so an OAuth URL here is safely left alone rather
+  // than needing a separate check.
   const file = req.file as Express.Multer.File | undefined;
   let previousImage: string | undefined;
   if (file) {
@@ -221,10 +221,10 @@ export const unsubscribeFromMarketing = async (req: Request, res: Response) => {
 };
 
 // Called server-to-server by the Next.js app's NextAuth callback right after a
-// Google/Facebook sign-in, so an OAuth user gets a real row in `users` and one
-// of our own JWTs (the same shape email/password login produces) rather than
-// living only inside NextAuth's own session. Protected by requireInternalSecret
-// — never call this directly from a browser.
+// Google sign-in, so an OAuth user gets a real row in `users` and one of our
+// own JWTs (the same shape email/password login produces) rather than living
+// only inside NextAuth's own session. Protected by requireInternalSecret —
+// never call this directly from a browser.
 export const oauthSync = async (req: Request, res: Response) => {
   const { name, email, provider, providerId, image } = req.body;
 
@@ -327,7 +327,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
   };
 
   // Only a local (email/password) account has a password to reset — an
-  // OAuth account signs in through Google/Facebook, not here.
+  // OAuth account signs in through Google, not here.
   const user = await User.findOne({ email: email.toLowerCase().trim(), provider: "local" });
   if (!user) return res.json(genericResponse);
 

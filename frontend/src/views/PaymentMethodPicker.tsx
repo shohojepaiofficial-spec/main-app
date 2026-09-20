@@ -1,4 +1,4 @@
-import { Banknote, Smartphone, CreditCard, LucideIcon } from "lucide-react";
+import { Banknote, Smartphone, LucideIcon } from "lucide-react";
 import { PaymentMethod } from "@/models";
 
 export interface PaymentMethodInfo {
@@ -9,10 +9,11 @@ export interface PaymentMethodInfo {
   available: boolean;
 }
 
-// Only "cod" is wired up to anything real. The rest are shown, disabled, so
-// customers can see what's coming and the layout doesn't need to change
-// again once a gateway is actually integrated — see server's orderController
-// (LIVE_PAYMENT_METHODS) for the matching server-side check.
+// Both are wired up to something real — see server's orderController
+// (liveOnlinePaymentMethods) and integrations/bkash.ts. This list doesn't
+// know whether the server's BKASH_* env vars are actually set, though — if
+// they're not, createOrder 400s on a "bkash" selection and CheckoutView
+// surfaces that as a toast, same as any other checkout error.
 export const PAYMENT_METHODS: PaymentMethodInfo[] = [
   {
     id: "cod",
@@ -26,21 +27,7 @@ export const PAYMENT_METHODS: PaymentMethodInfo[] = [
     label: "bKash",
     description: "Pay instantly from your bKash wallet",
     Icon: Smartphone,
-    available: false,
-  },
-  {
-    id: "nagad",
-    label: "Nagad",
-    description: "Pay instantly from your Nagad wallet",
-    Icon: Smartphone,
-    available: false,
-  },
-  {
-    id: "card",
-    label: "Debit / Credit Card",
-    description: "Visa, Mastercard and more",
-    Icon: CreditCard,
-    available: false,
+    available: true,
   },
 ];
 

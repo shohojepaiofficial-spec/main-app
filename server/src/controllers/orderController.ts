@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 import { format } from "date-fns";
 import mongoose, { ClientSession } from "mongoose";
 import { Order, OrderSource, PaymentMethod } from "../models/Order";
@@ -9,6 +9,12 @@ import { SharedCart } from "../models/SharedCart";
 import { User } from "../models/User";
 import { STORE_CITY } from "../utils/store";
 import { AuthRequest } from "../middleware/auth";
+import {
+  isBkashConfigured,
+  createBkashPayment,
+  executeBkashPayment,
+  queryBkashPayment,
+} from "../integrations/bkash";
 
 interface CheckoutItemInput {
   productId: string;
@@ -25,12 +31,16 @@ interface ShippingInput {
 
 const ORDER_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"] as const;
 
-// Only "cod" is processed automatically for a customer's own checkout — see
-// createOrder. adminCreateOrder (a manual/phone order the shop owner enters
-// themselves) isn't restricted to this list, since the admin may be
-// recording a payment that already happened outside the site (e.g. a bKash
-// transfer to the shop's personal number).
-const LIVE_PAYMENT_METHODS: PaymentMethod[] = ["cod"];
+// "cod" always works; "bkash" only once BKASH_* env vars are actually set
+// (see integrations/bkash.ts) — createOrder 400s on it otherwise, same as
+// every other method did before a real gateway existed. adminCreateOrder (a
+// manual/phone order the shop owner enters themselves) isn't restricted to
+// this list, since the admin may be recording a payment that already
+// happened outside the site (e.g. a bKash transfer to the shop's personal
+// number) rather than triggering a live charge.
+function liveOnlinePaymentMethods(): PaymentMethod[] {
+  return isBkashConfigured() ? ["cod", "bkash"] : ["cod"];
+}
 
 // Shared by createOrder and adminCreateOrder — the only place order totals
 // get computed. Never trusts a price or delivery fee the caller sends, only
@@ -159,7 +169,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   }
 
   const method = paymentMethod ?? "cod";
-  if (!LIVE_PAYMENT_METHODS.includes(method)) {
+  if (!liveOnlinePaymentMethods().includes(method)) {
     return res
       .status(400)
       .json({ message: "That payment method isn't available yet — please choose Cash on Delivery." });
@@ -167,9 +177,10 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 
   const session = await mongoose.startSession();
   let order: InstanceType<typeof Order> | undefined;
+  let address: ReturnType<typeof readShippingAddress> | undefined;
   try {
     await session.withTransaction(async () => {
-      const address = readShippingAddress(shippingAddress);
+      address = readShippingAddress(shippingAddress);
       const { orderItems, itemsTotal, deliveryFee, discount, appliedCode, totalAmount } =
         await computeOrderTotals(items, address.zila, promoCode, session);
 
@@ -203,14 +214,44 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         );
       }
     });
-
-    res.status(201).json(order);
   } catch (err) {
     const { status, message } = err as { status?: number; message?: string };
-    res.status(status ?? 500).json({ message: message ?? "Failed to place order" });
+    return res.status(status ?? 500).json({ message: message ?? "Failed to place order" });
   } finally {
     await session.endSession();
   }
+
+  if (!order) return res.status(500).json({ message: "Failed to place order" });
+
+  // bKash needs its own payment session started after the order (and its
+  // stock decrement) is safely committed — never call out to an external
+  // API from inside the Mongo transaction above. If starting it fails, the
+  // order already exists with stock already held against it, so roll both
+  // back the same way a cancellation would rather than leave an
+  // unpayable "pending" order sitting on the customer's account.
+  if (method === "bkash") {
+    try {
+      const { paymentID, bkashURL } = await createBkashPayment({
+        amount: order.totalAmount,
+        merchantInvoiceNumber: order.id,
+        payerReference: address!.phone,
+        callbackURL: `${process.env.SERVER_PUBLIC_URL || "http://localhost:5000"}/api/orders/bkash/callback`,
+      });
+      order.bkashPaymentID = paymentID;
+      await order.save();
+      return res.status(201).json({ ...order.toObject(), bkashRedirectUrl: bkashURL });
+    } catch (err) {
+      console.error("bKash create payment failed:", err);
+      order.status = "cancelled";
+      await order.save();
+      await restoreStock(order);
+      return res
+        .status(502)
+        .json({ message: "Couldn't start the bKash payment — please try again or choose Cash on Delivery." });
+    }
+  }
+
+  res.status(201).json(order);
 };
 
 // The admin/coadmin equivalent of createOrder, for a phone or walk-in order
@@ -229,7 +270,7 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
   }
 
   const method = paymentMethod ?? "cod";
-  const validMethods: PaymentMethod[] = ["cod", "bkash", "nagad", "card"];
+  const validMethods: PaymentMethod[] = ["cod", "bkash"];
   if (!validMethods.includes(method)) {
     return res.status(400).json({ message: "Invalid payment method" });
   }
@@ -269,6 +310,62 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
     res.status(status ?? 500).json({ message: message ?? "Failed to create order" });
   } finally {
     await session.endSession();
+  }
+};
+
+// Where bKash redirects the customer's own browser after they finish (or
+// cancel, or fail) on bKash's hosted payment page — see createOrder's
+// callbackURL. Public (no `protect`): the browser making this request has no
+// reason to be carrying our JWT, and bKash itself never calls it
+// server-to-server. Looks the order up by the paymentID bKash gave back at
+// creation, rather than trusting anything in the redirect beyond that.
+export const bkashCallback = async (req: Request, res: Response) => {
+  const { paymentID, status } = req.query as { paymentID?: string; status?: string };
+  const redirectBase = `${process.env.CLIENT_URL || "http://localhost:3000"}/checkout/bkash-result`;
+
+  const order = paymentID ? await Order.findOne({ bkashPaymentID: paymentID }) : null;
+  if (!order) return res.redirect(`${redirectBase}?status=error`);
+
+  const finish = (queryStatus: string) => res.redirect(`${redirectBase}?status=${queryStatus}&order=${order.id}`);
+
+  if (status !== "success") {
+    if (order.status === "pending") {
+      order.status = "cancelled";
+      await order.save();
+      await restoreStock(order);
+    }
+    return finish(status === "cancel" ? "cancelled" : "failed");
+  }
+
+  // Already resolved by an earlier hit of this same callback (e.g. the
+  // customer reloading the redirect page) — nothing left to do.
+  if (order.status !== "pending") {
+    return finish(order.status === "cancelled" ? "failed" : "success");
+  }
+
+  try {
+    let result = await executeBkashPayment(paymentID as string);
+    if (result.transactionStatus !== "Completed") {
+      // Execute only ever works once per paymentID — a repeat hit lands
+      // here with "already been called before" instead of a real result,
+      // so ask bKash directly what actually happened.
+      result = await queryBkashPayment(paymentID as string);
+    }
+
+    if (result.transactionStatus === "Completed") {
+      order.status = "paid";
+      order.bkashTrxID = result.trxID;
+      await order.save();
+      return finish("success");
+    }
+
+    order.status = "cancelled";
+    await order.save();
+    await restoreStock(order);
+    return finish("failed");
+  } catch (err) {
+    console.error("bKash execute/query failed:", err);
+    return finish("error");
   }
 };
 

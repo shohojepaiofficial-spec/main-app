@@ -151,7 +151,7 @@ const checkoutSchema = z.object({
   zila: z.string().min(1, "Pick a Zila"),
   upazila: z.string().min(1, "Pick an Upazila"),
   addressLine: z.string().min(5, "Address is too short"),
-  paymentMethod: z.enum(["cod", "bkash", "nagad", "card"]),
+  paymentMethod: z.enum(["cod", "bkash"]),
 });
 type CheckoutValues = z.infer<typeof checkoutSchema>;
 
@@ -276,6 +276,18 @@ export function CheckoutView() {
         promoCode: promo?.code,
         paymentMethod: method,
       });
+
+      if (order.bkashRedirectUrl) {
+        // Payment isn't confirmed yet — don't clear the cart or show
+        // "Order placed" until bKash actually redirects back with a result
+        // (see app/(protected)/checkout/bkash-result). A failed/cancelled
+        // payment cancels this order and restores its stock server-side, so
+        // leaving the cart untouched here means there's still something to
+        // check out with either way.
+        window.location.href = order.bkashRedirectUrl;
+        return;
+      }
+
       clear();
       setPlacedOrder(order);
 
@@ -501,7 +513,7 @@ export function CheckoutView() {
           >
             {isSubmitting
               ? "Placing order..."
-              : `Place order (${paymentMethod === "cod" ? "Cash on Delivery" : "Coming soon"})`}
+              : `Place order (${paymentMethod === "cod" ? "Cash on Delivery" : "bKash"})`}
           </button>
         </div>
       </div>

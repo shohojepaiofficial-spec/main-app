@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createOrder,
   adminCreateOrder,
+  bkashCallback,
   getMyOrders,
   getReviewableProducts,
   getOrderById,
@@ -17,6 +18,7 @@ const canManageOrders = authorize("orders:manage");
 
 router.post("/", protect, createOrder);
 router.post("/admin", protect, canManageOrders, adminCreateOrder);
+router.get("/bkash/callback", bkashCallback);
 router.get("/my", protect, getMyOrders);
 router.get("/reviewable", protect, getReviewableProducts);
 router.get("/stats", protect, canManageOrders, getOrderStats);

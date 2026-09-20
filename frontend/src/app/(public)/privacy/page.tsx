@@ -34,13 +34,13 @@ export default function PrivacyPage() {
           <ul className="flex list-disc flex-col gap-1 pl-5">
             <li>
               <strong className="text-foreground">Account information:</strong> your name, email
-              address, and password (or, if you sign in with Google or Facebook, the basic profile
-              information those services share with us).
+              address, and password (or, if you sign in with Google, the basic profile information
+              it shares with us).
             </li>
             <li>
               <strong className="text-foreground">Order information:</strong> your phone number,
-              delivery address, and what you&apos;ve ordered — needed to actually deliver it and
-              collect payment on delivery.
+              delivery address, and what you&apos;ve ordered — needed to actually deliver it and, for
+              a bKash order, to start and confirm that payment.
             </li>
             <li>
               <strong className="text-foreground">Communications:</strong> anything you send us
@@ -85,10 +85,12 @@ export default function PrivacyPage() {
           <h2 className="mb-1 text-base font-semibold text-foreground">Who we share it with</h2>
           <p>
             We don&apos;t sell your information. It&apos;s shared only where necessary to run the
-            store: with Google or Facebook if you choose to sign in that way, with our email/SMS
-            providers to deliver messages you&apos;ve opted into, and with couriers to the extent
-            needed to deliver your order. Cash on Delivery means we don&apos;t process or store
-            any payment card details at all.
+            store: with Google if you choose to sign in that way, with bKash to process a bKash
+            payment (your phone number and the order amount, not your bKash PIN — that&apos;s
+            entered directly on bKash&apos;s own page, never ours), with our email/SMS providers to
+            deliver messages you&apos;ve opted into, and with couriers to the extent needed to
+            deliver your order. We never process or store any payment card or bKash PIN details
+            ourselves.
           </p>
         </section>
 

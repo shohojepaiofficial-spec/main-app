@@ -15,14 +15,7 @@ Last updated: 2026-09-20.
 ### Priority 1 — Launch blockers
 
 Nothing downstream fully works until these exist, no matter how much other
-code gets written.
-
-**1.3 — Payment is Cash-on-Delivery only.** bKash/Nagad/Card show as "Coming
-soon" in the checkout UI but nothing behind them actually charges anyone.
-This needs an explicit decision: stay COD-only (fine for a small local
-store), or integrate a real gateway (SSLCommerz is the common Bangladesh
-choice, or bKash/Nagad directly) — each is its own project with its own
-merchant account.
+code gets written. **None left** — see 1.3 below, now finished.
 
 ### Priority 2 — Feature gaps customers/you will actually hit
 
@@ -102,6 +95,8 @@ the full design and how it was verified live.
 - ✅ **3.6** — Image uploads on Cloudinary, fully live in production (`utils/cloudinary.ts` + `storeUploadedFile()`) — credentials added 2026-09-18, plus two real bugs found and fixed the same week (a tsx/esbuild-specific config-timing bug, and a frontend `FileList`-cleared-before-read bug that silently dropped every selected file). See `docs/PROGRESS.md`'s 2026-09-18/19 entries.
 - ✅ **1.1** — SMTP email is live (Namecheap Private Email, `mail.privateemail.com`) — verification, password reset, contact-form notifications, and campaign emails all send for real now. `SMTP_PASS` (the one blank field) added and verified 2026-09-20 with a real test send.
 - ✅ **1.4** — Real contact info set in `frontend/src/lib/contact.ts` (phone, address); `server/.env`'s `CONTACT_EMAIL` was already real (`hello@shohojepai.com`).
+- ✅ **1.3** — Real bKash payment integration (Tokenized Checkout, URL-based) — decision was Cash on Delivery + bKash only, Nagad/Card dropped outright rather than kept as placeholders. Currently running on bKash's own published sandbox (test-money) credentials; swap `server/.env`'s `BKASH_*` for real merchant credentials to go live, no code changes needed. See `docs/PROGRESS.md`'s 2026-09-20 entry and `docs/ARCHITECTURE.md`'s "Checkout & Orders" section.
+- ✅ **Extra, not from the original list** — removed Facebook OAuth sign-in (button, NextAuth provider, `AuthProvider` type/enum on both ends) — it never had real credentials in production, so this was cleanup, not a migration. Facebook *ads* posting and social-share/icon links are unrelated and untouched.
 - ✅ **4.1** — Review "verified purchase" badge + admin moderation (delete) via a new `reviews:manage` permission.
 - ✅ **4.2** — Wishlist "Move all to cart" (a real move, not a copy).
 - ✅ **4.3** — Category matching/grouping is now case-insensitive ("Shoes" and "shoes" merge).

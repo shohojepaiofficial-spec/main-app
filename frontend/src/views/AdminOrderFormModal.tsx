@@ -114,7 +114,7 @@ const manualOrderSchema = z.object({
   zila: z.string().min(1, "Pick a Zila"),
   upazila: z.string().min(1, "Pick an Upazila"),
   addressLine: z.string().min(5, "Address is too short"),
-  paymentMethod: z.enum(["cod", "bkash", "nagad", "card"]),
+  paymentMethod: z.enum(["cod", "bkash"]),
   promoCode: z.string().optional(),
 });
 type ManualOrderValues = z.infer<typeof manualOrderSchema>;

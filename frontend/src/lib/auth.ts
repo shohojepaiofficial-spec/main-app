@@ -1,22 +1,21 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import Facebook from "next-auth/providers/facebook";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [Google, Facebook],
+  providers: [Google],
   session: { strategy: "jwt" },
   pages: {
     signIn: "/",
   },
   callbacks: {
-    // Runs server-side right after a Google/Facebook sign-in. Exchanges the
-    // OAuth identity for a real row in our MongoDB `users` collection and one
-    // of our own JWTs, via a request only this server can make (internal
+    // Runs server-side right after a Google sign-in. Exchanges the OAuth
+    // identity for a real row in our MongoDB `users` collection and one of
+    // our own JWTs, via a request only this server can make (internal
     // shared secret) — see server/src/controllers/authController.ts#oauthSync.
     async jwt({ token, account, profile, user }) {
-      if (account && (account.provider === "google" || account.provider === "facebook")) {
+      if (account && account.provider === "google") {
         try {
           const res = await fetch(`${API_URL}/auth/oauth-sync`, {
             method: "POST",

@@ -48,13 +48,6 @@ function OAuthButtons() {
       >
         Continue with Google
       </button>
-      <button
-        type="button"
-        onClick={() => signIn("facebook", { callbackUrl: pathname })}
-        className="flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm font-normal hover:bg-background"
-      >
-        Continue with Facebook
-      </button>
     </div>
   );
 }

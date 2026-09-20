@@ -391,10 +391,9 @@ export function SettingsView() {
         <ProfileSection />
         <DeliveryLocationSection />
         <MarketingSection />
-        {user.provider === "google" || user.provider === "facebook" ? (
+        {user.provider === "google" ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted">
-            You signed in with {user.provider === "google" ? "Google" : "Facebook"}, so there&apos;s no
-            password to manage here.
+            You signed in with Google, so there&apos;s no password to manage here.
           </div>
         ) : (
           <PasswordSection />

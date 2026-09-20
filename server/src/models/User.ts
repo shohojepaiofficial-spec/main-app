@@ -2,7 +2,7 @@ import { Schema, model, Document, Types } from "mongoose";
 import bcrypt from "bcryptjs";
 import { PERMISSIONS, Permission } from "../utils/permissions";
 
-export type AuthProvider = "local" | "google" | "facebook";
+export type AuthProvider = "local" | "google";
 export type UserRole = "user" | "coadmin" | "admin";
 
 export interface DeliveryLocation {
@@ -39,8 +39,8 @@ export interface IUser extends Document {
   // reach. `sms` is only actually usable once `phone` is set; the UI hides/
   // disables it otherwise. See controllers/campaignController.ts.
   marketingOptIn: { email: boolean; sms: boolean };
-  // OAuth accounts start verified (Google/Facebook already proved the
-  // address); a local email/password signup starts false and gets emailed a
+  // OAuth accounts start verified (Google already proved the address); a
+  // local email/password signup starts false and gets emailed a
   // verification link — see controllers/authController.ts.
   isEmailVerified: boolean;
   emailVerificationTokenHash?: string;
@@ -63,7 +63,7 @@ const userSchema = new Schema<IUser>(
         return this.provider === "local";
       },
     },
-    provider: { type: String, enum: ["local", "google", "facebook"], default: "local" },
+    provider: { type: String, enum: ["local", "google"], default: "local" },
     providerId: { type: String },
     image: { type: String },
     phone: { type: String, trim: true },

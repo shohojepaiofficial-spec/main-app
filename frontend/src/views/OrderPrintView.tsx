@@ -13,8 +13,6 @@ import { Order } from "@/models";
 const PAYMENT_LABEL: Record<string, string> = {
   cod: "Cash on Delivery",
   bkash: "bKash",
-  nagad: "Nagad",
-  card: "Card",
 };
 
 // A plain, printer-friendly packing slip / invoice — opened in its own tab

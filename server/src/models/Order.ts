@@ -14,11 +14,10 @@ export interface IShippingDetails {
   addressLine: string;
 }
 
-// Only "cod" is actually processed today — the others are exposed in the
-// schema/API now so the checkout UI can show them (as "coming soon") ahead
-// of a real payment-gateway integration, without a breaking schema change
-// once one is wired up.
-export type PaymentMethod = "cod" | "bkash" | "nagad" | "card";
+// "bkash" only actually charges anyone once BKASH_* env vars are set (see
+// integrations/bkash.ts) — otherwise createOrder 400s on it, same as before
+// it was wired up.
+export type PaymentMethod = "cod" | "bkash";
 
 // "manual" = the admin recorded a phone/walk-in order on the customer's
 // behalf (see adminCreateOrder) — those have no `user` unless the admin
@@ -40,6 +39,13 @@ export interface IOrder extends Document {
   totalAmount: number;
   status: "pending" | "paid" | "shipped" | "delivered" | "cancelled";
   paymentMethod: PaymentMethod;
+  // Only ever set for paymentMethod === "bkash" — see orderController.ts's
+  // createOrder/bkashCallback. bkashPaymentID is bKash's own id for the
+  // payment session (used to look the order up when bKash redirects the
+  // customer's browser back); bkashTrxID is bKash's transaction id, only
+  // present once the payment actually completed.
+  bkashPaymentID?: string;
+  bkashTrxID?: string;
   source: OrderSource;
   shippingAddress: IShippingDetails;
   // Set when this order was placed by fulfilling someone else's shared-cart
@@ -81,9 +87,11 @@ const orderSchema = new Schema<IOrder>(
     },
     paymentMethod: {
       type: String,
-      enum: ["cod", "bkash", "nagad", "card"],
+      enum: ["cod", "bkash"],
       default: "cod",
     },
+    bkashPaymentID: { type: String },
+    bkashTrxID: { type: String },
     source: {
       type: String,
       enum: ["online", "manual"],
