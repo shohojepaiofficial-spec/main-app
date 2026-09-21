@@ -682,4 +682,10 @@ Production was already on port 587 (never tried 465 before this), so tried switc
 - Updated `docs/REMAINING_WORK.md`: reopened 1.1 under Priority 1 (was marked finished, but the underlying transport changed and isn't re-verified yet) rather than leaving a stale "SMTP is live" line.
 - Verified: `tsc --noEmit` clean, full test suite passing (28), `npm uninstall` completed cleanly (the pre-existing `pm2`/`js-yaml` audit warning is unrelated and already documented, unaffected by this change).
 
+### Same-day follow-up: Resend live and working — verification email confirmed delivered
+User set up the DKIM/SPF (CNAME-based)/DMARC records Resend's dashboard asked for, verified the domain, created an API key, and added `RESEND_API_KEY`/`EMAIL_FROM` to Railway (the first attempt still failed with `"RESEND_API_KEY / EMAIL_FROM not configured"` — turned out the variables had genuinely never been added yet, a separate slip from the earlier SMTP saga, not a continuation of it). Once added, "Resend email" worked end-to-end in production for the first time.
+
+- **Caught a real UX bug during that same test**: after clicking the emailed verification link, `EmailVerificationBanner` (and its "Resend email" button) kept showing on the account's already-open tab, since nothing told the cached session it had just become verified — `useRefreshUser` only re-syncs once per page load, so the stale `isEmailVerified: false` stuck around until a reload. Fixed in `VerifyEmailView.tsx`: on a successful verify, if this same browser has a logged-in session, its cached user is patched to `isEmailVerified: true` immediately (via `useAuthStore`'s existing `updateUser`) rather than waiting for the next full reload to notice.
+- Verified with `tsc --noEmit` (clean) and the full frontend test suite (15 passing).
+
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import * as authService from "@/services/authService";
+import { useAuthStore } from "@/controllers/useAuthStore";
 
 type Status = "checking" | "success" | "error";
 
@@ -17,7 +18,18 @@ export function VerifyEmailView({ token }: { token: string | null }) {
     authService
       .verifyEmail(token)
       .then(() => {
-        if (!ignore) setStatus("success");
+        if (ignore) return;
+        setStatus("success");
+        // If this same browser is already logged in (e.g. the account that
+        // just clicked "Resend email" from EmailVerificationBanner), flip
+        // its cached isEmailVerified now rather than leaving the banner
+        // showing — and the "Resend email" option along with it — until
+        // the next full page load happens to re-sync it (see
+        // useRefreshUser, which only runs once per load).
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && !currentUser.isEmailVerified) {
+          useAuthStore.getState().updateUser({ ...currentUser, isEmailVerified: true });
+        }
       })
       .catch((err) => {
         if (ignore) return;
