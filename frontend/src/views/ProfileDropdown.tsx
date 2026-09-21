@@ -5,9 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { LayoutDashboard, Package, Settings, LogOut } from "lucide-react";
 import { useAuthController } from "@/controllers/useAuthController";
+import { useTranslations } from "@/controllers/useTranslations";
 
 export function ProfileDropdown() {
   const { user, logout } = useAuthController();
+  const { t } = useTranslations();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -53,21 +55,21 @@ export function ProfileDropdown() {
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-background"
           >
-            <LayoutDashboard size={16} /> Dashboard
+            <LayoutDashboard size={16} /> {t("nav.dashboard", "Dashboard")}
           </Link>
           <Link
             href="/orders"
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-background"
           >
-            <Package size={16} /> Orders
+            <Package size={16} /> {t("nav.orders", "Orders")}
           </Link>
           <Link
             href="/settings"
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-background"
           >
-            <Settings size={16} /> Settings
+            <Settings size={16} /> {t("nav.settings", "Settings")}
           </Link>
           <button
             onClick={() => {
@@ -76,7 +78,7 @@ export function ProfileDropdown() {
             }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-background"
           >
-            <LogOut size={16} /> Log out
+            <LogOut size={16} /> {t("nav.logout", "Log out")}
           </button>
         </div>
       )}

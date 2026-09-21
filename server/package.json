@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "promote-admin": "tsx src/scripts/promoteAdmin.ts",
+    "sync-translations": "tsx src/scripts/syncTranslations.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "start:pm2": "pm2 start ecosystem.config.js"

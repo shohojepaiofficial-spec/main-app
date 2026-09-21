@@ -10,6 +10,7 @@ export const ALL_PERMISSIONS = [
   "marketing:manage",
   "messages:manage",
   "reviews:manage",
+  "translations:manage",
 ] as const;
 export type Permission = (typeof ALL_PERMISSIONS)[number];
 
@@ -23,6 +24,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "marketing:manage": "Send email/SMS campaigns",
   "messages:manage": "Read contact messages",
   "reviews:manage": "Moderate product reviews",
+  "translations:manage": "Edit Bangla translations",
 };
 
 export type UserRole = "user" | "coadmin" | "admin";
@@ -243,6 +245,16 @@ export interface SharedCart {
 }
 
 export type Locale = "en" | "bn";
+
+// One row per translatable storefront string — see server's Translation
+// model and views/AdminTranslationsView.tsx.
+export interface Translation {
+  _id: string;
+  key: string;
+  en: string;
+  bn: string;
+  updatedAt: string;
+}
 
 export type AuthModalMode = "login" | "signup" | "forgot";
 

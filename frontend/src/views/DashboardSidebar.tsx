@@ -16,6 +16,7 @@ import {
   Megaphone,
   Mail,
   Inbox,
+  Languages,
   LogOut,
   ArrowLeft,
   Menu,
@@ -82,6 +83,11 @@ export function DashboardSidebar() {
       href: "/admin/messages",
       label: "Messages",
       Icon: Inbox,
+    },
+    hasPermission("translations:manage") && {
+      href: "/admin/translations",
+      label: "Translations",
+      Icon: Languages,
     },
     user?.role === "admin" && {
       href: "/admin/users",

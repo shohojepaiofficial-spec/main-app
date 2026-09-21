@@ -8,6 +8,7 @@ import { FaFacebookF, FaInstagram, FaXTwitter, FaYoutube } from "react-icons/fa6
 import { useAuthController } from "@/controllers/useAuthController";
 import { useUIStore } from "@/controllers/useUIStore";
 import { useCartStore } from "@/controllers/useCartStore";
+import { useTranslations } from "@/controllers/useTranslations";
 import { LanguageSwitcher } from "@/views/LanguageSwitcher";
 import { Logo } from "@/views/Logo";
 import { ProfileDropdown } from "@/views/ProfileDropdown";
@@ -18,11 +19,11 @@ import { AppliedPromo } from "@/models";
 const SCROLL_THRESHOLD = 80;
 
 const NAV_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/shop", label: "Shop" },
-  { href: "/categories", label: "Categories" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
+  { href: "/", key: "nav.home", label: "Home" },
+  { href: "/shop", key: "nav.shop", label: "Shop" },
+  { href: "/categories", key: "nav.categories", label: "Categories" },
+  { href: "/about", key: "nav.about", label: "About" },
+  { href: "/contact", key: "nav.contact", label: "Contact" },
 ];
 
 const SOCIAL_LINKS = [
@@ -83,6 +84,7 @@ function CartButton() {
 function AuthArea() {
   const { isAuthenticated } = useAuthController();
   const openAuthModal = useUIStore((s) => s.openAuthModal);
+  const { t } = useTranslations();
 
   if (isAuthenticated) return <ProfileDropdown />;
 
@@ -91,7 +93,7 @@ function AuthArea() {
       onClick={() => openAuthModal("login")}
       className="text-sm font-normal border border-border text-foreground rounded-md px-3 py-1.5 hover:bg-background"
     >
-      Sign in
+      {t("nav.signIn", "Sign in")}
     </button>
   );
 }
@@ -106,6 +108,7 @@ function isNavLinkActive(pathname: string, href: string) {
 
 export function Navbar({ sitewidePromo }: { sitewidePromo?: AppliedPromo | null }) {
   const pathname = usePathname();
+  const { t } = useTranslations();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
@@ -158,7 +161,7 @@ export function Navbar({ sitewidePromo }: { sitewidePromo?: AppliedPromo | null 
                     aria-current={isActive ? "page" : undefined}
                     className={isActive ? "text-primary font-medium" : "hover:text-primary"}
                   >
-                    {link.label}
+                    {t(link.key, link.label)}
                   </Link>
                 </li>
               );
@@ -191,7 +194,7 @@ export function Navbar({ sitewidePromo }: { sitewidePromo?: AppliedPromo | null 
                 aria-current={isActive ? "page" : undefined}
                 className={isActive ? "text-sm font-medium text-primary" : "text-sm font-normal text-foreground"}
               >
-                {link.label}
+                {t(link.key, link.label)}
               </Link>
             );
           })}

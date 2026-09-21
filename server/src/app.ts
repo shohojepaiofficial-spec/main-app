@@ -16,6 +16,7 @@ import wishlistRoutes from "./routes/wishlistRoutes";
 import sharedCartRoutes from "./routes/sharedCartRoutes";
 import adRoutes from "./routes/adRoutes";
 import campaignRoutes from "./routes/campaignRoutes";
+import translationRoutes from "./routes/translationRoutes";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
 
@@ -85,6 +86,7 @@ app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/shared-carts", sharedCartRoutes);
 app.use("/api/ads", adRoutes);
 app.use("/api/campaigns", campaignRoutes);
+app.use("/api/translations", translationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

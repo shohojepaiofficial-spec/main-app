@@ -1,16 +1,18 @@
 "use client";
 
 import { useUIStore } from "@/controllers/useUIStore";
+import { useTranslations } from "@/controllers/useTranslations";
 import { Locale } from "@/models";
 
-const LANGUAGES: { code: Locale; label: string }[] = [
-  { code: "en", label: "English" },
-  { code: "bn", label: "বাংলা" },
+const LANGUAGES: { code: Locale; key: string; label: string }[] = [
+  { code: "en", key: "language.english", label: "English" },
+  { code: "bn", key: "language.bangla", label: "বাংলা" },
 ];
 
 export function LanguageSwitcher() {
   const locale = useUIStore((s) => s.locale);
   const setLocale = useUIStore((s) => s.setLocale);
+  const { t } = useTranslations();
 
   return (
     <select
@@ -21,7 +23,7 @@ export function LanguageSwitcher() {
     >
       {LANGUAGES.map((lang) => (
         <option key={lang.code} value={lang.code}>
-          {lang.label}
+          {t(lang.key, lang.label)}
         </option>
       ))}
     </select>

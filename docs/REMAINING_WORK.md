@@ -26,9 +26,15 @@ works end-to-end, but `SMS_API_URL`/`SMS_API_KEY` aren't set, so every SMS
 attempt fails. Needs an account with a Bangladeshi bulk-SMS gateway
 (BulkSMSBD, MimSMS, SSL Wireless, etc.).
 
-**2.7 — The language switcher doesn't actually translate anything.** It
-stores which language you picked, but there's no Bangla translation catalog
-behind it — English is the only real language right now.
+**2.7 — Bangla translation, in progress.** The real system is built (DB-backed
+dictionary, `/admin/translations` for editing Bangla text without a code
+deploy, the `<T>`/`t()` mechanism wired into `LanguageSwitcher`) and the
+always-visible chrome — Navbar, Footer, WhatsApp button — actually switches
+to real Bangla now. Still English-only: the homepage sections (category
+tiles, trust badges, FAQ), the shop/product/cart/checkout flow, and the
+auth/account pages (login, dashboard, orders, settings). See
+`docs/ARCHITECTURE.md`'s "Translations (i18n)" section for how the system
+works and `docs/PROGRESS.md`'s 2026-09-21 entry for what's covered so far.
 
 ### Priority 3 — Security & reliability hardening
 
