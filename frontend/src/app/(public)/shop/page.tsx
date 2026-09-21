@@ -38,14 +38,6 @@ export default async function ShopPage({
     return map;
   }, {});
 
-  const hrefFor = (p: number) => {
-    const params = new URLSearchParams();
-    if (category) params.set("category", category);
-    if (p > 1) params.set("page", String(p));
-    const query = params.toString();
-    return query ? `/shop?${query}` : "/shop";
-  };
-
   return (
     <main className="mx-auto max-w-7xl px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">
       <PromoAutoApply code={promo} />
@@ -58,7 +50,7 @@ export default async function ShopPage({
         )}
       </div>
       <ProductGrid products={items} promoByProductId={promoByProductId} />
-      <Pagination page={page} totalPages={totalPages} hrefFor={hrefFor} />
+      <Pagination page={page} totalPages={totalPages} hrefBase="/shop" hrefParams={{ category }} />
     </main>
   );
 }

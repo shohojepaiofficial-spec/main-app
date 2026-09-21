@@ -7,8 +7,14 @@ import { useTranslations } from "@/controllers/useTranslations";
 interface PaginationProps {
   page: number;
   totalPages: number;
-  /** Server/URL-driven lists (Shop): render page links, e.g. (p) => `/shop?page=${p}`. */
-  hrefFor?: (page: number) => string;
+  /**
+   * Server/URL-driven lists (Shop): render page links under this base path,
+   * e.g. hrefBase="/shop" + hrefParams={{category}} -> `/shop?category=...&page=2`.
+   * Kept as plain serializable data (not a function) since this component is
+   * a Client Component and can't receive functions from a Server Component parent.
+   */
+  hrefBase?: string;
+  hrefParams?: Record<string, string | undefined>;
   /** Client-only lists (admin tables, reviews): render buttons instead of links. */
   onChange?: (page: number) => void;
 }
@@ -23,11 +29,23 @@ function pageWindow(page: number, totalPages: number): number[] {
   return pages;
 }
 
-export function Pagination({ page, totalPages, hrefFor, onChange }: PaginationProps) {
+export function Pagination({ page, totalPages, hrefBase, hrefParams, onChange }: PaginationProps) {
   const { t } = useTranslations();
   if (totalPages <= 1) return null;
 
   const pages = pageWindow(page, totalPages);
+
+  const hrefFor = hrefBase
+    ? (p: number) => {
+        const params = new URLSearchParams();
+        for (const [key, value] of Object.entries(hrefParams ?? {})) {
+          if (value) params.set(key, value);
+        }
+        if (p > 1) params.set("page", String(p));
+        const query = params.toString();
+        return query ? `${hrefBase}?${query}` : hrefBase;
+      }
+    : undefined;
 
   const renderPage = (p: number) => {
     const isActive = p === page;
