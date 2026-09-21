@@ -5,16 +5,18 @@ import { TrustBadges } from "@/views/TrustBadges";
 import { FAQSection } from "@/views/FAQSection";
 import { getPublicBanners } from "@/services/bannerService";
 import { getProductCategories, getProducts } from "@/services/productService";
+import { getStoreCity } from "@/services/configService";
 
 // No metadata export here on purpose: the root layout's default title/description
 // already target "/" with the full branded copy. A page-level override would
 // route through the `%s | ${SITE_NAME}` template instead, which reads worse
 // on the homepage than anywhere else.
 export default async function Home() {
-  const [slides, categories, featuredResult] = await Promise.all([
+  const [slides, categories, featuredResult, storeCity] = await Promise.all([
     getPublicBanners(),
     getProductCategories(),
     getProducts({ featured: true, limit: 8 }),
+    getStoreCity(),
   ]);
 
   // Nothing marked featured yet (a fresh store) shouldn't mean an empty
@@ -32,8 +34,8 @@ export default async function Home() {
       <HeroSlider slides={slides} />
       <CategoryShowcase categories={categories} />
       <FeaturedProducts products={featuredProducts} isFallback={isFallback} />
-      <TrustBadges />
-      <FAQSection />
+      <TrustBadges storeCity={storeCity} />
+      <FAQSection storeCity={storeCity} />
     </main>
   );
 }

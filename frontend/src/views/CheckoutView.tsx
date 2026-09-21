@@ -16,7 +16,7 @@ import * as sharedCartService from "@/services/sharedCartService";
 import * as authService from "@/services/authService";
 import { formatCurrency } from "@/lib/currency";
 import { calculateDeliveryTotal, isInsideStoreCity } from "@/lib/delivery";
-import { STORE_CITY, SITE_URL, SITE_NAME } from "@/lib/seo";
+import { SITE_URL, SITE_NAME } from "@/lib/seo";
 import { BANGLADESH_ZILAS } from "@/lib/bangladeshGeo";
 import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
 import { PaymentMethodPicker } from "@/views/PaymentMethodPicker";
@@ -167,7 +167,7 @@ function hasSavedDeliveryLocation(user: ReturnType<typeof useAuthController>["us
   );
 }
 
-export function CheckoutView() {
+export function CheckoutView({ storeCity }: { storeCity: string }) {
   const { user } = useAuthController();
   const { items, promo, totalPrice, discountAmount, clear } = useCartStore();
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
@@ -264,7 +264,7 @@ export function CheckoutView() {
 
   const itemsTotal = totalPrice();
   const discount = discountAmount();
-  const deliveryFee = calculateDeliveryTotal(items, zila);
+  const deliveryFee = calculateDeliveryTotal(items, zila, storeCity);
   const grandTotal = Math.max(0, itemsTotal + deliveryFee - discount);
 
   const onSubmit = async (values: CheckoutValues) => {
@@ -427,7 +427,7 @@ export function CheckoutView() {
 
           {zila && (
             <p className="text-xs text-muted">
-              {isInsideStoreCity(zila) ? `Inside ${STORE_CITY}` : `Outside ${STORE_CITY}`} delivery
+              {isInsideStoreCity(zila, storeCity) ? `Inside ${storeCity}` : `Outside ${storeCity}`} delivery
               rates apply.
             </p>
           )}

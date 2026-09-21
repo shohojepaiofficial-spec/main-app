@@ -17,6 +17,7 @@ import sharedCartRoutes from "./routes/sharedCartRoutes";
 import adRoutes from "./routes/adRoutes";
 import campaignRoutes from "./routes/campaignRoutes";
 import { notFound, errorHandler } from "./middleware/errorHandler";
+import { STORE_CITY } from "./utils/store";
 
 const app = express();
 
@@ -62,6 +63,14 @@ app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+// The one place STORE_CITY is defined (see ./utils/store) — the frontend
+// fetches it from here instead of hardcoding its own copy, so the two never
+// drift out of sync. Public: it's not sensitive, and pages that need it
+// (checkout, dashboard, shipping/terms copy) aren't all behind login.
+app.get("/api/config", (_req, res) => {
+  res.json({ storeCity: STORE_CITY });
 });
 
 app.use("/api/auth", authRoutes);

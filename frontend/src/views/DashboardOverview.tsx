@@ -27,7 +27,6 @@ import * as promoService from "@/services/promoService";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
 import { formatPromoDiscount } from "@/lib/promo";
-import { STORE_CITY } from "@/lib/seo";
 import { isInsideStoreCity } from "@/lib/delivery";
 import { AppliedPromo, Order, OrderStatus, Product, ProductSummary } from "@/models";
 
@@ -243,7 +242,7 @@ function SavedItems() {
   );
 }
 
-export function DashboardOverview() {
+export function DashboardOverview({ storeCity }: { storeCity: string }) {
   const router = useRouter();
   const { user } = useAuthController();
   const { orders, isLoading } = useMyOrders();
@@ -315,7 +314,9 @@ export function DashboardOverview() {
               <p>{user.deliveryLocation.addressLine}</p>
               <p className="text-muted">
                 {user.deliveryLocation.upazila}, {user.deliveryLocation.zila} &middot;{" "}
-                {isInsideStoreCity(user.deliveryLocation.zila) ? `Inside ${STORE_CITY}` : `Outside ${STORE_CITY}`}{" "}
+                {isInsideStoreCity(user.deliveryLocation.zila, storeCity)
+                  ? `Inside ${storeCity}`
+                  : `Outside ${storeCity}`}{" "}
                 delivery
               </p>
             </div>

@@ -49,18 +49,6 @@ tier to actually post; Instagram needs a real public HTTPS domain to even
 test (see 1.2); the "4th platform" was mentioned once early on but never
 specified, so there's nothing concrete to build.
 
-**4.7 — `STORE_CITY` is duplicated** in `frontend/src/lib/seo.ts` and
-`server/src/utils/store.ts`. **Not a token problem — a design tradeoff I
-didn't think was mine to make silently, so I left it and I'm flagging it
-here instead.** A real fix means either a shared package/monorepo tooling
-change (both projects would need their build/import setup restructured) or
-having the frontend fetch this one constant from the backend at runtime
-(adds a network dependency for a value that's used in synchronous contexts
-like `sitemap.ts` and Zod schemas). Given it's one string, changed rarely,
-already documented in both places — I'd rather ask before restructuring
-either project's build than "fix" this in a way that risks breaking the
-build for marginal benefit. Say the word if you want me to do it anyway.
-
 **4.8 — Protected pages briefly flash "Checking your session..."** **Not a
 token problem either — skipped because a real fix conflicts with a
 deliberate, already-shipped UX decision.** Dashboard/Orders/Settings/Admin
@@ -102,6 +90,7 @@ the full design and how it was verified live.
 - ✅ **4.3** — Category matching/grouping is now case-insensitive ("Shoes" and "shoes" merge).
 - ✅ **4.4** — `AnalyticsEvent` now has a 180-day MongoDB TTL index for automatic retention.
 - ✅ **4.6** — Campaign emails have a one-click, per-recipient unsubscribe link (HMAC-signed, no new secret) and `Campaign.recipients` logs every individual send.
+- ✅ **4.7** — `STORE_CITY` duplication fixed: `server/src/utils/store.ts` is now the only place it's defined, served publicly via `GET /api/config`; the frontend fetches it instead of hardcoding a second copy (`frontend/src/lib/seo.ts`'s copy is gone). Picked the runtime-fetch approach over a monorepo/shared-package restructuring, since the two projects deploy independently.
 - ✅ **4.9** — Real `/privacy` and `/terms` pages, linked from the footer — **worth a lawyer's review before relying on commercially.**
 - ✅ **Extra, not from the original list** — an admin-only, filtered "Reset analytics data" section on `/admin/analytics` (checkboxes for which event field, an age cutoff, a real count preview before deleting) — added on request, not part of the original audit.
 - ✅ **Extra, not from the original list** — fixed two real hydration-mismatch bugs found via user report: the navbar cart-count badge (`useCartStore`) and the language switcher (`useUIStore`), both caused by zustand's `persist` middleware reading `localStorage` synchronously before the server/client first render could agree.

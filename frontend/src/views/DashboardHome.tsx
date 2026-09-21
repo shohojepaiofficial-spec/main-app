@@ -10,8 +10,8 @@ import { DashboardOverview } from "@/views/DashboardOverview";
 // revenue) — see views/AdminDashboardOverview.tsx. A coadmin with no
 // relevant permission at all still falls back to the customer view, since an
 // overview with nothing to show would be worse than no overview.
-export function DashboardHome() {
+export function DashboardHome({ storeCity }: { storeCity: string }) {
   const { hasPermission } = useAuthController();
   const isAdminLike = hasPermission("orders:manage") || hasPermission("products:manage");
-  return isAdminLike ? <AdminDashboardOverview /> : <DashboardOverview />;
+  return isAdminLike ? <AdminDashboardOverview /> : <DashboardOverview storeCity={storeCity} />;
 }

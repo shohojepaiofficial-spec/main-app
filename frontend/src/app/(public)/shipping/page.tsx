@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Truck } from "lucide-react";
-import { STORE_CITY } from "@/lib/seo";
 import { CONTACT_EMAIL } from "@/lib/contact";
+import { getStoreCity } from "@/services/configService";
 
 export const metadata: Metadata = {
   title: "Shipping & Delivery",
   description: "Delivery zones, timelines, and fees for orders inside and outside Sylhet.",
 };
 
-export default function ShippingPage() {
+export default async function ShippingPage() {
+  const STORE_CITY = await getStoreCity();
   return (
     <main className="mx-auto max-w-3xl px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">
       <div className="mb-6 flex items-center gap-3">

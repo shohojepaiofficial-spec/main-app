@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FileText } from "lucide-react";
-import { SITE_NAME, STORE_CITY } from "@/lib/seo";
+import { SITE_NAME } from "@/lib/seo";
 import { CONTACT_EMAIL } from "@/lib/contact";
+import { getStoreCity } from "@/services/configService";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
 
 const LAST_UPDATED = "September 15, 2026";
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const STORE_CITY = await getStoreCity();
   return (
     <main className="mx-auto max-w-3xl px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">
       <div className="mb-2 flex items-center gap-3">
