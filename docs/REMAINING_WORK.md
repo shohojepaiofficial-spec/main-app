@@ -6,7 +6,7 @@ collapsed to one line each below (full detail, including how each was
 verified, lives in `docs/PROGRESS.md`'s dated entries) so this file stays
 focused on what's actually still open.
 
-Last updated: 2026-09-20.
+Last updated: 2026-09-21.
 
 ---
 
@@ -15,7 +15,20 @@ Last updated: 2026-09-20.
 ### Priority 1 — Launch blockers
 
 Nothing downstream fully works until these exist, no matter how much other
-code gets written. **None left** — see 1.3 below, now finished.
+code gets written.
+
+**1.1 — Email sending moved to Resend, not yet re-verified with real
+credentials.** Raw SMTP (Namecheap Private Email) was previously live and
+working, but turned out to be a hard, consistent connection timeout from
+Railway specifically — not fixable from this codebase, so every email send
+(`server/src/utils/sendEmail.ts`) now goes through Resend's HTTPS API
+instead. `RESEND_API_KEY`/`EMAIL_FROM` are blank again until you sign up at
+resend.com and verify a sending domain there (add the SPF/DKIM records it
+gives you — merge its SPF `include:` into the domain's existing SPF record
+rather than adding a second one). Separately, the domain's DKIM was also
+found missing for the *old* Namecheap setup, which is very likely why any
+email that did arrive landed in spam — Resend's own domain verification
+should cover this properly once done.
 
 ### Priority 2 — Feature gaps customers/you will actually hit
 
@@ -93,7 +106,6 @@ the full design and how it was verified live.
 - ✅ **3.4** — Error monitoring (`utils/errorMonitoring.ts`), reports to Sentry once `SENTRY_DSN` is set (still blank).
 - ✅ **3.5** — Process-crash handling (`uncaughtException`/`unhandledRejection`) paired with a PM2 `ecosystem.config.js` for auto-restart on a self-managed host.
 - ✅ **3.6** — Image uploads on Cloudinary, fully live in production (`utils/cloudinary.ts` + `storeUploadedFile()`) — credentials added 2026-09-18, plus two real bugs found and fixed the same week (a tsx/esbuild-specific config-timing bug, and a frontend `FileList`-cleared-before-read bug that silently dropped every selected file). See `docs/PROGRESS.md`'s 2026-09-18/19 entries.
-- ✅ **1.1** — SMTP email is live (Namecheap Private Email, `mail.privateemail.com`) — verification, password reset, contact-form notifications, and campaign emails all send for real now. `SMTP_PASS` (the one blank field) added and verified 2026-09-20 with a real test send.
 - ✅ **1.4** — Real contact info set in `frontend/src/lib/contact.ts` (phone, address); `server/.env`'s `CONTACT_EMAIL` was already real (`hello@shohojepai.com`).
 - ✅ **1.3** — Real bKash payment integration (Tokenized Checkout, URL-based) — decision was Cash on Delivery + bKash only, Nagad/Card dropped outright rather than kept as placeholders. Currently running on bKash's own published sandbox (test-money) credentials; swap `server/.env`'s `BKASH_*` for real merchant credentials to go live, no code changes needed. See `docs/PROGRESS.md`'s 2026-09-20 entry and `docs/ARCHITECTURE.md`'s "Checkout & Orders" section.
 - ✅ **Extra, not from the original list** — removed Facebook OAuth sign-in (button, NextAuth provider, `AuthProvider` type/enum on both ends) — it never had real credentials in production, so this was cleanup, not a migration. Facebook *ads* posting and social-share/icon links are unrelated and untouched.

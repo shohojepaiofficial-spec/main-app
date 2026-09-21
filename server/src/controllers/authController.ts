@@ -32,9 +32,9 @@ const shapeUser = (user: InstanceType<typeof User>) => ({
   marketingOptIn: user.marketingOptIn,
 });
 
-// Fire-and-forget, same convention as the existing "welcome" email — a down
-// SMTP server (there's no real one configured until a domain exists) should
-// never block or fail the request that triggered the email.
+// Fire-and-forget, same convention as the existing "welcome" email — a
+// down/unconfigured mail provider should never block or fail the request
+// that triggered the email.
 async function sendVerificationEmail(user: InstanceType<typeof User>) {
   const { raw, hash } = generateRawAndHash();
   user.emailVerificationTokenHash = hash;
@@ -292,9 +292,9 @@ export const resendVerificationEmail = async (req: AuthRequest, res: Response) =
   // Fire-and-forget, same convention as every other email in this app
   // (including this exact template's other call site in `register`, just
   // above) — this used to `await` the send directly, so a slow/unreachable
-  // SMTP server hung the whole request until nodemailer's connection timed
-  // out (2 minutes) and then 500'd, instead of just logging it server-side
-  // and letting the request succeed immediately like everywhere else.
+  // mail server hung the whole request and then 500'd, instead of just
+  // logging it server-side and letting the request succeed immediately like
+  // everywhere else.
   sendVerificationEmail(user).catch((err) => console.error("Verification email failed:", err.message));
 
   res.json({ message: "Verification email sent" });

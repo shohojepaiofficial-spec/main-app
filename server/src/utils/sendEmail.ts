@@ -1,81 +1,57 @@
-import nodemailer from "nodemailer";
-
+// Every email this app sends (verification, password reset, the welcome
+// email, contact-form notifications, marketing campaigns) goes through this
+// one function — see server/.env.example for the full explanation of why
+// this uses Resend's HTTPS API instead of raw SMTP: SMTP from Railway to
+// Namecheap Private Email turned out to be a hard, consistent connection
+// timeout regardless of port (465 or 587), most likely one side blocking
+// the other's outbound network path — nothing fixable in this codebase.
+// HTTPS to a well-known API host doesn't have that problem.
 interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
-  // A plain-text alternative — nodemailer sends it as the multipart/text
-  // part alongside `html`. An HTML-only email (no text part at all) is one
-  // of the classic recipient-side spam heuristics; every call site that
-  // sends to a real customer (rather than just the store owner) should pass
-  // one rather than let this fall back to HTML-only.
+  // A plain-text alternative, sent as the email's text/plain part alongside
+  // `html`. An HTML-only email is one of the classic recipient-side spam
+  // heuristics; every call site that sends to a real customer (rather than
+  // just the store owner) should pass one rather than let this go without.
   text?: string;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function buildTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: Number(process.env.SMTP_PORT) === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+async function postToResend({ to, subject, html, text }: SendEmailOptions): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) {
+    throw new Error("RESEND_API_KEY / EMAIL_FROM not configured");
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
     },
-    // nodemailer's own defaults (2 minutes to connect, 30s to see a
-    // greeting) are far too patient to hold open — but every caller here is
-    // fire-and-forget, so nothing user-facing is actually waiting on this;
-    // 20s just keeps a genuinely dead host from lingering in the logs, while
-    // still giving a real (if occasionally slow) handshake to a small mail
-    // host room to finish rather than getting cut off prematurely.
-    connectionTimeout: 20_000,
-    greetingTimeout: 20_000,
+    body: JSON.stringify({ from, to, subject, html, ...(text ? { text } : {}) }),
   });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Resend API error (${res.status}): ${body.slice(0, 300)}`);
+  }
 }
 
-export const sendEmail = async ({ to, subject, html, text }: SendEmailOptions): Promise<void> => {
-  const mail = {
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    html,
-    ...(text ? { text } : {}),
-  };
-
+export const sendEmail = async (options: SendEmailOptions): Promise<void> => {
   try {
-    await buildTransporter().sendMail(mail);
+    await postToResend(options);
   } catch (err) {
-    // One retry on a fresh connection/transporter before giving up — every
-    // caller already treats this as fire-and-forget (see authController.ts),
-    // so the only cost of trying again is a few extra seconds server-side,
-    // and it turns a real fraction of transient connection hiccups into a
-    // successful send instead of a silently dropped email.
-    console.error("First send attempt failed, retrying once:", describeError(err));
+    // One retry before giving up — every caller already treats this as
+    // fire-and-forget (see authController.ts), so the only cost of trying
+    // again is a couple of extra seconds server-side, and it turns a real
+    // fraction of transient API hiccups into a successful send instead of a
+    // silently dropped email.
+    console.error("First send attempt failed, retrying once:", (err as Error).message);
     await sleep(2_000);
-    try {
-      await buildTransporter().sendMail(mail);
-    } catch (retryErr) {
-      // The call site's own .catch() only logs err.message ("Connection
-      // timeout" tells you nothing) — log the actual host/port/error code
-      // here first, since that's what actually distinguishes "blocked
-      // network path" from "wrong credentials" from "DNS failure".
-      console.error("Retry also failed:", describeError(retryErr));
-      throw retryErr;
-    }
+    await postToResend(options);
   }
 };
-
-function describeError(err: unknown): string {
-  const e = err as NodeJS.ErrnoException &
-    Record<"command" | "responseCode" | "address" | "port", unknown>;
-  return JSON.stringify({
-    message: e.message,
-    code: e.code,
-    errno: e.errno,
-    address: e.address,
-    port: e.port,
-    command: e.command,
-    responseCode: e.responseCode,
-  });
-}

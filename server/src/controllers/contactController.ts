@@ -15,9 +15,10 @@ export const submitContactMessage = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "name, email, subject and message are required" });
   }
 
-  // Saved first, always — the message must not be lost even if SMTP isn't
-  // configured (server/.env's SMTP_* fields are blank until that's set up).
-  // The notification email below is best-effort on top of that.
+  // Saved first, always — the message must not be lost even if the mail
+  // provider isn't configured (server/.env's RESEND_API_KEY/EMAIL_FROM are
+  // blank until that's set up). The notification email below is
+  // best-effort on top of that.
   const contactMessage = await ContactMessage.create({
     name: name.trim(),
     email: email.trim(),
@@ -39,8 +40,8 @@ export const submitContactMessage = async (req: Request, res: Response) => {
 
 // Admin inbox (messages:manage) — from here down. There was previously
 // nowhere to actually read a submitted message other than the best-effort
-// CONTACT_EMAIL notification, which doesn't arrive at all until real SMTP
-// credentials exist (see docs/ARCHITECTURE.md).
+// CONTACT_EMAIL notification, which doesn't arrive at all until real mail
+// provider credentials exist (see docs/ARCHITECTURE.md).
 export const getContactMessages = async (_req: AuthRequest, res: Response) => {
   const messages = await ContactMessage.find().sort({ createdAt: -1 });
   res.json(messages);

@@ -13,8 +13,8 @@ export const authLimiter = rateLimit({
 });
 
 // The public contact form has no auth at all, so it's the easiest thing on
-// the site to spam — and once real SMTP/CONTACT_EMAIL credentials exist,
-// the easiest way to run up a sending bill or flood an inbox.
+// the site to spam — and once real mail-provider/CONTACT_EMAIL credentials
+// exist, the easiest way to run up a sending bill or flood an inbox.
 export const contactLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 5,
