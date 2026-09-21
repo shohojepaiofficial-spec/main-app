@@ -49,12 +49,33 @@ export const sendEmail = async ({ to, subject, html, text }: SendEmailOptions): 
     // One retry on a fresh connection/transporter before giving up — every
     // caller already treats this as fire-and-forget (see authController.ts),
     // so the only cost of trying again is a few extra seconds server-side,
-    // and it turns a real fraction of transient connection hiccups (seen in
-    // production: intermittent "Connection timeout" against the same SMTP
-    // host that otherwise works) into a successful send instead of a
-    // silently dropped email.
-    console.error("First send attempt failed, retrying once:", (err as Error).message);
+    // and it turns a real fraction of transient connection hiccups into a
+    // successful send instead of a silently dropped email.
+    console.error("First send attempt failed, retrying once:", describeError(err));
     await sleep(2_000);
-    await buildTransporter().sendMail(mail);
+    try {
+      await buildTransporter().sendMail(mail);
+    } catch (retryErr) {
+      // The call site's own .catch() only logs err.message ("Connection
+      // timeout" tells you nothing) — log the actual host/port/error code
+      // here first, since that's what actually distinguishes "blocked
+      // network path" from "wrong credentials" from "DNS failure".
+      console.error("Retry also failed:", describeError(retryErr));
+      throw retryErr;
+    }
   }
 };
+
+function describeError(err: unknown): string {
+  const e = err as NodeJS.ErrnoException &
+    Record<"command" | "responseCode" | "address" | "port", unknown>;
+  return JSON.stringify({
+    message: e.message,
+    code: e.code,
+    errno: e.errno,
+    address: e.address,
+    port: e.port,
+    command: e.command,
+    responseCode: e.responseCode,
+  });
+}
