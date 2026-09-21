@@ -2,6 +2,7 @@ import { createElement } from "react";
 import Link from "next/link";
 import { icons, Tag, type LucideIcon } from "lucide-react";
 import Fuse from "fuse.js";
+import { T } from "@/components/ui/T";
 
 // This file has no "use client" — it's a Server Component, so importing
 // the full ~1800-icon lucide map and Fuse.js here costs nothing in the
@@ -124,7 +125,9 @@ export function CategoryTile({
       <div className="relative z-10">
         <p className="truncate text-lg font-bold">{category}</p>
         <p className="text-sm text-white/75">
-          {count} product{count === 1 ? "" : "s"}
+          <T k={count === 1 ? "category.productCount.one" : "category.productCount.other"} vars={{ count }}>
+            {count === 1 ? "{count} product" : "{count} products"}
+          </T>
         </p>
       </div>
 

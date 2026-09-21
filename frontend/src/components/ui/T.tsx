@@ -11,7 +11,19 @@ import { useTranslations } from "@/controllers/useTranslations";
 // actually reads — see docs/ARCHITECTURE.md's "Translations (i18n)"
 // section. For non-JSX contexts (placeholders, toasts, aria-labels), use
 // the useTranslations() hook's `t(key, fallback)` directly instead.
-export function T({ k, children }: { k: string; children: string }) {
+//
+// `vars` fills in `{name}` placeholders for a sentence with an interpolated
+// value (e.g. a city name) — see useTranslations.ts#t's own doc comment for
+// why this can't just be plain string concatenation around the value.
+export function T({
+  k,
+  vars,
+  children,
+}: {
+  k: string;
+  vars?: Record<string, string | number>;
+  children: string;
+}) {
   const { t } = useTranslations();
-  return <>{t(k, children)}</>;
+  return <>{t(k, children, vars)}</>;
 }

@@ -1,37 +1,43 @@
+"use client";
+
 import Link from "next/link";
 import { Truck, ShieldCheck, RotateCcw, Headset } from "lucide-react";
+import { useTranslations } from "@/controllers/useTranslations";
 
-function getBadges(storeCity: string) {
+function getBadges(t: ReturnType<typeof useTranslations>["t"], storeCity: string) {
   return [
     {
       Icon: Truck,
-      title: "Fast Delivery",
-      description: `Reliable delivery inside and outside ${storeCity}.`,
+      title: t("trust.fastDelivery.title", "Fast Delivery"),
+      description: t("trust.fastDelivery.description", "Reliable delivery inside and outside {city}.", {
+        city: storeCity,
+      }),
       href: "/shipping",
     },
     {
       Icon: ShieldCheck,
-      title: "Secure Shopping",
-      description: "Your data and payments are protected.",
+      title: t("trust.secureShopping.title", "Secure Shopping"),
+      description: t("trust.secureShopping.description", "Your data and payments are protected."),
       href: undefined,
     },
     {
       Icon: RotateCcw,
-      title: "Easy Returns",
-      description: "Hassle-free returns on eligible items.",
+      title: t("trust.easyReturns.title", "Easy Returns"),
+      description: t("trust.easyReturns.description", "Hassle-free returns on eligible items."),
       href: "/returns",
     },
     {
       Icon: Headset,
-      title: "Dedicated Support",
-      description: "We're here to help with any questions.",
+      title: t("trust.support.title", "Dedicated Support"),
+      description: t("trust.support.description", "We're here to help with any questions."),
       href: "/contact",
     },
   ];
 }
 
 export function TrustBadges({ storeCity }: { storeCity: string }) {
-  const badges = getBadges(storeCity);
+  const { t } = useTranslations();
+  const badges = getBadges(t, storeCity);
   return (
     <section className="border-y border-border bg-surface">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-6 py-10 sm:grid-cols-4">

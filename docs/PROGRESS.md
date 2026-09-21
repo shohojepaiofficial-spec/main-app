@@ -715,4 +715,13 @@ User asked to build the language switcher for real. Scoped first rather than div
 - **Not done yet, tracked in `docs/REMAINING_WORK.md`'s 2.7**: homepage sections (category tiles, trust badges, FAQ), the shop/product/cart/checkout flow, and auth/account pages — all still English-only, to be migrated in follow-up passes rather than attempted all at once.
 - Verified: `tsc --noEmit` clean on both packages, full test suites passing (28 + 15). Couldn't click through the actual language toggle live (browser tool disconnected this session) — worth the user trying the switcher on a page that's now wired up (e.g. the footer) to confirm it visibly changes.
 
+### Same-day follow-up: homepage sections translated, `t()` gained interpolation
+Continued straight through per the user's choice to keep going rather than pause for review.
+
+- **`t(key, fallback, vars?)` gained `{name}` placeholder interpolation** (and `<T>` a matching `vars` prop) — needed the moment a translated sentence has a runtime value inside it (the store's city name, a product count) where the value's position isn't the same across languages, so it can't just be concatenated onto a translated prefix/suffix. `Object.entries(vars).reduce(...replaceAll...)` against whichever template resolved (Bangla or the English fallback).
+- **TrustBadges, FAQSection** — both converted to Client Components (needed the hook directly, since they build a plain data array of `{title, description}` strings, not JSX) — real Bangla for all 4 trust badges and all 5 FAQ entries, including the delivery-time FAQ's two `{city}` interpolations.
+- **CategoryShowcase, CategoryTile, `/categories`, FeaturedProducts** — stayed Server Components, using `<T>` for the JSX-children cases. `CategoryTile` deliberately did *not* get a hook or `"use client"` — its own doc comment explains it imports the full ~1800-icon lucide map and Fuse.js specifically because it's server-only, so `<T>` (itself a Client Component, importable as a child without converting the parent) was the only way to translate its product-count line without breaking that. Bangla doesn't inflect for plural the way English's "product"/"products" does, so `category.productCount.one`/`.other` share the same Bangla text — the two-key split exists only to give English somewhere to hang its "s".
+- Category *names* themselves (free-text, admin-entered) are correctly left untranslated — this system translates code strings, not store content.
+- 51 keys total now. Verified: `tsc --noEmit` clean on both packages, full test suites passing (28 + 15), and a raw `GET /api/translations` check confirming an interpolated key's `{city}` placeholder survives to the client untouched (substitution happens client-side, not server-side).
+
 
