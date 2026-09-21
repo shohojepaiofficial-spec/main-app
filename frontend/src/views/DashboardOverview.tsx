@@ -29,14 +29,18 @@ import { formatCurrency } from "@/lib/currency";
 import { formatPromoDiscount } from "@/lib/promo";
 import { isInsideStoreCity } from "@/lib/delivery";
 import { AppliedPromo, Order, OrderStatus, Product, ProductSummary } from "@/models";
+import { useTranslations } from "@/controllers/useTranslations";
 
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  pending: "Pending",
-  paid: "Paid",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
+function statusLabel(t: ReturnType<typeof useTranslations>["t"], status: OrderStatus): string {
+  const fallbacks: Record<OrderStatus, string> = {
+    pending: "Pending",
+    paid: "Paid",
+    shipped: "Shipped",
+    delivered: "Delivered",
+    cancelled: "Cancelled",
+  };
+  return t(`order.status.${status}`, fallbacks[status]);
+}
 
 const STATUS_CLASS: Record<OrderStatus, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -51,6 +55,7 @@ const STATUS_CLASS: Record<OrderStatus, string> = {
 // signed-in customer specifically.
 function PromoReminder() {
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
+  const { t } = useTranslations();
 
   useEffect(() => {
     let ignore = false;
@@ -73,7 +78,10 @@ function PromoReminder() {
       className="mb-6 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary hover:underline"
     >
       <Tag size={16} className="shrink-0" />
-      {formatPromoDiscount(promo)} storewide with code <strong>{promo.code}</strong> — Shop now
+      {t("dashboard.promoReminder", "{discount} storewide with code {code} — Shop now", {
+        discount: formatPromoDiscount(promo),
+        code: promo.code,
+      })}
     </Link>
   );
 }
@@ -83,6 +91,7 @@ function PromoReminder() {
 function ReviewPrompts() {
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { t } = useTranslations();
 
   useEffect(() => {
     let ignore = false;
@@ -104,7 +113,7 @@ function ReviewPrompts() {
 
   return (
     <div className="mb-8 rounded-md border border-border bg-surface p-4">
-      <h2 className="mb-3 text-sm font-semibold">Leave a review</h2>
+      <h2 className="mb-3 text-sm font-semibold">{t("product.leaveReview", "Leave a review")}</h2>
       <div className="flex flex-col gap-2">
         {products.map((product) => (
           <div key={product._id} className="flex items-center justify-between gap-3">
@@ -125,7 +134,7 @@ function ReviewPrompts() {
               href={`/shop/${product._id}#reviews`}
               className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
-              <Star size={12} /> Write a review
+              <Star size={12} /> {t("dashboard.writeAReview", "Write a review")}
             </Link>
           </div>
         ))}
@@ -143,6 +152,7 @@ function SavedItems() {
   const [isMoving, setIsMoving] = useState(false);
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const addItem = useCartStore((s) => s.addItem);
+  const { t } = useTranslations();
 
   useEffect(() => {
     let ignore = false;
@@ -165,7 +175,7 @@ function SavedItems() {
     try {
       await toggleWishlist(productId);
     } catch {
-      toast.error("Failed to remove item");
+      toast.error(t("dashboard.failedToRemoveItem", "Failed to remove item"));
     }
   };
 
@@ -189,9 +199,9 @@ function SavedItems() {
         await toggleWishlist(product._id);
       }
       setProducts([]);
-      toast.success("Moved everything to your cart");
+      toast.success(t("dashboard.movedEverythingToCart", "Moved everything to your cart"));
     } catch {
-      toast.error("Some items couldn't be moved — the rest were added");
+      toast.error(t("dashboard.someItemsCouldntMove", "Some items couldn't be moved — the rest were added"));
     } finally {
       setIsMoving(false);
     }
@@ -202,13 +212,13 @@ function SavedItems() {
   return (
     <div className="mb-8 rounded-md border border-border bg-surface p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Saved items</h2>
+        <h2 className="text-sm font-semibold">{t("dashboard.savedItems", "Saved items")}</h2>
         <button
           onClick={onMoveAllToCart}
           disabled={isMoving}
           className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
         >
-          {isMoving ? "Moving..." : "Move all to cart"}
+          {isMoving ? t("dashboard.moving", "Moving...") : t("dashboard.moveAllToCart", "Move all to cart")}
         </button>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -230,7 +240,9 @@ function SavedItems() {
             </Link>
             <button
               onClick={() => onRemove(product._id)}
-              aria-label={`Remove ${product.name} from saved items`}
+              aria-label={t("dashboard.removeFromSavedItems", "Remove {name} from saved items", {
+                name: product.name,
+              })}
               className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-surface/90 text-red-600"
             >
               <Heart size={12} className="fill-red-500" />
@@ -248,6 +260,7 @@ export function DashboardOverview({ storeCity }: { storeCity: string }) {
   const { orders, isLoading } = useMyOrders();
   const addItem = useCartStore((s) => s.addItem);
   const recentOrders = orders.slice(0, 5);
+  const { t } = useTranslations();
 
   const onReorder = (order: Order) => {
     let addedCount = 0;
@@ -267,7 +280,7 @@ export function DashboardOverview({ storeCity }: { storeCity: string }) {
       addedCount++;
     }
     if (addedCount === 0) {
-      toast.error("None of these products are available anymore");
+      toast.error(t("dashboard.noneAvailableAnymore", "None of these products are available anymore"));
       return;
     }
     router.push("/checkout");
@@ -275,36 +288,38 @@ export function DashboardOverview({ storeCity }: { storeCity: string }) {
 
   return (
     <main className="p-6 max-w-4xl">
-      <h1 className="text-xl font-semibold mb-1">Welcome back{user ? `, ${user.name}` : ""}</h1>
-      <p className="text-sm text-muted mb-6">Here&apos;s a quick look at your account.</p>
+      <h1 className="text-xl font-semibold mb-1">
+        {user ? t("dashboard.welcomeBackName", "Welcome back, {name}", { name: user.name }) : t("dashboard.welcomeBack", "Welcome back")}
+      </h1>
+      <p className="text-sm text-muted mb-6">{t("dashboard.quickLook", "Here's a quick look at your account.")}</p>
 
       <PromoReminder />
 
       <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-3">
         <div className="rounded-md border border-border bg-surface p-4">
-          <p className="text-xs uppercase text-muted">Total orders</p>
+          <p className="text-xs uppercase text-muted">{t("dashboard.totalOrders", "Total orders")}</p>
           <p className="mt-1 text-2xl font-semibold">{isLoading ? "..." : orders.length}</p>
         </div>
         <div className="rounded-md border border-border bg-surface p-4">
-          <p className="text-xs uppercase text-muted">Account</p>
+          <p className="text-xs uppercase text-muted">{t("dashboard.account", "Account")}</p>
           <p className="mt-1 truncate text-sm font-medium">{user?.email}</p>
         </div>
         <div className="rounded-md border border-border bg-surface p-4">
-          <p className="text-xs uppercase text-muted">Role</p>
+          <p className="text-xs uppercase text-muted">{t("dashboard.role", "Role")}</p>
           <p className="mt-1 text-sm font-medium capitalize">
-            {user?.role === "coadmin" ? "Co-admin" : user?.role}
+            {user?.role === "coadmin" ? t("dashboard.coAdmin", "Co-admin") : user?.role}
           </p>
         </div>
       </div>
 
       <div className="mb-8 rounded-md border border-border bg-surface p-4">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Delivery location</h2>
+          <h2 className="text-sm font-semibold">{t("dashboard.deliveryLocation", "Delivery location")}</h2>
           <Link
             href="/settings"
             className="flex items-center gap-1 text-xs text-muted hover:text-foreground"
           >
-            <Pencil size={12} /> {user?.deliveryLocation ? "Edit" : "Add"}
+            <Pencil size={12} /> {user?.deliveryLocation ? t("common.edit", "Edit") : t("common.add", "Add")}
           </Link>
         </div>
         {user?.deliveryLocation ? (
@@ -314,20 +329,21 @@ export function DashboardOverview({ storeCity }: { storeCity: string }) {
               <p>{user.deliveryLocation.addressLine}</p>
               <p className="text-muted">
                 {user.deliveryLocation.upazila}, {user.deliveryLocation.zila} &middot;{" "}
-                {isInsideStoreCity(user.deliveryLocation.zila, storeCity)
-                  ? `Inside ${storeCity}`
-                  : `Outside ${storeCity}`}{" "}
-                delivery
+                {t("checkout.deliveryRatesApplyShort", "{zone} delivery", {
+                  zone: isInsideStoreCity(user.deliveryLocation.zila, storeCity)
+                    ? t("checkout.insideCity", "Inside {city}", { city: storeCity })
+                    : t("checkout.outsideCity", "Outside {city}", { city: storeCity }),
+                })}
               </p>
             </div>
           </div>
         ) : (
           <p className="text-sm text-muted">
-            No delivery location saved yet —{" "}
+            {t("dashboard.noDeliveryLocation", "No delivery location saved yet —")}{" "}
             <Link href="/settings" className="text-primary underline">
-              add one
+              {t("dashboard.addOne", "add one")}
             </Link>{" "}
-            so we know which delivery fee applies to you.
+            {t("dashboard.soWeKnowFee", "so we know which delivery fee applies to you.")}
           </p>
         )}
       </div>
@@ -336,20 +352,22 @@ export function DashboardOverview({ storeCity }: { storeCity: string }) {
       <SavedItems />
 
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Recent orders</h2>
+        <h2 className="text-sm font-semibold">{t("dashboard.recentOrders", "Recent orders")}</h2>
         <Link href="/orders" className="flex items-center gap-1 text-xs text-muted hover:text-foreground">
-          View all <ArrowRight size={12} />
+          {t("common.viewAll", "View all")} <ArrowRight size={12} />
         </Link>
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading your orders...</p>
+        <p className="text-sm text-muted">{t("dashboard.loadingYourOrders", "Loading your orders...")}</p>
       ) : recentOrders.length === 0 ? (
         <div className="rounded-md border border-dashed border-border p-6 text-center">
           <Package className="mx-auto mb-2 text-muted" size={24} />
-          <p className="mb-3 text-sm text-muted">You haven&apos;t placed any orders yet.</p>
+          <p className="mb-3 text-sm text-muted">
+            {t("dashboard.noOrdersYet", "You haven't placed any orders yet.")}
+          </p>
           <Link href="/shop" className="text-sm font-medium text-primary underline">
-            Start shopping
+            {t("dashboard.startShopping", "Start shopping")}
           </Link>
         </div>
       ) : (
@@ -360,24 +378,28 @@ export function DashboardOverview({ storeCity }: { storeCity: string }) {
               className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3 last:border-b-0"
             >
               <div>
-                <p className="text-sm font-medium">Order #{order._id.slice(-6).toUpperCase()}</p>
+                <p className="text-sm font-medium">
+                  {t("dashboard.orderHash", "Order #{id}", { id: order._id.slice(-6).toUpperCase() })}
+                </p>
                 <p className="text-xs text-muted">
-                  {format(new Date(order.createdAt), "PPP")} &middot; {order.items.length} item
-                  {order.items.length === 1 ? "" : "s"}
+                  {format(new Date(order.createdAt), "PPP")} &middot;{" "}
+                  {order.items.length === 1
+                    ? t("dashboard.itemCount.one", "{count} item", { count: order.items.length })
+                    : t("dashboard.itemCount.other", "{count} items", { count: order.items.length })}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ${STATUS_CLASS[order.status]}`}
                 >
-                  {STATUS_LABEL[order.status]}
+                  {statusLabel(t, order.status)}
                 </span>
                 <span className="text-sm font-medium">{formatCurrency(order.totalAmount)}</span>
                 <button
                   onClick={() => onReorder(order)}
                   className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium hover:bg-background"
                 >
-                  <RotateCw size={12} /> Reorder
+                  <RotateCw size={12} /> {t("dashboard.reorder", "Reorder")}
                 </button>
               </div>
             </div>
@@ -390,13 +412,13 @@ export function DashboardOverview({ storeCity }: { storeCity: string }) {
           href="/orders"
           className="flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-background"
         >
-          <Package size={16} /> View orders
+          <Package size={16} /> {t("dashboard.viewOrders", "View orders")}
         </Link>
         <Link
           href="/settings"
           className="flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-background"
         >
-          <SettingsIcon size={16} /> Account settings
+          <SettingsIcon size={16} /> {t("dashboard.accountSettings", "Account settings")}
         </Link>
       </div>
     </main>

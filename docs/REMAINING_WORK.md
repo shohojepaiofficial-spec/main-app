@@ -26,16 +26,6 @@ works end-to-end, but `SMS_API_URL`/`SMS_API_KEY` aren't set, so every SMS
 attempt fails. Needs an account with a Bangladeshi bulk-SMS gateway
 (BulkSMSBD, MimSMS, SSL Wireless, etc.).
 
-**2.7 — Bangla translation, in progress.** The real system is built (DB-backed
-dictionary, `/admin/translations` for editing Bangla text without a code
-deploy, the `<T>`/`t()` mechanism wired into `LanguageSwitcher`) and the
-always-visible chrome — Navbar, Footer, WhatsApp button — actually switches
-to real Bangla now. Still English-only: the homepage sections (category
-tiles, trust badges, FAQ), the shop/product/cart/checkout flow, and the
-auth/account pages (login, dashboard, orders, settings). See
-`docs/ARCHITECTURE.md`'s "Translations (i18n)" section for how the system
-works and `docs/PROGRESS.md`'s 2026-09-21 entry for what's covered so far.
-
 ### Priority 3 — Security & reliability hardening
 
 **3.7 — MongoDB Atlas connection string looks like the free/shared tier**
@@ -87,5 +77,6 @@ the full design and how it was verified live.
 - ✅ **4.7** — `STORE_CITY` duplication fixed: `server/src/utils/store.ts` is now the only place it's defined, served publicly via `GET /api/config`; the frontend fetches it instead of hardcoding a second copy (`frontend/src/lib/seo.ts`'s copy is gone). Picked the runtime-fetch approach over a monorepo/shared-package restructuring, since the two projects deploy independently.
 - ✅ **4.8** — Turned out not to need a UX tradeoff after all: `useRequireAuth`'s flash was waiting on NextAuth's `useSession()` even when `useAuthStore` already had the answer (from a fast cookie read, no network call) — fixed to only wait on the slower check when the faster one doesn't know yet (a fresh OAuth login). In-place-login behavior on `/checkout` is unchanged.
 - ✅ **4.9** — Real `/privacy` and `/terms` pages, linked from the footer — **worth a lawyer's review before relying on commercially.**
+- ✅ **2.7** — Bangla translation, whole storefront covered. DB-backed dictionary, `/admin/translations` for editing Bangla text without a code deploy, `<T>`/`t()` wired everywhere: chrome (Navbar/Footer/WhatsApp), homepage (category tiles, trust badges, FAQ), shop/product/cart/checkout, and auth/account pages (login, dashboard, orders, settings) — 303 keys total. Admin panel itself deliberately stays English-only. See `docs/ARCHITECTURE.md`'s "Translations (i18n)" section and `docs/PROGRESS.md`'s 2026-09-21 entries.
 - ✅ **Extra, not from the original list** — an admin-only, filtered "Reset analytics data" section on `/admin/analytics` (checkboxes for which event field, an age cutoff, a real count preview before deleting) — added on request, not part of the original audit.
 - ✅ **Extra, not from the original list** — fixed two real hydration-mismatch bugs found via user report: the navbar cart-count badge (`useCartStore`) and the language switcher (`useUIStore`), both caused by zustand's `persist` middleware reading `localStorage` synchronously before the server/client first render could agree.

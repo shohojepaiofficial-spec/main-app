@@ -732,4 +732,12 @@ The core purchase path, in one pass: `ProductCard`, `ProductGrid`, `ProductGalle
 - **Zila/Upazila place names themselves are correctly left untranslated** — ~500 real Bangladeshi district/sub-district names are geographic data, not code strings; only `ZilaUpazilaFields`' own labels ("Zila (District)", "Select Zila", etc.) went through the translation system. Real place-name transliteration would be a separate, much larger undertaking, out of scope here.
 - Verified: `tsc --noEmit` clean on both packages, full test suites passing (28 + 15), `GET /api/translations` spot-checked for a couple of newly-seeded keys.
 
+### Same-day follow-up: auth + account pages translated — the whole storefront is now covered
+Last section: `AuthModal`, `EmailVerificationBanner`, `VerifyEmailView`, `ResetPasswordView`, `DashboardSidebar` (the customer `ACCOUNT_LINKS` only — admin links stay English, same `key?`-on-shared-item pattern as `Breadcrumbs`), `WishlistButton`, `DashboardOverview`, `OrdersView`, `SettingsView`. 128 new keys (303 total).
+
+- **Order status labels** (`order.status.pending`/`paid`/`shipped`/`delivered`/`cancelled`) are defined per-file (`DashboardOverview.tsx`, `OrdersView.tsx`) rather than shared, since `AdminOrdersView.tsx`/`OrderPrintView.tsx` have their own separate `PAYMENT_LABEL`-style maps already (English, untouched) — no shared-component tension to resolve here, unlike `PaymentMethodPicker`/`DashboardSidebar`.
+- **Noticed, not fixed**: `OrdersView.tsx`'s "Pay online before receiving" modal still says "Online payment isn't live yet" — stale copy from before bKash went live (see the 2026-09-20/21 bKash entries). Translated the existing English faithfully rather than silently rewriting content while doing a translation-only pass; worth a follow-up to actually fix the copy (and possibly wire the button to a real bKash payment for an existing COD order) separately.
+- **This closes out `docs/REMAINING_WORK.md`'s 2.7** — every page a customer can reach now goes through the translation system; the admin panel remains deliberately English-only.
+- Verified: `tsc --noEmit` clean on both packages, full test suites passing (28 + 15), `GET /api/translations` returns all 303 keys with real Bangla text, spot-checked.
+
 

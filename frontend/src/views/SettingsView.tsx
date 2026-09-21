@@ -12,6 +12,7 @@ import * as authService from "@/services/authService";
 import { toUploadUrl } from "@/lib/api";
 import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
 import { BANGLADESH_ZILAS } from "@/lib/bangladeshGeo";
+import { useTranslations } from "@/controllers/useTranslations";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -29,6 +30,7 @@ function ProfileSection() {
   const { user } = useAuthController();
   const updateUser = useAuthStore((s) => s.updateUser);
   const [image, setImage] = useState<File | null>(null);
+  const { t } = useTranslations();
 
   const {
     register,
@@ -60,9 +62,9 @@ function ProfileSection() {
       });
       updateUser(updated);
       setImage(null);
-      toast.success("Profile updated");
+      toast.success(t("settings.profileUpdated", "Profile updated"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Failed to update profile"));
+      toast.error(extractErrorMessage(err, t("settings.failedToUpdateProfile", "Failed to update profile")));
     }
   };
 
@@ -71,7 +73,7 @@ function ProfileSection() {
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col gap-4 rounded-md border border-border bg-surface p-4"
     >
-      <h2 className="text-sm font-semibold">Profile</h2>
+      <h2 className="text-sm font-semibold">{t("settings.profile", "Profile")}</h2>
 
       <div className="flex items-center gap-4">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-lg font-normal text-primary-foreground">
@@ -94,12 +96,12 @@ function ProfileSection() {
             onChange={(e) => setImage(e.target.files?.[0] ?? null)}
             className="text-sm"
           />
-          <p className="mt-1 text-xs text-muted">Square images work best.</p>
+          <p className="mt-1 text-xs text-muted">{t("settings.squareImagesWorkBest", "Square images work best.")}</p>
         </div>
       </div>
 
       <div>
-        <label className="text-sm font-medium">Name</label>
+        <label className="text-sm font-medium">{t("settings.name", "Name")}</label>
         <input
           {...register("name")}
           className="mt-1 w-full rounded border border-border bg-background px-3 py-2"
@@ -108,24 +110,28 @@ function ProfileSection() {
       </div>
 
       <div>
-        <label className="text-sm font-medium">Phone</label>
+        <label className="text-sm font-medium">{t("checkout.phone", "Phone")}</label>
         <input
           {...register("phone")}
           type="tel"
-          placeholder="e.g. 01XXXXXXXXX"
+          placeholder={t("settings.phonePlaceholder", "e.g. 01XXXXXXXXX")}
           className="mt-1 w-full rounded border border-border bg-background px-3 py-2"
         />
-        <p className="mt-1 text-xs text-muted">Used as your default contact number at checkout.</p>
+        <p className="mt-1 text-xs text-muted">
+          {t("settings.phoneHint", "Used as your default contact number at checkout.")}
+        </p>
       </div>
 
       <div>
-        <label className="text-sm font-medium">Email</label>
+        <label className="text-sm font-medium">{t("settings.email", "Email")}</label>
         <input
           value={user.email}
           disabled
           className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-muted"
         />
-        <p className="mt-1 text-xs text-muted">Email can&apos;t be changed here.</p>
+        <p className="mt-1 text-xs text-muted">
+          {t("settings.emailCantBeChanged", "Email can't be changed here.")}
+        </p>
       </div>
 
       <button
@@ -133,7 +139,7 @@ function ProfileSection() {
         disabled={isSubmitting}
         className="self-start rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
-        {isSubmitting ? "Saving..." : "Save changes"}
+        {isSubmitting ? t("settings.saving", "Saving...") : t("settings.saveChanges", "Save changes")}
       </button>
     </form>
   );
@@ -149,6 +155,7 @@ type DeliveryLocationValues = z.infer<typeof deliveryLocationSchema>;
 function DeliveryLocationSection() {
   const { user } = useAuthController();
   const updateUser = useAuthStore((s) => s.updateUser);
+  const { t } = useTranslations();
 
   const {
     register,
@@ -182,9 +189,9 @@ function DeliveryLocationSection() {
     try {
       const updated = await authService.updateDeliveryLocation(values);
       updateUser(updated);
-      toast.success("Delivery location saved");
+      toast.success(t("settings.deliveryLocationSaved", "Delivery location saved"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Failed to save delivery location"));
+      toast.error(extractErrorMessage(err, t("settings.failedToSaveDeliveryLocation", "Failed to save delivery location")));
     }
   };
 
@@ -194,10 +201,12 @@ function DeliveryLocationSection() {
       className="flex flex-col gap-4 rounded-md border border-border bg-surface p-4"
     >
       <div>
-        <h2 className="text-sm font-semibold">Delivery location</h2>
+        <h2 className="text-sm font-semibold">{t("dashboard.deliveryLocation", "Delivery location")}</h2>
         <p className="mt-1 text-xs text-muted">
-          Used at checkout and to show your dashboard the right delivery fee for products
-          you&apos;re looking at.
+          {t(
+            "settings.deliveryLocationHint",
+            "Used at checkout and to show your dashboard the right delivery fee for products you're looking at."
+          )}
         </p>
       </div>
 
@@ -210,11 +219,11 @@ function DeliveryLocationSection() {
       />
 
       <div>
-        <label className="text-sm font-medium">House / Road / Area</label>
+        <label className="text-sm font-medium">{t("checkout.houseRoadArea", "House / Road / Area")}</label>
         <textarea
           {...register("addressLine")}
           rows={2}
-          placeholder="House no., road, area..."
+          placeholder={t("checkout.houseRoadAreaPlaceholder", "House no., road, area...")}
           className="mt-1 w-full rounded border border-border bg-background px-3 py-2"
         />
         {errors.addressLine && (
@@ -227,7 +236,7 @@ function DeliveryLocationSection() {
         disabled={isSubmitting}
         className="self-start rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
-        {isSubmitting ? "Saving..." : "Save location"}
+        {isSubmitting ? t("settings.saving", "Saving...") : t("settings.saveLocation", "Save location")}
       </button>
     </form>
   );
@@ -237,6 +246,7 @@ function MarketingSection() {
   const { user } = useAuthController();
   const updateUser = useAuthStore((s) => s.updateUser);
   const [savingField, setSavingField] = useState<"email" | "sms" | null>(null);
+  const { t } = useTranslations();
 
   if (!user) return null;
 
@@ -244,7 +254,7 @@ function MarketingSection() {
 
   const onToggle = async (field: "email" | "sms", checked: boolean) => {
     if (field === "sms" && checked && !user.phone) {
-      toast.error("Add a phone number above before enabling SMS updates");
+      toast.error(t("settings.addPhoneForSms", "Add a phone number above before enabling SMS updates"));
       return;
     }
     setSavingField(field);
@@ -252,7 +262,7 @@ function MarketingSection() {
       const updated = await authService.updateMarketingOptIn({ [field]: checked });
       updateUser(updated);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Failed to update preferences"));
+      toast.error(extractErrorMessage(err, t("settings.failedToUpdatePreferences", "Failed to update preferences")));
     } finally {
       setSavingField(null);
     }
@@ -261,9 +271,12 @@ function MarketingSection() {
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4">
       <div>
-        <h2 className="text-sm font-semibold">Promotions</h2>
+        <h2 className="text-sm font-semibold">{t("settings.promotions", "Promotions")}</h2>
         <p className="mt-1 text-xs text-muted">
-          Off by default — opt in to hear about sales, new arrivals, and promo codes.
+          {t(
+            "settings.promotionsHint",
+            "Off by default — opt in to hear about sales, new arrivals, and promo codes."
+          )}
         </p>
       </div>
 
@@ -274,7 +287,7 @@ function MarketingSection() {
           disabled={savingField === "email"}
           onChange={(e) => onToggle("email", e.target.checked)}
         />
-        Email me about promotions
+        {t("settings.emailMeAboutPromotions", "Email me about promotions")}
       </label>
 
       <label className="flex items-center gap-2 text-sm">
@@ -284,8 +297,12 @@ function MarketingSection() {
           disabled={savingField === "sms" || !user.phone}
           onChange={(e) => onToggle("sms", e.target.checked)}
         />
-        Text me about promotions
-        {!user.phone && <span className="text-xs text-muted">(add a phone number above first)</span>}
+        {t("settings.textMeAboutPromotions", "Text me about promotions")}
+        {!user.phone && (
+          <span className="text-xs text-muted">
+            {t("settings.addPhoneFirst", "(add a phone number above first)")}
+          </span>
+        )}
       </label>
     </div>
   );
@@ -313,14 +330,15 @@ function PasswordSection() {
     resolver: zodResolver(passwordSchema),
     defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   });
+  const { t } = useTranslations();
 
   const onSubmit = async (values: PasswordValues) => {
     try {
       await authService.changePassword(values.currentPassword, values.newPassword);
-      toast.success("Password updated");
+      toast.success(t("auth.passwordUpdated", "Password updated"));
       reset();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Failed to update password"));
+      toast.error(extractErrorMessage(err, t("settings.failedToUpdatePassword", "Failed to update password")));
     }
   };
 
@@ -329,10 +347,10 @@ function PasswordSection() {
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col gap-4 rounded-md border border-border bg-surface p-4"
     >
-      <h2 className="text-sm font-semibold">Password</h2>
+      <h2 className="text-sm font-semibold">{t("settings.password", "Password")}</h2>
 
       <div>
-        <label className="text-sm font-medium">Current password</label>
+        <label className="text-sm font-medium">{t("settings.currentPassword", "Current password")}</label>
         <input
           {...register("currentPassword")}
           type="password"
@@ -344,7 +362,7 @@ function PasswordSection() {
       </div>
 
       <div>
-        <label className="text-sm font-medium">New password</label>
+        <label className="text-sm font-medium">{t("auth.newPassword", "New password")}</label>
         <input
           {...register("newPassword")}
           type="password"
@@ -356,7 +374,7 @@ function PasswordSection() {
       </div>
 
       <div>
-        <label className="text-sm font-medium">Confirm new password</label>
+        <label className="text-sm font-medium">{t("auth.confirmNewPassword", "Confirm new password")}</label>
         <input
           {...register("confirmPassword")}
           type="password"
@@ -372,7 +390,7 @@ function PasswordSection() {
         disabled={isSubmitting}
         className="self-start rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
-        {isSubmitting ? "Updating..." : "Update password"}
+        {isSubmitting ? t("auth.updating", "Updating...") : t("auth.updatePassword", "Update password")}
       </button>
     </form>
   );
@@ -380,12 +398,15 @@ function PasswordSection() {
 
 export function SettingsView() {
   const { user } = useAuthController();
+  const { t } = useTranslations();
   if (!user) return null;
 
   return (
     <main className="max-w-xl p-6">
-      <h1 className="mb-1 text-xl font-semibold">Settings</h1>
-      <p className="mb-6 text-sm text-muted">Manage your profile and account security.</p>
+      <h1 className="mb-1 text-xl font-semibold">{t("nav.settings", "Settings")}</h1>
+      <p className="mb-6 text-sm text-muted">
+        {t("settings.manageProfileAndSecurity", "Manage your profile and account security.")}
+      </p>
 
       <div className="flex flex-col gap-6">
         <ProfileSection />
@@ -393,7 +414,7 @@ export function SettingsView() {
         <MarketingSection />
         {user.provider === "google" ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted">
-            You signed in with Google, so there&apos;s no password to manage here.
+            {t("settings.signedInWithGoogle", "You signed in with Google, so there's no password to manage here.")}
           </div>
         ) : (
           <PasswordSection />

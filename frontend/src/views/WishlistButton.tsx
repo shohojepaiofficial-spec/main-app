@@ -5,12 +5,14 @@ import toast from "react-hot-toast";
 import { useWishlistStore } from "@/controllers/useWishlistStore";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useUIStore } from "@/controllers/useUIStore";
+import { useTranslations } from "@/controllers/useTranslations";
 
 export function WishlistButton({ productId, className }: { productId: string; className?: string }) {
   const { isAuthenticated } = useAuthController();
   const openAuthModal = useUIStore((s) => s.openAuthModal);
   const isSaved = useWishlistStore((s) => s.productIds.has(productId));
   const toggle = useWishlistStore((s) => s.toggle);
+  const { t } = useTranslations();
 
   const onClick = async (e: React.MouseEvent) => {
     // Products are usually shown inside a card that's itself a link to the
@@ -26,14 +28,14 @@ export function WishlistButton({ productId, className }: { productId: string; cl
     try {
       await toggle(productId);
     } catch {
-      toast.error("Failed to update wishlist");
+      toast.error(t("wishlist.failedToUpdate", "Failed to update wishlist"));
     }
   };
 
   return (
     <button
       onClick={onClick}
-      aria-label={isSaved ? "Remove from wishlist" : "Save to wishlist"}
+      aria-label={isSaved ? t("wishlist.remove", "Remove from wishlist") : t("wishlist.save", "Save to wishlist")}
       aria-pressed={isSaved}
       className={
         className ??

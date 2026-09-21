@@ -5,12 +5,14 @@ import Link from "next/link";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import * as authService from "@/services/authService";
 import { useAuthStore } from "@/controllers/useAuthStore";
+import { useTranslations } from "@/controllers/useTranslations";
 
 type Status = "checking" | "success" | "error";
 
 export function VerifyEmailView({ token }: { token: string | null }) {
   const [status, setStatus] = useState<Status>(token ? "checking" : "error");
   const [message, setMessage] = useState("");
+  const { t } = useTranslations();
 
   useEffect(() => {
     if (!token) return;
@@ -36,12 +38,13 @@ export function VerifyEmailView({ token }: { token: string | null }) {
         setStatus("error");
         setMessage(
           (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-            "This verification link is invalid or has expired."
+            t("auth.verifyLinkInvalid", "This verification link is invalid or has expired.")
         );
       });
     return () => {
       ignore = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   return (
@@ -49,27 +52,28 @@ export function VerifyEmailView({ token }: { token: string | null }) {
       {status === "checking" && (
         <>
           <Loader2 size={32} className="mx-auto mb-3 animate-spin text-muted" />
-          <p className="text-sm text-muted">Verifying your email...</p>
+          <p className="text-sm text-muted">{t("auth.verifyingEmail", "Verifying your email...")}</p>
         </>
       )}
       {status === "success" && (
         <>
           <CheckCircle2 size={40} className="mx-auto mb-3 text-primary" />
-          <h1 className="mb-1 text-xl font-semibold">Email verified</h1>
-          <p className="mb-4 text-sm text-muted">You&apos;re all set.</p>
+          <h1 className="mb-1 text-xl font-semibold">{t("auth.emailVerified", "Email verified")}</h1>
+          <p className="mb-4 text-sm text-muted">{t("auth.allSet", "You're all set.")}</p>
         </>
       )}
       {status === "error" && (
         <>
           <XCircle size={40} className="mx-auto mb-3 text-red-600" />
-          <h1 className="mb-1 text-xl font-semibold">Couldn&apos;t verify email</h1>
+          <h1 className="mb-1 text-xl font-semibold">{t("auth.couldntVerifyEmail", "Couldn't verify email")}</h1>
           <p className="mb-4 text-sm text-muted">
-            {message || "This link is missing its token — copy the full link from your email."}
+            {message ||
+              t("auth.verifyLinkMissingToken", "This link is missing its token — copy the full link from your email.")}
           </p>
         </>
       )}
       <Link href="/dashboard" className="text-sm font-medium text-primary underline">
-        Go to your dashboard
+        {t("auth.goToDashboard", "Go to your dashboard")}
       </Link>
     </main>
   );

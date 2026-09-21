@@ -5,6 +5,7 @@ import { Mail } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthController } from "@/controllers/useAuthController";
 import * as authService from "@/services/authService";
+import { useTranslations } from "@/controllers/useTranslations";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -20,6 +21,7 @@ export function EmailVerificationBanner() {
   const { user } = useAuthController();
   const [isSending, setIsSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const { t } = useTranslations();
 
   // `undefined` (a stale cached user object from before this field existed)
   // is treated as "don't know yet", not "unverified" — useRefreshUser syncs
@@ -31,9 +33,9 @@ export function EmailVerificationBanner() {
     try {
       await authService.resendVerificationEmail();
       setSent(true);
-      toast.success("Verification email sent");
+      toast.success(t("auth.verificationEmailSent", "Verification email sent"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Failed to send verification email"));
+      toast.error(extractErrorMessage(err, t("auth.failedToSendVerification", "Failed to send verification email")));
     } finally {
       setIsSending(false);
     }
@@ -42,13 +44,21 @@ export function EmailVerificationBanner() {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-yellow-200 bg-yellow-50 px-4 py-2.5 text-sm text-yellow-900 print:hidden">
       <Mail size={15} className="shrink-0" />
-      <span>Please verify your email address ({user.email}) to secure your account.</span>
+      <span>
+        {t("auth.pleaseVerifyEmail", "Please verify your email address ({email}) to secure your account.", {
+          email: user.email,
+        })}
+      </span>
       <button
         onClick={onResend}
         disabled={isSending || sent}
         className="ml-auto shrink-0 font-medium underline hover:no-underline disabled:opacity-50"
       >
-        {sent ? "Email sent" : isSending ? "Sending..." : "Resend email"}
+        {sent
+          ? t("auth.emailSent", "Email sent")
+          : isSending
+            ? t("auth.sending", "Sending...")
+            : t("auth.resendEmail", "Resend email")}
       </button>
     </div>
   );

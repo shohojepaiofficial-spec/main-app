@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import { CheckCircle2, KeyRound } from "lucide-react";
 import { useAuthStore } from "@/controllers/useAuthStore";
 import * as authService from "@/services/authService";
+import { useTranslations } from "@/controllers/useTranslations";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -32,6 +33,7 @@ export function ResetPasswordView({ token }: { token: string | null }) {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [isDone, setIsDone] = useState(false);
+  const { t } = useTranslations();
 
   const {
     register,
@@ -45,18 +47,21 @@ export function ResetPasswordView({ token }: { token: string | null }) {
       const data = await authService.resetPassword(token, values.password);
       setAuth(data.token, data.user);
       setIsDone(true);
-      toast.success("Password updated");
+      toast.success(t("auth.passwordUpdated", "Password updated"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Failed to reset password"));
+      toast.error(extractErrorMessage(err, t("auth.failedToResetPassword", "Failed to reset password")));
     }
   };
 
   if (!token) {
     return (
       <main className="mx-auto max-w-sm px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)] text-center">
-        <h1 className="mb-1 text-xl font-semibold">Invalid link</h1>
+        <h1 className="mb-1 text-xl font-semibold">{t("auth.invalidLink", "Invalid link")}</h1>
         <p className="text-sm text-muted">
-          This password reset link is missing its token — copy the full link from your email.
+          {t(
+            "auth.resetLinkMissingToken",
+            "This password reset link is missing its token — copy the full link from your email."
+          )}
         </p>
       </main>
     );
@@ -66,13 +71,15 @@ export function ResetPasswordView({ token }: { token: string | null }) {
     return (
       <main className="mx-auto max-w-sm px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)] text-center">
         <CheckCircle2 size={40} className="mx-auto mb-3 text-primary" />
-        <h1 className="mb-1 text-xl font-semibold">Password updated</h1>
-        <p className="mb-4 text-sm text-muted">You&apos;re signed in — pick up where you left off.</p>
+        <h1 className="mb-1 text-xl font-semibold">{t("auth.passwordUpdated", "Password updated")}</h1>
+        <p className="mb-4 text-sm text-muted">
+          {t("auth.signedInPickUp", "You're signed in — pick up where you left off.")}
+        </p>
         <button
           onClick={() => router.push("/dashboard")}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
         >
-          Go to your dashboard
+          {t("auth.goToDashboard", "Go to your dashboard")}
         </button>
       </main>
     );
@@ -81,14 +88,14 @@ export function ResetPasswordView({ token }: { token: string | null }) {
   return (
     <main className="mx-auto max-w-sm px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">
       <KeyRound size={28} className="mx-auto mb-3 text-primary" />
-      <h1 className="mb-1 text-center text-xl font-semibold">Choose a new password</h1>
+      <h1 className="mb-1 text-center text-xl font-semibold">{t("auth.chooseNewPassword", "Choose a new password")}</h1>
       <p className="mb-6 text-center text-sm text-muted">
-        Make it at least 6 characters — you&apos;ll be signed in right after.
+        {t("auth.atLeast6Chars", "Make it at least 6 characters — you'll be signed in right after.")}
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <div>
-          <label className="text-sm font-medium">New password</label>
+          <label className="text-sm font-medium">{t("auth.newPassword", "New password")}</label>
           <input
             {...register("password")}
             type="password"
@@ -99,7 +106,7 @@ export function ResetPasswordView({ token }: { token: string | null }) {
           )}
         </div>
         <div>
-          <label className="text-sm font-medium">Confirm new password</label>
+          <label className="text-sm font-medium">{t("auth.confirmNewPassword", "Confirm new password")}</label>
           <input
             {...register("confirmPassword")}
             type="password"
@@ -114,13 +121,13 @@ export function ResetPasswordView({ token }: { token: string | null }) {
           disabled={isSubmitting}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
         >
-          {isSubmitting ? "Updating..." : "Update password"}
+          {isSubmitting ? t("auth.updating", "Updating...") : t("auth.updatePassword", "Update password")}
         </button>
       </form>
 
       <p className="mt-4 text-center text-xs text-muted">
         <Link href="/" className="underline hover:text-foreground">
-          Back to the store
+          {t("auth.backToTheStore", "Back to the store")}
         </Link>
       </p>
     </main>
