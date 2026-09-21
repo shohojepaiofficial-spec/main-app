@@ -2,6 +2,7 @@ import { Mail, MessageSquareText, LucideIcon } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaTelegram, FaXTwitter } from "react-icons/fa6";
 import { IconType } from "react-icons";
 import { Modal } from "@/components/ui/Modal";
+import { useTranslations } from "@/controllers/useTranslations";
 
 interface ShareOption {
   id: string;
@@ -68,8 +69,9 @@ interface ShareLinkModalProps {
 }
 
 export function ShareLinkModal({ isOpen, onClose, url, text }: ShareLinkModalProps) {
+  const { t } = useTranslations();
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Share this link" widthClassName="max-w-sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={t("common.shareThisLink", "Share this link")} widthClassName="max-w-sm">
       <div className="grid grid-cols-3 gap-3">
         {SHARE_OPTIONS.map(({ id, label, Icon, color, buildHref }) => (
           <a

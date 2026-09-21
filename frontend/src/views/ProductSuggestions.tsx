@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Product } from "@/models";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
+import { T } from "@/components/ui/T";
 
 export function ProductSuggestions({ products }: { products: Product[] }) {
   if (products.length === 0) return null;
@@ -10,7 +11,7 @@ export function ProductSuggestions({ products }: { products: Product[] }) {
   return (
     <aside aria-labelledby="suggestions-heading">
       <h2 id="suggestions-heading" className="mb-3 text-sm font-semibold uppercase text-muted">
-        You might also like
+        <T k="product.youMightAlsoLike">You might also like</T>
       </h2>
       <div className="flex flex-col gap-3">
         {products.map((product) => (

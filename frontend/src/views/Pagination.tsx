@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "@/controllers/useTranslations";
 
 interface PaginationProps {
   page: number;
@@ -21,6 +24,7 @@ function pageWindow(page: number, totalPages: number): number[] {
 }
 
 export function Pagination({ page, totalPages, hrefFor, onChange }: PaginationProps) {
+  const { t } = useTranslations();
   if (totalPages <= 1) return null;
 
   const pages = pageWindow(page, totalPages);
@@ -77,12 +81,12 @@ export function Pagination({ page, totalPages, hrefFor, onChange }: PaginationPr
   };
 
   return (
-    <nav aria-label="Pagination" className="flex items-center justify-center gap-1 pt-4">
-      {renderArrow(page - 1, page <= 1, "Previous page", ChevronLeft)}
+    <nav aria-label={t("common.pagination", "Pagination")} className="flex items-center justify-center gap-1 pt-4">
+      {renderArrow(page - 1, page <= 1, t("common.previousPage", "Previous page"), ChevronLeft)}
       {pages[0] > 1 && <span className="px-1 text-muted">&hellip;</span>}
       {pages.map(renderPage)}
       {pages[pages.length - 1] < totalPages && <span className="px-1 text-muted">&hellip;</span>}
-      {renderArrow(page + 1, page >= totalPages, "Next page", ChevronRight)}
+      {renderArrow(page + 1, page >= totalPages, t("common.nextPage", "Next page"), ChevronRight)}
     </nav>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "@/controllers/useTranslations";
 
 interface ModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, widthClassName }: ModalProps) {
+  const { t } = useTranslations();
   const [isMounted, setIsMounted] = useState(isOpen);
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
@@ -59,7 +61,7 @@ export function Modal({ isOpen, onClose, title, children, widthClassName }: Moda
       >
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("common.close", "Close")}
           className="absolute right-4 top-4 text-muted hover:text-foreground"
         >
           <X size={20} />

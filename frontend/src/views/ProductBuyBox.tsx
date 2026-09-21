@@ -10,6 +10,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatPromoDiscount } from "@/lib/promo";
 import { WishlistButton } from "@/views/WishlistButton";
 import { AppliedPromo, Product } from "@/models";
+import { useTranslations } from "@/controllers/useTranslations";
 
 export function ProductBuyBox({ product, promo }: { product: Product; promo?: AppliedPromo }) {
   const [quantity, setQuantity] = useState(1);
@@ -18,6 +19,7 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
   const appliedPromo = useCartStore((s) => s.promo);
   const applyPromo = useCartStore((s) => s.applyPromo);
   const isPromoApplied = !!promo && appliedPromo?.code === promo.code;
+  const { t } = useTranslations();
 
   const inStock = product.stock > 0;
   const maxQuantity = Math.min(product.stock, 10);
@@ -33,7 +35,7 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
 
   const addToCart = () => {
     addItem(cartItem, quantity);
-    toast.success(`Added ${quantity} to cart`);
+    toast.success(t("product.addedToCart", "Added {quantity} to cart", { quantity }));
   };
 
   // "Buy Now" is the direct-order fast path — straight to checkout with
@@ -49,19 +51,22 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
         <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
           <span className="flex items-center gap-1.5 font-medium text-primary">
             <Tag size={14} className="shrink-0" />
-            {formatPromoDiscount(promo)} with code {promo.code}
+            {t("product.promoWithCode", "{discount} with code {code}", {
+              discount: formatPromoDiscount(promo),
+              code: promo.code,
+            })}
           </span>
           {isPromoApplied ? (
-            <span className="text-xs text-muted">Applied</span>
+            <span className="text-xs text-muted">{t("common.applied", "Applied")}</span>
           ) : (
             <button
               onClick={() => {
                 applyPromo(promo);
-                toast.success(`Code "${promo.code}" applied`);
+                toast.success(t("product.codeApplied", 'Code "{code}" applied', { code: promo.code }));
               }}
               className="shrink-0 text-xs font-medium text-primary underline hover:no-underline"
             >
-              Apply
+              {t("common.apply", "Apply")}
             </button>
           )}
         </div>
@@ -70,17 +75,19 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
       <div className="flex items-start gap-2 text-sm text-muted">
         <Truck size={16} className="shrink-0 mt-0.5" />
         {product.deliveryFeeInsideCity === 0 && product.deliveryFeeOutsideCity === 0 ? (
-          <span>Free delivery</span>
+          <span>{t("product.freeDelivery", "Free delivery")}</span>
         ) : (
           <span>
-            {product.deliveryFeeInsideCity > 0
-              ? formatCurrency(product.deliveryFeeInsideCity)
-              : "Free"}{" "}
-            inside city &middot;{" "}
-            {product.deliveryFeeOutsideCity > 0
-              ? formatCurrency(product.deliveryFeeOutsideCity)
-              : "Free"}{" "}
-            outside city
+            {t("product.deliveryFeesBoth", "{insideFee} inside city · {outsideFee} outside city", {
+              insideFee:
+                product.deliveryFeeInsideCity > 0
+                  ? formatCurrency(product.deliveryFeeInsideCity)
+                  : t("common.free", "Free"),
+              outsideFee:
+                product.deliveryFeeOutsideCity > 0
+                  ? formatCurrency(product.deliveryFeeOutsideCity)
+                  : t("common.free", "Free"),
+            })}
           </span>
         )}
       </div>
@@ -88,21 +95,23 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
       <div>
         {inStock ? (
           <p className="text-sm font-medium text-green-700">
-            In stock{product.stock <= 5 ? ` — only ${product.stock} left` : ""}
+            {product.stock <= 5
+              ? t("product.inStockLimited", "In stock — only {count} left", { count: product.stock })
+              : t("product.inStock", "In stock")}
           </p>
         ) : (
-          <p className="text-sm font-medium text-red-600">Out of stock</p>
+          <p className="text-sm font-medium text-red-600">{t("product.outOfStock", "Out of stock")}</p>
         )}
       </div>
 
       {inStock && (
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted">Quantity</span>
+          <span className="text-sm text-muted">{t("product.quantity", "Quantity")}</span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               className="rounded border border-border p-1.5 hover:bg-background"
-              aria-label="Decrease quantity"
+              aria-label={t("product.decreaseQuantity", "Decrease quantity")}
             >
               <Minus size={14} />
             </button>
@@ -110,7 +119,7 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
             <button
               onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
               className="rounded border border-border p-1.5 hover:bg-background"
-              aria-label="Increase quantity"
+              aria-label={t("product.increaseQuantity", "Increase quantity")}
             >
               <Plus size={14} />
             </button>
@@ -124,14 +133,14 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
           disabled={!inStock}
           className="flex-1 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-background disabled:opacity-50"
         >
-          Add to Cart
+          {t("product.addToCart", "Add to Cart")}
         </button>
         <button
           onClick={buyNow}
           disabled={!inStock}
           className="flex-1 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
         >
-          Buy Now
+          {t("product.buyNow", "Buy Now")}
         </button>
         <WishlistButton
           productId={product._id}

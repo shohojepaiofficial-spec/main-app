@@ -10,6 +10,7 @@ import { useUIStore } from "@/controllers/useUIStore";
 import { useCartStore } from "@/controllers/useCartStore";
 import * as promoService from "@/services/promoService";
 import { formatCurrency } from "@/lib/currency";
+import { useTranslations } from "@/controllers/useTranslations";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -23,6 +24,7 @@ function PromoCodeBox() {
   const clearPromo = useCartStore((s) => s.clearPromo);
   const [code, setCode] = useState("");
   const [isApplying, setIsApplying] = useState(false);
+  const { t } = useTranslations();
 
   const onApply = async () => {
     if (!code.trim()) return;
@@ -30,10 +32,10 @@ function PromoCodeBox() {
     try {
       const result = await promoService.validatePromoCode(code.trim());
       applyPromo(result);
-      toast.success(`Code "${result.code}" applied`);
+      toast.success(t("product.codeApplied", 'Code "{code}" applied', { code: result.code }));
       setCode("");
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Invalid promo code"));
+      toast.error(extractErrorMessage(err, t("cart.invalidPromoCode", "Invalid promo code")));
     } finally {
       setIsApplying(false);
     }
@@ -42,11 +44,9 @@ function PromoCodeBox() {
   if (promo) {
     return (
       <div className="flex items-center justify-between rounded border border-border bg-background px-3 py-2 text-sm">
-        <span>
-          Code <strong>{promo.code}</strong> applied
-        </span>
+        <span>{t("cart.codeAppliedInline", "Code {code} applied", { code: promo.code })}</span>
         <button onClick={clearPromo} className="text-xs text-muted underline hover:text-red-600">
-          Remove
+          {t("common.remove", "Remove")}
         </button>
       </div>
     );
@@ -63,7 +63,7 @@ function PromoCodeBox() {
             onApply();
           }
         }}
-        placeholder="Promo code"
+        placeholder={t("cart.promoCode", "Promo code")}
         className="flex-1 rounded border border-border bg-background px-3 py-1.5 text-sm"
       />
       <button
@@ -71,7 +71,7 @@ function PromoCodeBox() {
         disabled={isApplying || !code.trim()}
         className="rounded border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface disabled:opacity-50"
       >
-        {isApplying ? "..." : "Apply"}
+        {isApplying ? "..." : t("common.apply", "Apply")}
       </button>
     </div>
   );
@@ -82,11 +82,12 @@ export function CartModal() {
   const closeCartModal = useUIStore((s) => s.closeCartModal);
   const { items, setQuantity, removeItem, totalPrice, discountAmount, grandTotal } = useCartStore();
   const discount = discountAmount();
+  const { t } = useTranslations();
 
   return (
-    <Modal isOpen={isOpen} onClose={closeCartModal} title="Your cart" widthClassName="max-w-md">
+    <Modal isOpen={isOpen} onClose={closeCartModal} title={t("cart.yourCart", "Your cart")} widthClassName="max-w-md">
       {items.length === 0 ? (
-        <p className="text-muted text-sm py-8 text-center">Your cart is empty.</p>
+        <p className="text-muted text-sm py-8 text-center">{t("cart.empty", "Your cart is empty.")}</p>
       ) : (
         <div className="flex flex-col gap-4 max-h-[65vh] overflow-y-auto pr-1">
           {items.map((item) => (
@@ -103,7 +104,7 @@ export function CartModal() {
                   <button
                     onClick={() => setQuantity(item.productId, item.quantity - 1)}
                     className="p-1 border border-border rounded hover:bg-background"
-                    aria-label="Decrease quantity"
+                    aria-label={t("product.decreaseQuantity", "Decrease quantity")}
                   >
                     <Minus size={14} />
                   </button>
@@ -111,7 +112,7 @@ export function CartModal() {
                   <button
                     onClick={() => setQuantity(item.productId, item.quantity + 1)}
                     className="p-1 border border-border rounded hover:bg-background"
-                    aria-label="Increase quantity"
+                    aria-label={t("product.increaseQuantity", "Increase quantity")}
                   >
                     <Plus size={14} />
                   </button>
@@ -119,7 +120,7 @@ export function CartModal() {
               </div>
               <button
                 onClick={() => removeItem(item.productId)}
-                aria-label="Remove item"
+                aria-label={t("cart.removeItem", "Remove item")}
                 className="text-muted hover:text-red-600"
               >
                 <Trash2 size={18} />
@@ -135,17 +136,17 @@ export function CartModal() {
 
           <div className="flex flex-col gap-1">
             <div className="flex justify-between text-sm text-muted">
-              <span>Subtotal</span>
+              <span>{t("cart.subtotal", "Subtotal")}</span>
               <span>{formatCurrency(totalPrice())}</span>
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-sm text-green-700">
-                <span>Discount</span>
+                <span>{t("cart.discount", "Discount")}</span>
                 <span>-{formatCurrency(discount)}</span>
               </div>
             )}
             <div className="flex justify-between font-medium">
-              <span>Total</span>
+              <span>{t("cart.total", "Total")}</span>
               <span>{formatCurrency(grandTotal())}</span>
             </div>
           </div>
@@ -155,7 +156,7 @@ export function CartModal() {
             onClick={closeCartModal}
             className="w-full block text-center bg-primary text-primary-foreground rounded px-3 py-2 hover:bg-primary-hover"
           >
-            Proceed to checkout
+            {t("cart.proceedToCheckout", "Proceed to checkout")}
           </Link>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { AppliedPromo, Product } from "@/models";
 import { ProductCard } from "@/views/ProductCard";
+import { T } from "@/components/ui/T";
 
 interface ProductGridProps {
   products: Product[];
@@ -8,7 +9,11 @@ interface ProductGridProps {
 
 export function ProductGrid({ products, promoByProductId }: ProductGridProps) {
   if (products.length === 0) {
-    return <p className="py-16 text-center text-sm text-muted">No products found.</p>;
+    return (
+      <p className="py-16 text-center text-sm text-muted">
+        <T k="product.noneFound">No products found.</T>
+      </p>
+    );
   }
 
   return (

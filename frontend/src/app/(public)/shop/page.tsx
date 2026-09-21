@@ -6,6 +6,7 @@ import { ProductGrid } from "@/views/ProductGrid";
 import { Pagination } from "@/views/Pagination";
 import { PromoAutoApply } from "@/views/PromoAutoApply";
 import { AppliedPromo } from "@/models";
+import { T } from "@/components/ui/T";
 
 type ShopSearchParams = { category?: string; page?: string; promo?: string };
 
@@ -49,10 +50,10 @@ export default async function ShopPage({
     <main className="mx-auto max-w-7xl px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">
       <PromoAutoApply code={promo} />
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{category || "Shop"}</h1>
+        <h1 className="text-2xl font-semibold">{category || <T k="nav.shop">Shop</T>}</h1>
         {category && (
           <Link href="/shop" className="text-sm text-muted underline">
-            Clear filter
+            <T k="product.clearFilter">Clear filter</T>
           </Link>
         )}
       </div>

@@ -11,10 +11,12 @@ import { useUIStore } from "@/controllers/useUIStore";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
 import { SharedCart } from "@/models";
+import { useTranslations } from "@/controllers/useTranslations";
 
 export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
   const router = useRouter();
   const { isAuthenticated } = useAuthController();
+  const { t } = useTranslations();
   const openAuthModal = useUIStore((s) => s.openAuthModal);
   const clear = useCartStore((s) => s.clear);
   const addItem = useCartStore((s) => s.addItem);
@@ -42,9 +44,9 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
         item.quantity
       );
     }
-    toast.success("Added to your cart");
+    toast.success(t("pay.addedToYourCart", "Added to your cart"));
     router.push("/checkout");
-  }, [clear, addItem, sharedCart, router]);
+  }, [clear, addItem, sharedCart, router, t]);
 
   const onContinue = () => {
     if (!isAuthenticated) {
@@ -66,14 +68,18 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
     <main className="mx-auto max-w-lg px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">
       <div className="mb-6 text-center">
         <Gift size={32} className="mx-auto mb-2 text-primary" />
-        <h1 className="text-xl font-semibold">{sharedCart.createdByName} wants you to pay for this</h1>
-        <p className="mt-1 text-sm text-muted">Review it below, then check out and pay for it yourself.</p>
+        <h1 className="text-xl font-semibold">
+          {t("pay.wantsYouToPay", "{name} wants you to pay for this", { name: sharedCart.createdByName })}
+        </h1>
+        <p className="mt-1 text-sm text-muted">
+          {t("pay.reviewBelow", "Review it below, then check out and pay for it yourself.")}
+        </p>
       </div>
 
       {sharedCart.isFulfilled ? (
         <div className="rounded-md border border-border bg-surface p-6 text-center">
           <CheckCircle2 size={28} className="mx-auto mb-2 text-green-600" />
-          <p className="text-sm font-medium">This has already been paid for.</p>
+          <p className="text-sm font-medium">{t("pay.alreadyPaid", "This has already been paid for.")}</p>
         </div>
       ) : (
         <>
@@ -88,7 +94,7 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm">{item.name}</p>
-                    <p className="text-xs text-muted">Qty {item.quantity}</p>
+                    <p className="text-xs text-muted">{t("checkout.qty", "Qty {n}", { n: item.quantity })}</p>
                   </div>
                   <p className="shrink-0 text-sm font-medium">
                     {formatCurrency(item.price * item.quantity)}
@@ -97,17 +103,21 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
               ))}
             </div>
             <div className="mt-3 flex justify-between border-t border-border pt-3 text-sm font-semibold">
-              <span>Items total</span>
+              <span>{t("pay.itemsTotal", "Items total")}</span>
               <span>{formatCurrency(total)}</span>
             </div>
-            <p className="mt-1 text-xs text-muted">Delivery fee is added at checkout.</p>
+            <p className="mt-1 text-xs text-muted">
+              {t("pay.deliveryFeeAtCheckout", "Delivery fee is added at checkout.")}
+            </p>
           </div>
 
           <button
             onClick={onContinue}
             className="mt-4 w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
-            {isAuthenticated ? "Continue to checkout" : "Sign in to continue"}
+            {isAuthenticated
+              ? t("pay.continueToCheckout", "Continue to checkout")
+              : t("pay.signInToContinue", "Sign in to continue")}
           </button>
         </>
       )}

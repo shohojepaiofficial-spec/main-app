@@ -14,6 +14,7 @@ import { ProductSuggestions } from "@/views/ProductSuggestions";
 import { Breadcrumbs, BreadcrumbItem } from "@/views/Breadcrumbs";
 import { PromoAutoApply } from "@/views/PromoAutoApply";
 import { ProductClickTracker } from "@/views/ProductClickTracker";
+import { T } from "@/components/ui/T";
 
 export async function generateMetadata({
   params,
@@ -72,8 +73,8 @@ export default async function ProductDetailPage({
   }
 
   const breadcrumbItems: BreadcrumbItem[] = [
-    { label: "Home", href: "/" },
-    { label: "Shop", href: "/shop" },
+    { label: "Home", key: "nav.home", href: "/" },
+    { label: "Shop", key: "nav.shop", href: "/shop" },
     { label: product.category, href: `/shop?category=${encodeURIComponent(product.category)}` },
     { label: product.name },
   ];
@@ -159,7 +160,9 @@ export default async function ProductDetailPage({
               <ProductBuyBox product={product} promo={productPromo} />
 
               <div>
-                <h2 className="mb-1 text-sm font-semibold">Description</h2>
+                <h2 className="mb-1 text-sm font-semibold">
+                  <T k="product.description">Description</T>
+                </h2>
                 <p className="text-sm text-muted whitespace-pre-line">{product.description}</p>
               </div>
             </div>

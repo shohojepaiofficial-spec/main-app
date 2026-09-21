@@ -3,10 +3,12 @@
 import { useState } from "react";
 import Image from "next/image";
 import { toUploadUrl } from "@/lib/api";
+import { useTranslations } from "@/controllers/useTranslations";
 
 export function ProductGallery({ images, name }: { images: string[]; name: string }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const active = images[activeIndex];
+  const { t } = useTranslations();
 
   return (
     <div>
@@ -22,7 +24,7 @@ export function ProductGallery({ images, name }: { images: string[]; name: strin
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-sm text-muted">
-            No image
+            {t("product.noImage", "No image")}
           </div>
         )}
       </div>
@@ -32,7 +34,7 @@ export function ProductGallery({ images, name }: { images: string[]; name: strin
             <button
               key={image}
               onClick={() => setActiveIndex(index)}
-              aria-label={`Show image ${index + 1}`}
+              aria-label={t("product.showImageN", "Show image {n}", { n: index + 1 })}
               aria-current={index === activeIndex}
               className={`relative h-16 w-16 shrink-0 overflow-hidden rounded border ${
                 index === activeIndex ? "border-primary" : "border-border"

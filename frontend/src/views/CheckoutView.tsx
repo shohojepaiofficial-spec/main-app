@@ -22,6 +22,7 @@ import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
 import { PaymentMethodPicker } from "@/views/PaymentMethodPicker";
 import { ShareLinkModal } from "@/views/ShareLinkModal";
 import { Order } from "@/models";
+import { useTranslations } from "@/controllers/useTranslations";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -37,10 +38,11 @@ function AskSomeoneElseToPay() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const { t } = useTranslations();
 
   const onCreate = async () => {
     if (items.length === 0) {
-      toast.error("Your cart is empty");
+      toast.error(t("cart.empty", "Your cart is empty."));
       return;
     }
     setIsCreating(true);
@@ -50,7 +52,7 @@ function AskSomeoneElseToPay() {
       );
       setShareUrl(`${SITE_URL}/pay/${id}`);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Failed to create link"));
+      toast.error(extractErrorMessage(err, t("checkout.failedToCreateLink", "Failed to create link")));
     } finally {
       setIsCreating(false);
     }
@@ -60,9 +62,9 @@ function AskSomeoneElseToPay() {
     if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      toast.success("Link copied");
+      toast.success(t("checkout.linkCopied", "Link copied"));
     } catch {
-      toast.error("Couldn't copy — copy it manually");
+      toast.error(t("checkout.copyManually", "Couldn't copy — copy it manually"));
     }
   };
 
@@ -71,9 +73,14 @@ function AskSomeoneElseToPay() {
       <div className="flex items-start gap-3">
         <Share2 size={18} className="mt-0.5 shrink-0 text-primary" />
         <div className="flex-1">
-          <p className="text-sm font-medium">Want someone else to pay for this?</p>
+          <p className="text-sm font-medium">
+            {t("checkout.askSomeoneElseTitle", "Want someone else to pay for this?")}
+          </p>
           <p className="mt-0.5 text-xs text-muted">
-            Share a link to this cart — whoever opens it can check out and pay for it themselves.
+            {t(
+              "checkout.askSomeoneElseSubtitle",
+              "Share a link to this cart — whoever opens it can check out and pay for it themselves."
+            )}
           </p>
 
           {shareUrl ? (
@@ -88,19 +95,21 @@ function AskSomeoneElseToPay() {
                 onClick={onCopy}
                 className="flex shrink-0 items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
               >
-                <Copy size={12} /> Copy
+                <Copy size={12} /> {t("common.copy", "Copy")}
               </button>
               <button
                 onClick={() => setIsShareOpen(true)}
                 className="flex shrink-0 items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
               >
-                <Share2 size={12} /> Share
+                <Share2 size={12} /> {t("common.share", "Share")}
               </button>
               <ShareLinkModal
                 isOpen={isShareOpen}
                 onClose={() => setIsShareOpen(false)}
                 url={shareUrl}
-                text={`Please pay for my order on ${SITE_NAME}:`}
+                text={t("checkout.pleasePayFor", "Please pay for my order on {siteName}:", {
+                  siteName: SITE_NAME,
+                })}
               />
             </div>
           ) : (
@@ -109,7 +118,9 @@ function AskSomeoneElseToPay() {
               disabled={isCreating}
               className="mt-3 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background disabled:opacity-50"
             >
-              {isCreating ? "Creating link..." : "Create shareable link"}
+              {isCreating
+                ? t("checkout.creatingLink", "Creating link...")
+                : t("checkout.createShareableLink", "Create shareable link")}
             </button>
           )}
         </div>
@@ -119,26 +130,33 @@ function AskSomeoneElseToPay() {
 }
 
 function OrderPlaced({ order }: { order: Order }) {
+  const { t } = useTranslations();
   return (
     <main className="mx-auto max-w-lg p-6 pb-16 text-center">
       <CheckCircle2 size={40} className="mx-auto mb-3 text-primary" />
-      <h1 className="mb-1 text-xl font-semibold">Order placed!</h1>
+      <h1 className="mb-1 text-xl font-semibold">{t("checkout.orderPlaced", "Order placed!")}</h1>
       <p className="mb-6 text-sm text-muted">
-        Order #{order._id.slice(-6).toUpperCase()} &mdash; {formatCurrency(order.totalAmount)}
-        {order.paymentMethod === "cod" ? ", paid on delivery." : "."}
+        {t("checkout.orderSummaryLine", "Order #{id} — {amount}{suffix}", {
+          id: order._id.slice(-6).toUpperCase(),
+          amount: formatCurrency(order.totalAmount),
+          suffix:
+            order.paymentMethod === "cod"
+              ? t("checkout.paidOnDelivery", ", paid on delivery.")
+              : ".",
+        })}
       </p>
       <div className="flex flex-wrap justify-center gap-3">
         <Link
           href="/orders"
           className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
         >
-          <Package size={16} /> View your orders
+          <Package size={16} /> {t("checkout.viewYourOrders", "View your orders")}
         </Link>
         <Link
           href="/shop"
           className="flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-background"
         >
-          <ShoppingBag size={16} /> Continue shopping
+          <ShoppingBag size={16} /> {t("checkout.continueShopping", "Continue shopping")}
         </Link>
       </div>
     </main>
@@ -169,6 +187,7 @@ function hasSavedDeliveryLocation(user: ReturnType<typeof useAuthController>["us
 
 export function CheckoutView({ storeCity }: { storeCity: string }) {
   const { user } = useAuthController();
+  const { t } = useTranslations();
   const { items, promo, totalPrice, discountAmount, clear } = useCartStore();
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   // "saved" shows the account's stored phone/address (read-only) and skips
@@ -317,7 +336,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
           .catch((err) => console.error("Failed to save SMS opt-in:", err));
       }
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Failed to place order"));
+      toast.error(extractErrorMessage(err, t("checkout.failedToPlaceOrder", "Failed to place order")));
     }
   };
 
@@ -327,10 +346,12 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
     return (
       <main className="mx-auto max-w-lg p-6 pb-16 text-center">
         <ShoppingBag size={32} className="mx-auto mb-3 text-muted" />
-        <h1 className="mb-1 text-xl font-semibold">Your cart is empty</h1>
-        <p className="mb-4 text-sm text-muted">Add something to your cart before checking out.</p>
+        <h1 className="mb-1 text-xl font-semibold">{t("checkout.emptyCartTitle", "Your cart is empty")}</h1>
+        <p className="mb-4 text-sm text-muted">
+          {t("checkout.emptyCartSubtitle", "Add something to your cart before checking out.")}
+        </p>
         <Link href="/shop" className="text-sm font-medium text-primary underline">
-          Browse the shop
+          {t("checkout.browseTheShop", "Browse the shop")}
         </Link>
       </main>
     );
@@ -338,8 +359,10 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
 
   return (
     <main className="mx-auto max-w-4xl p-6 pb-16">
-      <h1 className="mb-1 text-xl font-semibold">Checkout</h1>
-      <p className="mb-6 text-sm text-muted">Choose how you&apos;d like to pay below.</p>
+      <h1 className="mb-1 text-xl font-semibold">{t("checkout.title", "Checkout")}</h1>
+      <p className="mb-6 text-sm text-muted">
+        {t("checkout.subtitle", "Choose how you'd like to pay below.")}
+      </p>
 
       <AskSomeoneElseToPay />
 
@@ -349,7 +372,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
           className="flex flex-col gap-4 lg:col-span-2"
           id="checkout-form"
         >
-          <h2 className="text-sm font-semibold">Delivery details</h2>
+          <h2 className="text-sm font-semibold">{t("checkout.deliveryDetails", "Delivery details")}</h2>
 
           {hasSavedDeliveryLocation(user) && (
             <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3 text-sm">
@@ -361,7 +384,9 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
                   onChange={useSavedAddress}
                 />
                 <span>
-                  <span className="font-medium">Use my saved delivery details</span>
+                  <span className="font-medium">
+                    {t("checkout.useSavedDetails", "Use my saved delivery details")}
+                  </span>
                   <span className="block text-xs text-muted">
                     {user!.deliveryLocation!.addressLine}, {user!.deliveryLocation!.upazila},{" "}
                     {user!.deliveryLocation!.zila} &middot; {user!.phone}
@@ -374,14 +399,14 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
                   checked={addressMode === "new"}
                   onChange={useNewAddress}
                 />
-                <span className="font-medium">Deliver to a new address</span>
+                <span className="font-medium">{t("checkout.deliverToNewAddress", "Deliver to a new address")}</span>
               </label>
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-medium">Full name</label>
+              <label className="text-sm font-medium">{t("checkout.fullName", "Full name")}</label>
               <input
                 {...register("fullName")}
                 className="mt-1 w-full rounded border border-border bg-background px-3 py-2"
@@ -391,7 +416,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
               )}
             </div>
             <div>
-              <label className="text-sm font-medium">Phone</label>
+              <label className="text-sm font-medium">{t("checkout.phone", "Phone")}</label>
               <input
                 {...register("phone")}
                 type="tel"
@@ -412,12 +437,12 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
           />
 
           <div>
-            <label className="text-sm font-medium">House / Road / Area</label>
+            <label className="text-sm font-medium">{t("checkout.houseRoadArea", "House / Road / Area")}</label>
             <textarea
               {...register("addressLine")}
               rows={2}
               disabled={addressMode === "saved"}
-              placeholder="House no., road, area..."
+              placeholder={t("checkout.houseRoadAreaPlaceholder", "House no., road, area...")}
               className="mt-1 w-full rounded border border-border bg-background px-3 py-2 disabled:opacity-50"
             />
             {errors.addressLine && (
@@ -427,8 +452,11 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
 
           {zila && (
             <p className="text-xs text-muted">
-              {isInsideStoreCity(zila, storeCity) ? `Inside ${storeCity}` : `Outside ${storeCity}`} delivery
-              rates apply.
+              {t("checkout.deliveryRatesApply", "{zone} delivery rates apply.", {
+                zone: isInsideStoreCity(zila, storeCity)
+                  ? t("checkout.insideCity", "Inside {city}", { city: storeCity })
+                  : t("checkout.outsideCity", "Outside {city}", { city: storeCity }),
+              })}
             </p>
           )}
 
@@ -439,7 +467,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
                 checked={saveForNextTime}
                 onChange={(e) => setSaveForNextTime(e.target.checked)}
               />
-              Save this phone number and address for next time
+              {t("checkout.saveForNextTime", "Save this phone number and address for next time")}
             </label>
           )}
 
@@ -450,11 +478,11 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
                 checked={smsOptIn}
                 onChange={(e) => setSmsOptIn(e.target.checked)}
               />
-              Send me SMS about offers and promotions
+              {t("checkout.smsOptIn", "Send me SMS about offers and promotions")}
             </label>
           )}
 
-          <h2 className="mt-2 text-sm font-semibold">Payment method</h2>
+          <h2 className="mt-2 text-sm font-semibold">{t("checkout.paymentMethod", "Payment method")}</h2>
           <PaymentMethodPicker
             value={paymentMethod}
             onChange={(method) => setValue("paymentMethod", method)}
@@ -463,7 +491,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
 
         <div className="flex flex-col gap-4">
           <div className="rounded-md border border-border bg-surface p-4">
-            <h2 className="mb-3 text-sm font-semibold">Order summary</h2>
+            <h2 className="mb-3 text-sm font-semibold">{t("checkout.orderSummary", "Order summary")}</h2>
             <div className="flex flex-col gap-3">
               {items.map((item) => (
                 <div key={item.productId} className="flex items-center gap-3">
@@ -474,7 +502,9 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm">{item.name}</p>
-                    <p className="text-xs text-muted">Qty {item.quantity}</p>
+                    <p className="text-xs text-muted">
+                      {t("checkout.qty", "Qty {n}", { n: item.quantity })}
+                    </p>
                   </div>
                   <p className="shrink-0 text-sm font-medium">
                     {formatCurrency(item.price * item.quantity)}
@@ -485,21 +515,25 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
 
             <div className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-sm">
               <div className="flex justify-between text-muted">
-                <span>Items</span>
+                <span>{t("cart.items", "Items")}</span>
                 <span>{formatCurrency(itemsTotal)}</span>
               </div>
               <div className="flex justify-between text-muted">
-                <span>Delivery</span>
-                <span>{zila ? formatCurrency(deliveryFee) : "Select a Zila"}</span>
+                <span>{t("checkout.delivery", "Delivery")}</span>
+                <span>{zila ? formatCurrency(deliveryFee) : t("checkout.selectAZila", "Select a Zila")}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-700">
-                  <span>Discount{promo ? ` (${promo.code})` : ""}</span>
+                  <span>
+                    {promo
+                      ? t("checkout.discountWithCode", "Discount ({code})", { code: promo.code })
+                      : t("cart.discount", "Discount")}
+                  </span>
                   <span>-{formatCurrency(discount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-semibold">
-                <span>Total</span>
+                <span>{t("cart.total", "Total")}</span>
                 <span>{formatCurrency(grandTotal)}</span>
               </div>
             </div>
@@ -512,8 +546,13 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
             className="rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
           >
             {isSubmitting
-              ? "Placing order..."
-              : `Place order (${paymentMethod === "cod" ? "Cash on Delivery" : "bKash"})`}
+              ? t("checkout.placingOrder", "Placing order...")
+              : t("checkout.placeOrder", "Place order ({method})", {
+                  method:
+                    paymentMethod === "cod"
+                      ? t("checkout.cashOnDelivery", "Cash on Delivery")
+                      : "bKash",
+                })}
           </button>
         </div>
       </div>
