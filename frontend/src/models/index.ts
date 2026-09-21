@@ -179,6 +179,20 @@ export interface Order {
   // order — where to send the browser to actually pay. Never stored, never
   // present on an order read back later (getMyOrders/getOrderById/etc).
   bkashRedirectUrl?: string;
+  // Admin-only fields — absent from the customer's own getMyOrders response.
+  internalNote?: string;
+  courierProvider?: "pathao";
+  courierConsignmentId?: string;
+  courierTrackingStatus?: string;
+  courierNote?: string;
+  courierBookedAt?: string;
+}
+
+// A Pathao city/zone/area — id + display name, nothing else (see
+// server's integrations/pathao.ts).
+export interface PathaoLocation {
+  id: number;
+  name: string;
 }
 
 // Quick-glance admin dashboard numbers — see server's

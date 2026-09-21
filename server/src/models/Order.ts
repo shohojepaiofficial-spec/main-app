@@ -51,6 +51,21 @@ export interface IOrder extends Document {
   // Set when this order was placed by fulfilling someone else's shared-cart
   // "ask someone else to pay" link, rather than from the buyer's own cart.
   sharedCartId?: Types.ObjectId;
+  // Admin-only, never shown to the customer — a free-text place to leave
+  // context for other admins/coadmins (e.g. "customer asked for evening
+  // delivery").
+  internalNote?: string;
+  // Courier/delivery tracking — provider-agnostic on purpose (only "pathao"
+  // exists today, but nothing here assumes it's the only one ever will).
+  // courierConsignmentId/courierTrackingStatus can be filled in by hand (the
+  // admin booked outside the site, e.g. via Pathao's own dashboard) or by a
+  // real API call once integrations/pathao.ts is configured — see
+  // docs/ARCHITECTURE.md's "Courier & delivery" section.
+  courierProvider?: "pathao";
+  courierConsignmentId?: string;
+  courierTrackingStatus?: string;
+  courierNote?: string;
+  courierBookedAt?: Date;
   createdAt: Date;
 }
 
@@ -99,6 +114,12 @@ const orderSchema = new Schema<IOrder>(
     },
     shippingAddress: { type: shippingDetailsSchema, required: true },
     sharedCartId: { type: Schema.Types.ObjectId, ref: "SharedCart" },
+    internalNote: { type: String, trim: true },
+    courierProvider: { type: String, enum: ["pathao"] },
+    courierConsignmentId: { type: String, trim: true },
+    courierTrackingStatus: { type: String, trim: true },
+    courierNote: { type: String, trim: true },
+    courierBookedAt: { type: Date },
   },
   { timestamps: true }
 );

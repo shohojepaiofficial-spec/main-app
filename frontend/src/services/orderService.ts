@@ -1,5 +1,13 @@
 import { api } from "@/lib/api";
-import { Order, OrderStats, OrderStatus, PaymentMethod, ProductSummary, ShippingDetails } from "@/models";
+import {
+  Order,
+  OrderStats,
+  OrderStatus,
+  PathaoLocation,
+  PaymentMethod,
+  ProductSummary,
+  ShippingDetails,
+} from "@/models";
 
 export const getMyOrders = async (): Promise<Order[]> => {
   const { data } = await api.get<Order[]>("/orders/my");
@@ -72,5 +80,61 @@ export interface AdminCreateOrderInput {
 
 export const adminCreateOrder = async (input: AdminCreateOrderInput): Promise<Order> => {
   const { data } = await api.post<Order>("/orders/admin", input);
+  return data;
+};
+
+export const bulkUpdateOrderStatus = async (ids: string[], status: OrderStatus): Promise<Order[]> => {
+  const { data } = await api.patch<Order[]>("/orders/bulk/status", { ids, status });
+  return data;
+};
+
+export const updateOrderNote = async (id: string, note: string): Promise<Order> => {
+  const { data } = await api.patch<Order>(`/orders/${id}/note`, { note });
+  return data;
+};
+
+export interface CourierInfoInput {
+  consignmentId?: string;
+  trackingStatus?: string;
+  note?: string;
+}
+
+// Manual courier entry — works with or without Pathao actually connected.
+export const updateCourierInfo = async (id: string, input: CourierInfoInput): Promise<Order> => {
+  const { data } = await api.patch<Order>(`/orders/${id}/courier`, input);
+  return data;
+};
+
+export const getPathaoCities = async (): Promise<PathaoLocation[]> => {
+  const { data } = await api.get<PathaoLocation[]>("/orders/pathao/cities");
+  return data;
+};
+
+export const getPathaoZones = async (cityId: number): Promise<PathaoLocation[]> => {
+  const { data } = await api.get<PathaoLocation[]>(`/orders/pathao/cities/${cityId}/zones`);
+  return data;
+};
+
+export const getPathaoAreas = async (zoneId: number): Promise<PathaoLocation[]> => {
+  const { data } = await api.get<PathaoLocation[]>(`/orders/pathao/zones/${zoneId}/areas`);
+  return data;
+};
+
+export interface BookPathaoOrderInput {
+  cityId: number;
+  zoneId: number;
+  areaId?: number;
+  weightKg: number;
+  description?: string;
+  specialInstruction?: string;
+}
+
+export const bookPathaoOrder = async (id: string, input: BookPathaoOrderInput): Promise<Order> => {
+  const { data } = await api.post<Order>(`/orders/${id}/pathao`, input);
+  return data;
+};
+
+export const refreshPathaoStatus = async (id: string): Promise<Order> => {
+  const { data } = await api.post<Order>(`/orders/${id}/pathao/refresh`);
   return data;
 };

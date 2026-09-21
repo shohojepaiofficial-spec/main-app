@@ -26,6 +26,17 @@ works end-to-end, but `SMS_API_URL`/`SMS_API_KEY` aren't set, so every SMS
 attempt fails. Needs an account with a Bangladeshi bulk-SMS gateway
 (BulkSMSBD, MimSMS, SSL Wireless, etc.).
 
+**2.8 — Pathao courier integration needs real credentials + a live test.**
+The code is built (`server/src/integrations/pathao.ts`, gated the same way
+`bkash.ts` is; "Book with Pathao" in each order's Courier & delivery panel)
+but, unlike bKash, has never actually talked to Pathao's API — Pathao only
+hands out sandbox credentials per-merchant on request, not a public test
+app. Set `PATHAO_*` in `server/.env` (client id/secret, username, password,
+store id — see `.env.example`'s comments) and book one real test order;
+expect to adjust the response parsing in that one file if Pathao's actual
+shapes differ from what's documented. Manual courier entry (no API needed)
+already works today regardless.
+
 ### Priority 3 — Security & reliability hardening
 
 **3.7 — MongoDB Atlas connection string looks like the free/shared tier**

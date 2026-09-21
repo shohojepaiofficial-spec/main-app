@@ -15,6 +15,14 @@ import {
   executeBkashPayment,
   queryBkashPayment,
 } from "../integrations/bkash";
+import {
+  isPathaoConfigured,
+  getPathaoCities,
+  getPathaoZones,
+  getPathaoAreas,
+  createPathaoOrder,
+  getPathaoOrderStatus,
+} from "../integrations/pathao";
 
 interface CheckoutItemInput {
   productId: string;
@@ -526,4 +534,194 @@ export const getOrderStats = async (_req: AuthRequest, res: Response) => {
     totalOrders,
     totalRevenue: revenueAgg[0]?.total ?? 0,
   });
+};
+
+async function populatedOrder(id: string) {
+  return Order.findById(id)
+    .populate("items.product", "name images deliveryFeeInsideCity deliveryFeeOutsideCity")
+    .populate("user", "name email");
+}
+
+// Admin-only free-text note, never shown to the customer — see Order.ts's
+// internalNote field.
+export const updateOrderNote = async (req: AuthRequest, res: Response) => {
+  const { note } = req.body as { note?: string };
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+
+  order.internalNote = note?.trim() || undefined;
+  await order.save();
+  res.json(await populatedOrder(order.id));
+};
+
+// Manual courier entry — works regardless of whether integrations/pathao.ts
+// is configured, since the admin may have booked the pickup by hand (e.g.
+// on Pathao's own merchant site) rather than through this site's "Book with
+// Pathao" button. Clearing every field drops courierProvider too, so an
+// order can go back to "no courier yet".
+export const updateCourierInfo = async (req: AuthRequest, res: Response) => {
+  const { consignmentId, trackingStatus, note } = req.body as {
+    consignmentId?: string;
+    trackingStatus?: string;
+    note?: string;
+  };
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+
+  const hasAny = !!(consignmentId?.trim() || trackingStatus?.trim() || note?.trim());
+  order.courierProvider = hasAny ? "pathao" : undefined;
+  order.courierConsignmentId = consignmentId?.trim() || undefined;
+  order.courierTrackingStatus = trackingStatus?.trim() || undefined;
+  order.courierNote = note?.trim() || undefined;
+  await order.save();
+  res.json(await populatedOrder(order.id));
+};
+
+export const listPathaoCities = async (_req: AuthRequest, res: Response) => {
+  if (!isPathaoConfigured()) {
+    return res.status(400).json({ message: "Pathao isn't connected yet — see server/.env.example's PATHAO_* vars." });
+  }
+  try {
+    res.json(await getPathaoCities());
+  } catch (err) {
+    console.error("Pathao city list failed:", err);
+    res.status(502).json({ message: (err as Error).message || "Couldn't load Pathao's city list" });
+  }
+};
+
+export const listPathaoZones = async (req: AuthRequest, res: Response) => {
+  if (!isPathaoConfigured()) {
+    return res.status(400).json({ message: "Pathao isn't connected yet." });
+  }
+  try {
+    res.json(await getPathaoZones(Number(req.params.cityId)));
+  } catch (err) {
+    console.error("Pathao zone list failed:", err);
+    res.status(502).json({ message: (err as Error).message || "Couldn't load Pathao's zone list" });
+  }
+};
+
+export const listPathaoAreas = async (req: AuthRequest, res: Response) => {
+  if (!isPathaoConfigured()) {
+    return res.status(400).json({ message: "Pathao isn't connected yet." });
+  }
+  try {
+    res.json(await getPathaoAreas(Number(req.params.zoneId)));
+  } catch (err) {
+    console.error("Pathao area list failed:", err);
+    res.status(502).json({ message: (err as Error).message || "Couldn't load Pathao's area list" });
+  }
+};
+
+// Books a real Pathao pickup for this order — only reachable once
+// PATHAO_* env vars are set (see integrations/pathao.ts). The admin picks
+// city/zone/area from Pathao's own location lists (fetched via the
+// listPathao* endpoints above) since our zila/upazila strings don't map
+// onto Pathao's location IDs. amount_to_collect is the order total for Cash
+// on Delivery, 0 for anything already paid online.
+export const bookPathaoOrder = async (req: AuthRequest, res: Response) => {
+  if (!isPathaoConfigured()) {
+    return res.status(400).json({
+      message: "Pathao isn't connected yet — add PATHAO_* environment variables, or enter courier details manually.",
+    });
+  }
+
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+  if (order.courierConsignmentId) {
+    return res.status(400).json({ message: "This order already has a courier booking" });
+  }
+
+  const { cityId, zoneId, areaId, weightKg, description, specialInstruction } = req.body as {
+    cityId?: number;
+    zoneId?: number;
+    areaId?: number;
+    weightKg?: number;
+    description?: string;
+    specialInstruction?: string;
+  };
+  if (!cityId || !zoneId || !weightKg) {
+    return res.status(400).json({ message: "City, zone and item weight are required" });
+  }
+
+  try {
+    const amountToCollect = order.paymentMethod === "cod" ? order.totalAmount : 0;
+    const result = await createPathaoOrder({
+      merchantOrderId: order.id,
+      recipientName: order.shippingAddress.fullName,
+      recipientPhone: order.shippingAddress.phone,
+      recipientAddress: order.shippingAddress.addressLine,
+      recipientCityId: cityId,
+      recipientZoneId: zoneId,
+      recipientAreaId: areaId,
+      itemWeightKg: weightKg,
+      itemQuantity: order.items.reduce((n, item) => n + item.quantity, 0),
+      itemDescription: description,
+      specialInstruction,
+      amountToCollect,
+    });
+
+    order.courierProvider = "pathao";
+    order.courierConsignmentId = result.consignmentId;
+    order.courierTrackingStatus = result.orderStatus;
+    order.courierBookedAt = new Date();
+    await order.save();
+    res.json(await populatedOrder(order.id));
+  } catch (err) {
+    console.error("Pathao order creation failed:", err);
+    res.status(502).json({
+      message: (err as Error).message || "Couldn't book this order with Pathao — you can still enter it manually.",
+    });
+  }
+};
+
+export const refreshPathaoStatus = async (req: AuthRequest, res: Response) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+  if (!order.courierConsignmentId) {
+    return res.status(400).json({ message: "This order has no courier booking yet" });
+  }
+  if (!isPathaoConfigured()) {
+    return res.status(400).json({ message: "Pathao isn't connected yet." });
+  }
+
+  try {
+    const { orderStatus } = await getPathaoOrderStatus(order.courierConsignmentId);
+    order.courierTrackingStatus = orderStatus;
+    await order.save();
+    res.json(await populatedOrder(order.id));
+  } catch (err) {
+    console.error("Pathao status refresh failed:", err);
+    res.status(502).json({ message: (err as Error).message || "Couldn't refresh this order's Pathao status" });
+  }
+};
+
+// Applies one status to several orders at once — e.g. marking a batch
+// "shipped" after handing them all to a courier in one trip. Reuses
+// updateOrderStatus's per-order cancel/restock rule rather than a single
+// updateMany, since restoring stock on cancel needs each order's own
+// previous status checked individually.
+export const bulkUpdateStatus = async (req: AuthRequest, res: Response) => {
+  const { ids, status } = req.body as { ids?: string[]; status?: string };
+  if (!ids || ids.length === 0) {
+    return res.status(400).json({ message: "No orders selected" });
+  }
+  if (!status || !ORDER_STATUSES.includes(status as (typeof ORDER_STATUSES)[number])) {
+    return res.status(400).json({ message: "Invalid status" });
+  }
+
+  const orders = await Order.find({ _id: { $in: ids } });
+  for (const order of orders) {
+    const wasAlreadyCancelled = order.status === "cancelled";
+    order.status = status as (typeof ORDER_STATUSES)[number];
+    await order.save();
+    if (status === "cancelled" && !wasAlreadyCancelled) {
+      await restoreStock(order);
+    }
+  }
+
+  const updated = await Order.find({ _id: { $in: ids } })
+    .populate("items.product", "name images deliveryFeeInsideCity deliveryFeeOutsideCity")
+    .populate("user", "name email");
+  res.json(updated);
 };
