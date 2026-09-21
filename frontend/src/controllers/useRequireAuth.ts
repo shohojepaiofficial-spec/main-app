@@ -26,7 +26,19 @@ export function useRequireAuth() {
   const isAuthModalOpen = useUIStore((s) => s.isAuthModalOpen);
   const hasPrompted = useRef(false);
 
-  const isChecking = status === "loading";
+  // NextAuth's `useSession()` always starts "loading" on every client mount
+  // and only resolves after a real network round-trip to /api/auth/session
+  // — but `useAuthStore`'s own `isAuthenticated` is already known by then
+  // for the common case (a returning email/password user, or a returning
+  // OAuth user already bridged from a previous visit): `hydrate()` reads it
+  // straight off a cookie in an effect right after mount, no network call
+  // needed. Waiting on `status` regardless of that used to cost every
+  // protected-page load a "Checking your session..." flash even when the
+  // answer was already known. Still wait on `status` when `useAuthStore`
+  // doesn't yet know the answer — that's the one case this delay is for: a
+  // fresh OAuth login where useOAuthBridge hasn't populated the store yet,
+  // where concluding "not logged in" early would be a false negative.
+  const isChecking = status === "loading" && !isAuthenticated;
   const isAllowed = isAuthenticated;
 
   useEffect(() => {

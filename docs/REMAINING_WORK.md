@@ -49,18 +49,6 @@ tier to actually post; Instagram needs a real public HTTPS domain to even
 test (see 1.2); the "4th platform" was mentioned once early on but never
 specified, so there's nothing concrete to build.
 
-**4.8 — Protected pages briefly flash "Checking your session..."** **Not a
-token problem either — skipped because a real fix conflicts with a
-deliberate, already-shipped UX decision.** Dashboard/Orders/Settings/Admin
-pages currently open the login modal *in place* when you're not logged in
-(rather than bouncing you away) — a real fix for the flash would mean
-checking auth in Next.js Middleware before the page even renders, which
-would have to redirect immediately instead, undoing that in-place-login
-behavior. Doing it without a UX regression would need either your call on
-which behavior wins, or a shared JWT-verification secret duplicated into
-the frontend (arguably its own "token needed" situation). Flagging rather
-than guessing which way you'd want this to go.
-
 ---
 
 ## Already finished
@@ -91,6 +79,7 @@ the full design and how it was verified live.
 - ✅ **4.4** — `AnalyticsEvent` now has a 180-day MongoDB TTL index for automatic retention.
 - ✅ **4.6** — Campaign emails have a one-click, per-recipient unsubscribe link (HMAC-signed, no new secret) and `Campaign.recipients` logs every individual send.
 - ✅ **4.7** — `STORE_CITY` duplication fixed: `server/src/utils/store.ts` is now the only place it's defined, served publicly via `GET /api/config`; the frontend fetches it instead of hardcoding a second copy (`frontend/src/lib/seo.ts`'s copy is gone). Picked the runtime-fetch approach over a monorepo/shared-package restructuring, since the two projects deploy independently.
+- ✅ **4.8** — Turned out not to need a UX tradeoff after all: `useRequireAuth`'s flash was waiting on NextAuth's `useSession()` even when `useAuthStore` already had the answer (from a fast cookie read, no network call) — fixed to only wait on the slower check when the faster one doesn't know yet (a fresh OAuth login). In-place-login behavior on `/checkout` is unchanged.
 - ✅ **4.9** — Real `/privacy` and `/terms` pages, linked from the footer — **worth a lawyer's review before relying on commercially.**
 - ✅ **Extra, not from the original list** — an admin-only, filtered "Reset analytics data" section on `/admin/analytics` (checkboxes for which event field, an age cutoff, a real count preview before deleting) — added on request, not part of the original audit.
 - ✅ **Extra, not from the original list** — fixed two real hydration-mismatch bugs found via user report: the navbar cart-count badge (`useCartStore`) and the language switcher (`useUIStore`), both caused by zustand's `persist` middleware reading `localStorage` synchronously before the server/client first render could agree.
