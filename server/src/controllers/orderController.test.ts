@@ -23,6 +23,10 @@ function queryResult<T>(result: T) {
 
 const STORE_CITY_ZILA = "Sylhet";
 const OUTSIDE_ZILA = "Dhaka";
+// Pathao isn't configured in this test env (no PATHAO_* vars), so
+// resolveDeliveryFee always falls straight through to the flat fee — this
+// value is never actually used to look anything up.
+const TEST_UPAZILA = "Sylhet Sadar";
 
 function fakeProduct(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -46,10 +50,15 @@ describe("computeOrderTotals", () => {
   it("computes itemsTotal/deliveryFee/totalAmount for a normal order", async () => {
     vi.mocked(Product.find).mockReturnValue(queryResult([fakeProduct()]) as never);
 
-    const result = await computeOrderTotals([{ productId: "p1", quantity: 2 }], STORE_CITY_ZILA);
+    const result = await computeOrderTotals(
+      [{ productId: "p1", quantity: 2 }],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA
+    );
 
     expect(result.itemsTotal).toBe(400); // 200 * 2
     expect(result.deliveryFee).toBe(10); // inside-city fee, once per line
+    expect(result.deliveryFeeSource).toBe("flat");
     expect(result.discount).toBe(0);
     expect(result.totalAmount).toBe(410);
   });
@@ -57,7 +66,11 @@ describe("computeOrderTotals", () => {
   it("uses the outside-city delivery fee when the zila isn't the store's city", async () => {
     vi.mocked(Product.find).mockReturnValue(queryResult([fakeProduct()]) as never);
 
-    const result = await computeOrderTotals([{ productId: "p1", quantity: 1 }], OUTSIDE_ZILA);
+    const result = await computeOrderTotals(
+      [{ productId: "p1", quantity: 1 }],
+      OUTSIDE_ZILA,
+      TEST_UPAZILA
+    );
 
     expect(result.deliveryFee).toBe(100);
   });
@@ -66,7 +79,7 @@ describe("computeOrderTotals", () => {
     vi.mocked(Product.find).mockReturnValue(queryResult([fakeProduct({ stock: 1 })]) as never);
 
     await expect(
-      computeOrderTotals([{ productId: "p1", quantity: 2 }], STORE_CITY_ZILA)
+      computeOrderTotals([{ productId: "p1", quantity: 2 }], STORE_CITY_ZILA, TEST_UPAZILA)
     ).rejects.toMatchObject({ status: 409 });
   });
 
@@ -74,7 +87,7 @@ describe("computeOrderTotals", () => {
     vi.mocked(Product.find).mockReturnValue(queryResult([]) as never);
 
     await expect(
-      computeOrderTotals([{ productId: "gone", quantity: 1 }], STORE_CITY_ZILA)
+      computeOrderTotals([{ productId: "gone", quantity: 1 }], STORE_CITY_ZILA, TEST_UPAZILA)
     ).rejects.toMatchObject({ status: 400 });
   });
 
@@ -82,7 +95,7 @@ describe("computeOrderTotals", () => {
     vi.mocked(Product.find).mockReturnValue(queryResult([fakeProduct()]) as never);
 
     await expect(
-      computeOrderTotals([{ productId: "p1", quantity: 0 }], STORE_CITY_ZILA)
+      computeOrderTotals([{ productId: "p1", quantity: 0 }], STORE_CITY_ZILA, TEST_UPAZILA)
     ).rejects.toMatchObject({ status: 400 });
   });
 
@@ -99,7 +112,12 @@ describe("computeOrderTotals", () => {
       }) as never
     );
 
-    const result = await computeOrderTotals([{ productId: "p1", quantity: 1 }], STORE_CITY_ZILA, "save10");
+    const result = await computeOrderTotals(
+      [{ productId: "p1", quantity: 1 }],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA,
+      "save10"
+    );
 
     expect(result.discount).toBe(20); // 10% of 200
     expect(result.appliedCode).toBe("SAVE10");
@@ -128,6 +146,7 @@ describe("computeOrderTotals", () => {
         { productId: "p2", quantity: 1 },
       ],
       STORE_CITY_ZILA,
+      TEST_UPAZILA,
       "p1off"
     );
 
@@ -147,7 +166,12 @@ describe("computeOrderTotals", () => {
       }) as never
     );
 
-    const result = await computeOrderTotals([{ productId: "p1", quantity: 1 }], STORE_CITY_ZILA, "old10");
+    const result = await computeOrderTotals(
+      [{ productId: "p1", quantity: 1 }],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA,
+      "old10"
+    );
 
     expect(result.discount).toBe(0);
     expect(result.appliedCode).toBeUndefined();
@@ -166,7 +190,12 @@ describe("computeOrderTotals", () => {
       }) as never
     );
 
-    const result = await computeOrderTotals([{ productId: "p1", quantity: 1 }], STORE_CITY_ZILA, "huge");
+    const result = await computeOrderTotals(
+      [{ productId: "p1", quantity: 1 }],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA,
+      "huge"
+    );
 
     // discount = min(1000, itemsTotal=30) = 30, so total = 30 + 10 delivery - 30 = 10
     expect(result.discount).toBe(30);

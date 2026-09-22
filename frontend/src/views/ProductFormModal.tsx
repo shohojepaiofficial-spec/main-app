@@ -20,6 +20,7 @@ const productSchema = z.object({
   deliveryFeeInsideCity: z.coerce.number().min(0, "Delivery fee can't be negative"),
   deliveryFeeOutsideCity: z.coerce.number().min(0, "Delivery fee can't be negative"),
   isFeatured: z.boolean(),
+  weightKg: z.coerce.number().min(0.1, "Weight must be at least 0.1kg"),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -63,6 +64,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
           deliveryFeeInsideCity: editingProduct.deliveryFeeInsideCity,
           deliveryFeeOutsideCity: editingProduct.deliveryFeeOutsideCity,
           isFeatured: editingProduct.isFeatured,
+          weightKg: editingProduct.weightKg,
         }
       : {
           name: "",
@@ -73,6 +75,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
           deliveryFeeInsideCity: 0,
           deliveryFeeOutsideCity: 0,
           isFeatured: false,
+          weightKg: 0.5,
         },
   });
 
@@ -196,6 +199,21 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
         </div>
         <p className="text-xs text-muted mt-1">
           Flat fees you set yourself for shipping this item — not calculated from any courier&apos;s rates.
+        </p>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Weight (kg)</label>
+        <input
+          {...register("weightKg")}
+          type="number"
+          step="0.1"
+          min="0.1"
+          className="w-full border border-border rounded px-3 py-2 bg-background mt-1"
+        />
+        {errors.weightKg && <p className="text-red-600 text-sm mt-1">{errors.weightKg.message}</p>}
+        <p className="text-xs text-muted mt-1">
+          Used to size a live Pathao delivery quote at checkout — never shown to the customer.
         </p>
       </div>
 

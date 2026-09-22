@@ -45,6 +45,7 @@ export interface ProductInput {
   deliveryFeeInsideCity: number;
   deliveryFeeOutsideCity: number;
   isFeatured: boolean;
+  weightKg: number;
   newImages: File[];
 }
 
@@ -58,6 +59,7 @@ export const createProduct = async (input: ProductInput): Promise<Product> => {
   formData.append("deliveryFeeInsideCity", String(input.deliveryFeeInsideCity));
   formData.append("deliveryFeeOutsideCity", String(input.deliveryFeeOutsideCity));
   formData.append("isFeatured", String(input.isFeatured));
+  formData.append("weightKg", String(input.weightKg));
   input.newImages.forEach((file) => formData.append("images", file));
 
   const { data } = await api.post<Product>("/products", formData);
@@ -77,6 +79,7 @@ export const updateProduct = async (
   formData.append("deliveryFeeInsideCity", String(input.deliveryFeeInsideCity));
   formData.append("deliveryFeeOutsideCity", String(input.deliveryFeeOutsideCity));
   formData.append("isFeatured", String(input.isFeatured));
+  formData.append("weightKg", String(input.weightKg));
   formData.append("existingImages", JSON.stringify(input.existingImages));
   input.newImages.forEach((file) => formData.append("images", file));
 

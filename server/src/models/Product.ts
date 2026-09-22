@@ -16,6 +16,11 @@ export interface IProduct extends Document {
   // Admin-picked, for the homepage's "Featured" section — not computed from
   // sales/clicks. See docs/PROGRESS.md.
   isFeatured: boolean;
+  // Used only to size a live Pathao delivery quote at checkout (item_weight
+  // on their price-plan/order APIs) — never shown to the customer. Defaults
+  // to 0.5kg, Pathao's own minimum, for products created before this field
+  // existed. See integrations/pathao.ts.
+  weightKg: number;
   createdAt: Date;
 }
 
@@ -30,6 +35,7 @@ const productSchema = new Schema<IProduct>(
     deliveryFeeInsideCity: { type: Number, required: true, min: 0, default: 0 },
     deliveryFeeOutsideCity: { type: Number, required: true, min: 0, default: 0 },
     isFeatured: { type: Boolean, default: false },
+    weightKg: { type: Number, required: true, min: 0.1, default: 0.5 },
   },
   { timestamps: true }
 );

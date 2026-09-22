@@ -21,8 +21,14 @@ import { BANGLADESH_ZILAS } from "@/lib/bangladeshGeo";
 import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
 import { PaymentMethodPicker } from "@/views/PaymentMethodPicker";
 import { ShareLinkModal } from "@/views/ShareLinkModal";
-import { Order } from "@/models";
+import { DeliveryQuote, Order } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
+
+// Debounces the live Pathao quote fetch — the zila/upazila selects can
+// cascade through a couple of changes in quick succession (e.g. picking a
+// new zila blanks upazila first), so this avoids firing one request per
+// intermediate value.
+const DELIVERY_QUOTE_DEBOUNCE_MS = 500;
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -281,9 +287,52 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zila]);
 
+  // Live Pathao delivery quote — a real courier price for this exact
+  // zila/upazila once both are picked, falling back to the flat per-product
+  // fee (calculateDeliveryTotal below) instantly and on any failure. Tagged
+  // with the address it was fetched for rather than reset on every
+  // zila/upazila change, so a stale quote for a since-changed address is
+  // simply never used (the tag comparison below catches it) instead of
+  // needing an explicit reset effect.
+  const [liveQuote, setLiveQuote] = useState<
+    (DeliveryQuote & { zila: string; upazila: string }) | null
+  >(null);
+  const [isQuoteLoading, setIsQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!zila || !upazila || items.length === 0) return;
+    let ignore = false;
+    const timer = setTimeout(() => {
+      setIsQuoteLoading(true);
+      orderService
+        .getDeliveryQuote({
+          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          zila,
+          upazila,
+        })
+        .then((quote) => {
+          if (!ignore) setLiveQuote({ ...quote, zila, upazila });
+        })
+        .catch(() => {
+          // Keep whatever's already in liveQuote (probably stale/none) —
+          // the flat-fee fallback below covers this either way.
+        })
+        .finally(() => {
+          if (!ignore) setIsQuoteLoading(false);
+        });
+    }, DELIVERY_QUOTE_DEBOUNCE_MS);
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+      setIsQuoteLoading(false);
+    };
+  }, [zila, upazila, items]);
+
   const itemsTotal = totalPrice();
   const discount = discountAmount();
-  const deliveryFee = calculateDeliveryTotal(items, zila, storeCity);
+  const flatDeliveryFee = calculateDeliveryTotal(items, zila, storeCity);
+  const hasLiveQuote = !!liveQuote && liveQuote.zila === zila && liveQuote.upazila === upazila;
+  const deliveryFee = hasLiveQuote ? liveQuote!.deliveryFee : flatDeliveryFee;
   const grandTotal = Math.max(0, itemsTotal + deliveryFee - discount);
 
   const onSubmit = async (values: CheckoutValues) => {
@@ -519,7 +568,19 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
                 <span>{formatCurrency(itemsTotal)}</span>
               </div>
               <div className="flex justify-between text-muted">
-                <span>{t("checkout.delivery", "Delivery")}</span>
+                <span>
+                  {t("checkout.delivery", "Delivery")}
+                  {zila && upazila && hasLiveQuote && liveQuote!.source === "pathao" && (
+                    <span className="ml-1.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {t("checkout.pathaoLiveRate", "Pathao live rate")}
+                    </span>
+                  )}
+                  {zila && upazila && isQuoteLoading && (
+                    <span className="ml-1.5 text-[10px]">
+                      {t("checkout.calculatingDelivery", "calculating...")}
+                    </span>
+                  )}
+                </span>
                 <span>{zila ? formatCurrency(deliveryFee) : t("checkout.selectAZila", "Select a Zila")}</span>
               </div>
               {discount > 0 && (

@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import {
+  DeliveryQuote,
   Order,
   OrderStats,
   OrderStatus,
@@ -26,6 +27,20 @@ export interface CreateOrderInput {
 // this just sends productId + quantity + where to ship it.
 export const createOrder = async (input: CreateOrderInput): Promise<Order> => {
   const { data } = await api.post<Order>("/orders", input);
+  return data;
+};
+
+// Live checkout preview of the delivery fee for the given address — a real
+// Pathao price when the zila/upazila match a serviceable location, or the
+// flat per-product fee otherwise. See server's orderController#getDeliveryQuote.
+export interface DeliveryQuoteInput {
+  items: { productId: string; quantity: number }[];
+  zila: string;
+  upazila: string;
+}
+
+export const getDeliveryQuote = async (input: DeliveryQuoteInput): Promise<DeliveryQuote> => {
+  const { data } = await api.post<DeliveryQuote>("/orders/delivery-quote", input);
   return data;
 };
 

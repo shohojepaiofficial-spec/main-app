@@ -59,6 +59,10 @@ async function getAccessToken(config: PathaoConfig): Promise<string> {
       password: config.password,
       grant_type: "password",
     }),
+    // A live checkout delivery quote (see resolveDeliveryFee in
+    // orderController.ts) needs this to fail fast and fall back to the flat
+    // fee rather than stall the customer's checkout if Pathao is slow/down.
+    signal: AbortSignal.timeout(8000),
   });
   const data = (await res.json()) as {
     access_token?: string;
@@ -89,6 +93,7 @@ async function authedRequest<T>(
       Authorization: `Bearer ${accessToken}`,
     },
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(8000),
   });
   return (await res.json()) as T;
 }
@@ -140,6 +145,118 @@ export async function getPathaoAreas(zoneId: number): Promise<PathaoLocation[]> 
   );
   const areas = res.data?.data ?? [];
   return areas.map((a) => ({ id: a.area_id, name: a.area_name }));
+}
+
+// Cached separately from the admin booking panel's always-fresh
+// getPathaoCities/getPathaoZones above — matchPathaoLocation (below) runs on
+// every live checkout quote, and Pathao's own serviceable cities/zones
+// change rarely, so refetching them per-checkout would just add latency and
+// load for no real benefit.
+const LOCATION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+let cachedCities: { cities: PathaoLocation[]; expiresAt: number } | null = null;
+const cachedZonesByCity = new Map<number, { zones: PathaoLocation[]; expiresAt: number }>();
+
+async function getCachedCities(): Promise<PathaoLocation[]> {
+  if (cachedCities && cachedCities.expiresAt > Date.now()) return cachedCities.cities;
+  const cities = await getPathaoCities();
+  cachedCities = { cities, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS };
+  return cities;
+}
+
+async function getCachedZones(cityId: number): Promise<PathaoLocation[]> {
+  const cached = cachedZonesByCity.get(cityId);
+  if (cached && cached.expiresAt > Date.now()) return cached.zones;
+  const zones = await getPathaoZones(cityId);
+  cachedZonesByCity.set(cityId, { zones, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS });
+  return zones;
+}
+
+function normalizeLocationName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\bdistrict\b/g, "")
+    .replace(/\bsadar\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+export interface PathaoLocationMatch {
+  cityId: number;
+  zoneId: number;
+}
+
+// Best-effort name match from our free-text zila/upazila (see
+// bangladeshGeo.ts on the frontend) to Pathao's own city/zone IDs — Pathao's
+// APIs only accept its own location IDs, and there's no official mapping
+// between the two datasets. This is deliberately more lenient than the admin
+// booking flow (which always requires the admin to pick Pathao's own
+// city/zone by hand, see bookPathaoOrder in orderController.ts): a live
+// checkout quote can tolerate "best effort" because a bad or missing match
+// just falls back to the flat per-product fee (see resolveDeliveryFee),
+// never a broken checkout — whereas booking a real pickup needs certainty.
+export async function matchPathaoLocation(
+  zila: string,
+  upazila: string
+): Promise<PathaoLocationMatch | null> {
+  const normZila = normalizeLocationName(zila);
+  const normUpazila = normalizeLocationName(upazila);
+  if (!normZila || !normUpazila) return null;
+
+  const cities = await getCachedCities();
+  const city = cities.find((c) => normalizeLocationName(c.name) === normZila);
+  if (!city) return null;
+
+  const zones = await getCachedZones(city.id);
+  const zone =
+    zones.find((z) => normalizeLocationName(z.name) === normUpazila) ??
+    zones.find((z) => {
+      const normZoneName = normalizeLocationName(z.name);
+      return normZoneName.includes(normUpazila) || normUpazila.includes(normZoneName);
+    });
+  if (!zone) return null;
+
+  return { cityId: city.id, zoneId: zone.id };
+}
+
+const PRICE_PLAN_PATH = "/aladdin/api/v1/merchant/price-plan";
+
+export interface PathaoPriceQuote {
+  price: number;
+}
+
+// Pathao's Price Calculator API — same "documented shape, not yet verified
+// against a live sandbox response" caveat as the rest of this file (see the
+// top-of-file comment). Callers (resolveDeliveryFee in orderController.ts)
+// already treat any failure here as "fall back to the flat fee", so a shape
+// mismatch degrades gracefully rather than breaking checkout — same as
+// every other integration in this app gated by a `isXConfigured()` check.
+export async function getPathaoPriceQuote(input: {
+  cityId: number;
+  zoneId: number;
+  itemWeightKg: number;
+}): Promise<PathaoPriceQuote> {
+  const config = readConfig();
+  if (!config) throw new Error("Pathao isn't configured");
+
+  const res = await authedRequest<PathaoEnvelope<{ price?: number; final_price?: number }>>(
+    config,
+    "POST",
+    PRICE_PLAN_PATH,
+    {
+      store_id: Number(config.storeId),
+      item_type: 2, // "parcel" — same convention as createPathaoOrder
+      delivery_type: 48, // "normal" delivery
+      item_weight: input.itemWeightKg,
+      recipient_city: input.cityId,
+      recipient_zone: input.zoneId,
+    }
+  );
+
+  const price = res.data?.final_price ?? res.data?.price;
+  if (price == null) {
+    throw new Error(res.message || "Pathao price quote failed");
+  }
+  return { price };
 }
 
 export interface CreatePathaoOrderInput {

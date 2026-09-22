@@ -34,6 +34,10 @@ export interface IOrder extends Document {
   // tracked separately so the receipt can show them as distinct line items.
   itemsTotal: number;
   deliveryFee: number;
+  // Whether `deliveryFee` came from a live Pathao quote or the flat
+  // per-product fee (Pathao not configured, no confident address match, or
+  // the live call failed) — see orderController.ts's resolveDeliveryFee.
+  deliveryFeeSource: "pathao" | "flat";
   promoCode?: string;
   discount: number;
   totalAmount: number;
@@ -92,6 +96,7 @@ const orderSchema = new Schema<IOrder>(
     ],
     itemsTotal: { type: Number, required: true },
     deliveryFee: { type: Number, required: true, default: 0 },
+    deliveryFeeSource: { type: String, enum: ["pathao", "flat"], default: "flat" },
     promoCode: { type: String },
     discount: { type: Number, required: true, default: 0 },
     totalAmount: { type: Number, required: true },

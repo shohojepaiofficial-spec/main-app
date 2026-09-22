@@ -22,7 +22,15 @@ import {
   getPathaoAreas,
   createPathaoOrder,
   getPathaoOrderStatus,
+  matchPathaoLocation,
+  getPathaoPriceQuote,
 } from "../integrations/pathao";
+
+// Pathao requires item_weight between 0.5 and 10kg — used both to clamp the
+// weight sent to their price-plan API and as the per-unit fallback for a
+// product saved before Product.weightKg existed.
+const DEFAULT_ITEM_WEIGHT_KG = 0.5;
+const MAX_ITEM_WEIGHT_KG = 10;
 
 interface CheckoutItemInput {
   productId: string;
@@ -50,6 +58,41 @@ function liveOnlinePaymentMethods(): PaymentMethod[] {
   return isBkashConfigured() ? ["cod", "bkash"] : ["cod"];
 }
 
+// Tries a live Pathao price quote for this address; falls back to the flat
+// fee (already computed by the caller) on anything short of a confident
+// address match plus a successful, well-formed API response — checkout must
+// never fail or stall just because Pathao's API is slow, down, or doesn't
+// cover this particular address. Shared by computeOrderTotals (the
+// authoritative charge) and getDeliveryQuote (the checkout preview), so
+// what's shown to the customer always matches what they're actually billed.
+async function resolveDeliveryFee(
+  flatFee: number,
+  totalWeightKg: number,
+  zila: string,
+  upazila: string
+): Promise<{ deliveryFee: number; deliveryFeeSource: "pathao" | "flat" }> {
+  if (isPathaoConfigured()) {
+    try {
+      const match = await matchPathaoLocation(zila, upazila);
+      if (match) {
+        const itemWeightKg = Math.min(
+          MAX_ITEM_WEIGHT_KG,
+          Math.max(DEFAULT_ITEM_WEIGHT_KG, totalWeightKg)
+        );
+        const { price } = await getPathaoPriceQuote({
+          cityId: match.cityId,
+          zoneId: match.zoneId,
+          itemWeightKg,
+        });
+        return { deliveryFee: price, deliveryFeeSource: "pathao" };
+      }
+    } catch (err) {
+      console.error("Pathao delivery quote failed, using flat fee:", err);
+    }
+  }
+  return { deliveryFee: flatFee, deliveryFeeSource: "flat" };
+}
+
 // Shared by createOrder and adminCreateOrder — the only place order totals
 // get computed. Never trusts a price or delivery fee the caller sends, only
 // productId + quantity; re-fetches products and re-validates promoCode
@@ -58,6 +101,7 @@ function liveOnlinePaymentMethods(): PaymentMethod[] {
 export async function computeOrderTotals(
   items: CheckoutItemInput[],
   zila: string,
+  upazila: string,
   promoCode?: string,
   session?: ClientSession
 ) {
@@ -70,7 +114,8 @@ export async function computeOrderTotals(
 
   const orderItems: { product: string; quantity: number; price: number; name: string }[] = [];
   let itemsTotal = 0;
-  let deliveryFee = 0;
+  let flatDeliveryFee = 0;
+  let totalWeightKg = 0;
 
   for (const { productId, quantity } of items) {
     if (!productId || !quantity || quantity < 1) {
@@ -85,8 +130,16 @@ export async function computeOrderTotals(
     }
     orderItems.push({ product: productId, quantity, price: product.price, name: product.name });
     itemsTotal += product.price * quantity;
-    deliveryFee += isInsideCity ? product.deliveryFeeInsideCity : product.deliveryFeeOutsideCity;
+    flatDeliveryFee += isInsideCity ? product.deliveryFeeInsideCity : product.deliveryFeeOutsideCity;
+    totalWeightKg += (product.weightKg || DEFAULT_ITEM_WEIGHT_KG) * quantity;
   }
+
+  const { deliveryFee, deliveryFeeSource } = await resolveDeliveryFee(
+    flatDeliveryFee,
+    totalWeightKg,
+    zila,
+    upazila
+  );
 
   let discount = 0;
   let appliedCode: string | undefined;
@@ -118,8 +171,53 @@ export async function computeOrderTotals(
 
   const totalAmount = Math.max(0, itemsTotal + deliveryFee - discount);
 
-  return { orderItems, itemsTotal, deliveryFee, discount, appliedCode, totalAmount };
+  return { orderItems, itemsTotal, deliveryFee, deliveryFeeSource, discount, appliedCode, totalAmount };
 }
+
+// Checkout-time preview of the delivery fee, before the order is actually
+// placed — same resolveDeliveryFee logic computeOrderTotals uses for the
+// real charge, just without the stock/promo validation an actual order
+// creation needs (an invalid or now-missing line is simply skipped here
+// rather than rejected, since this is only ever a preview). Requires login
+// only because checkout itself does (see ARCHITECTURE.md's "Checkout
+// requires login") — no orders:manage permission needed to preview your own
+// cart's delivery cost.
+export const getDeliveryQuote = async (req: AuthRequest, res: Response) => {
+  const { items, zila, upazila } = req.body as {
+    items?: CheckoutItemInput[];
+    zila?: string;
+    upazila?: string;
+  };
+
+  if (!items || items.length === 0) {
+    return res.status(400).json({ message: "Your cart is empty" });
+  }
+  if (!zila?.trim() || !upazila?.trim()) {
+    return res.status(400).json({ message: "Pick a Zila and Upazila first" });
+  }
+
+  const isInsideCity = zila.trim() === STORE_CITY;
+  const products = await Product.find({ _id: { $in: items.map((i) => i.productId) } });
+  const productById = new Map(products.map((p) => [p.id as string, p]));
+
+  let flatFee = 0;
+  let totalWeightKg = 0;
+  for (const { productId, quantity } of items) {
+    if (!productId || !quantity || quantity < 1) continue;
+    const product = productById.get(productId);
+    if (!product) continue;
+    flatFee += isInsideCity ? product.deliveryFeeInsideCity : product.deliveryFeeOutsideCity;
+    totalWeightKg += (product.weightKg || DEFAULT_ITEM_WEIGHT_KG) * quantity;
+  }
+
+  const { deliveryFee, deliveryFeeSource } = await resolveDeliveryFee(
+    flatFee,
+    totalWeightKg,
+    zila,
+    upazila
+  );
+  res.json({ deliveryFee, source: deliveryFeeSource });
+};
 
 // Atomically decrements each line's stock, conditioned on there still being
 // enough at the moment of the write (not just at the earlier read in
@@ -189,8 +287,8 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     await session.withTransaction(async () => {
       address = readShippingAddress(shippingAddress);
-      const { orderItems, itemsTotal, deliveryFee, discount, appliedCode, totalAmount } =
-        await computeOrderTotals(items, address.zila, promoCode, session);
+      const { orderItems, itemsTotal, deliveryFee, deliveryFeeSource, discount, appliedCode, totalAmount } =
+        await computeOrderTotals(items, address.zila, address.upazila, promoCode, session);
 
       await decrementStockAtomically(orderItems, session);
 
@@ -201,6 +299,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
             items: orderItems,
             itemsTotal,
             deliveryFee,
+            deliveryFeeSource,
             promoCode: appliedCode,
             discount,
             totalAmount,
@@ -288,8 +387,8 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
   try {
     await session.withTransaction(async () => {
       const address = readShippingAddress(shippingAddress);
-      const { orderItems, itemsTotal, deliveryFee, discount, appliedCode, totalAmount } =
-        await computeOrderTotals(items, address.zila, promoCode, session);
+      const { orderItems, itemsTotal, deliveryFee, deliveryFeeSource, discount, appliedCode, totalAmount } =
+        await computeOrderTotals(items, address.zila, address.upazila, promoCode, session);
 
       await decrementStockAtomically(orderItems, session);
 
@@ -299,6 +398,7 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
             items: orderItems,
             itemsTotal,
             deliveryFee,
+            deliveryFeeSource,
             promoCode: appliedCode,
             discount,
             totalAmount,

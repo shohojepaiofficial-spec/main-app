@@ -5,6 +5,7 @@ import {
   bkashCallback,
   getMyOrders,
   getReviewableProducts,
+  getDeliveryQuote,
   getOrderById,
   getAllOrders,
   updateOrderStatus,
@@ -25,6 +26,7 @@ const router = Router();
 const canManageOrders = authorize("orders:manage");
 
 router.post("/", protect, createOrder);
+router.post("/delivery-quote", protect, getDeliveryQuote);
 router.post("/admin", protect, canManageOrders, adminCreateOrder);
 router.get("/bkash/callback", bkashCallback);
 router.get("/my", protect, getMyOrders);

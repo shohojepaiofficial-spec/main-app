@@ -87,6 +87,9 @@ export interface Product {
   deliveryFeeOutsideCity: number;
   // Admin-picked for the homepage's "Featured" section — not computed.
   isFeatured: boolean;
+  // Used only to size a live Pathao delivery quote at checkout — never
+  // shown to the customer.
+  weightKg: number;
   createdAt: string;
 }
 
@@ -193,6 +196,14 @@ export interface Order {
 export interface PathaoLocation {
   id: number;
   name: string;
+}
+
+// GET /orders/delivery-quote's response — the flat per-product fee unless a
+// live Pathao price came back for this address, in which case `source` says
+// so. See services/orderService.ts#getDeliveryQuote.
+export interface DeliveryQuote {
+  deliveryFee: number;
+  source: "pathao" | "flat";
 }
 
 // Quick-glance admin dashboard numbers — see server's
