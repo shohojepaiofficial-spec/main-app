@@ -26,12 +26,18 @@ export async function generateMetadata({
   if (!product) return { title: "Product not found" };
 
   const description = product.description.slice(0, 155);
-  const image = product.images[0] ? toUploadUrl(product.images[0]) : undefined;
+  // Falls back to the site's default OG image (not `undefined`) so a
+  // product with no photos yet still gets a real preview image instead of
+  // silently losing the one the root layout would otherwise provide — see
+  // layout.tsx's own openGraph.images for why that fallback can't just be
+  // inherited automatically.
+  const image = product.images[0] ? toUploadUrl(product.images[0]) : `${SITE_URL}/og-image.png`;
 
   return {
     title: product.name,
     description,
-    openGraph: { title: product.name, description, images: image ? [image] : undefined },
+    openGraph: { title: product.name, description, images: [image] },
+    twitter: { title: product.name, description, images: [image] },
   };
 }
 
@@ -137,7 +143,12 @@ export default async function ProductDetailPage({
       />
 
       <PromoAutoApply code={promo} productId={product._id} />
-      <ProductClickTracker productId={product._id} />
+      <ProductClickTracker
+        productId={product._id}
+        name={product.name}
+        price={product.price}
+        category={product.category}
+      />
       <Breadcrumbs items={breadcrumbItems} />
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">

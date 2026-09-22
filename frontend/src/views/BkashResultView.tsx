@@ -9,6 +9,7 @@ import * as orderService from "@/services/orderService";
 import { formatCurrency } from "@/lib/currency";
 import { Order } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
+import { pushToDataLayer } from "@/lib/gtm";
 
 // Where the server's GET /orders/bkash/callback sends the browser after
 // bKash finishes — see server's orderController#bkashCallback. `status` is
@@ -28,7 +29,32 @@ export function BkashResultView() {
     // attempt leaves the cart alone so there's still something to retry
     // checkout with (see CheckoutView's onSubmit).
     clearCart();
-    orderService.getOrderById(orderId).then(setOrder).catch(() => {});
+    orderService
+      .getOrderById(orderId)
+      .then((fetchedOrder) => {
+        setOrder(fetchedOrder);
+        // Unlike cod (pushed straight from CheckoutView's onSubmit), bkash's
+        // purchase only counts here — the moment payment is actually
+        // confirmed, not just when the order was created.
+        if (fetchedOrder) {
+          pushToDataLayer({
+            event: "purchase",
+            ecommerce: {
+              transaction_id: fetchedOrder._id,
+              currency: "BDT",
+              value: fetchedOrder.totalAmount,
+              shipping: fetchedOrder.deliveryFee,
+              items: fetchedOrder.items.map((i) => ({
+                item_id: i.product?._id ?? "",
+                item_name: i.product?.name ?? "",
+                price: i.price,
+                quantity: i.quantity,
+              })),
+            },
+          });
+        }
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, orderId]);
 

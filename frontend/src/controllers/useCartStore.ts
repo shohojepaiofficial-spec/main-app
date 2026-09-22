@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AppliedPromo, CartItem } from "@/models";
+import { pushToDataLayer } from "@/lib/gtm";
 
 interface CartState {
   items: CartItem[];
@@ -38,6 +39,17 @@ export const useCartStore = create<CartState>()(
             };
           }
           return { items: [...state.items, { ...item, quantity }] };
+        });
+        // One choke point for every "add to cart" path (product page,
+        // wishlist "move to cart", shared-cart pay flow, etc.) rather than
+        // hunting down each call site individually.
+        pushToDataLayer({
+          event: "add_to_cart",
+          ecommerce: {
+            currency: "BDT",
+            value: item.price * quantity,
+            items: [{ item_id: item.productId, item_name: item.name, price: item.price, quantity }],
+          },
         });
       },
       removeItem: (productId) => {

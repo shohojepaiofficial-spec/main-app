@@ -23,6 +23,7 @@ import { PaymentMethodPicker } from "@/views/PaymentMethodPicker";
 import { ShareLinkModal } from "@/views/ShareLinkModal";
 import { DeliveryQuote, Order } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
+import { pushToDataLayer } from "@/lib/gtm";
 
 // Debounces the live Pathao quote fetch — the zila/upazila selects can
 // cascade through a couple of changes in quick succession (e.g. picking a
@@ -196,6 +197,29 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
   const { t } = useTranslations();
   const { items, promo, totalPrice, discountAmount, clear } = useCartStore();
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
+
+  // Fires once the cart (hydrated post-mount, see useCartStore's
+  // skipHydration comment) actually has items — covers both "already
+  // hydrated by the time this page is reached" and "hydrates a moment
+  // after mount" without double-firing, since it only pushes on the
+  // empty-to-populated transition.
+  useEffect(() => {
+    if (items.length === 0) return;
+    pushToDataLayer({
+      event: "begin_checkout",
+      ecommerce: {
+        currency: "BDT",
+        value: totalPrice(),
+        items: items.map((i) => ({
+          item_id: i.productId,
+          item_name: i.name,
+          price: i.price,
+          quantity: i.quantity,
+        })),
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
   // "saved" shows the account's stored phone/address (read-only) and skips
   // re-saving it; "new" opens blank, editable fields with an option to save
   // them as the new default for next time. See ARCHITECTURE.md's "Checkout
@@ -358,6 +382,32 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
 
       clear();
       setPlacedOrder(order);
+
+      // "cod" is confirmed the instant the order exists — unlike bkash
+      // (handled below in the earlier return), there's no separate payment
+      // step waiting to fail/cancel, so this is the right point to count a
+      // real purchase. See BkashResultView.tsx for bkash's own purchase
+      // push, which only fires once payment is actually confirmed.
+      // Uses `items` (the cart snapshot from before `clear()` ran, still the
+      // same closure value within this synchronous call) rather than
+      // `order.items` — createOrder's response doesn't populate
+      // `items[].product`, unlike getMyOrders/getOrderById, so it has no
+      // product name to read here.
+      pushToDataLayer({
+        event: "purchase",
+        ecommerce: {
+          transaction_id: order._id,
+          currency: "BDT",
+          value: order.totalAmount,
+          shipping: order.deliveryFee,
+          items: items.map((i) => ({
+            item_id: i.productId,
+            item_name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+          })),
+        },
+      });
 
       // Fire-and-forget, same convention as the app's other non-critical
       // side effects (analytics, emails) — the order already succeeded, so a

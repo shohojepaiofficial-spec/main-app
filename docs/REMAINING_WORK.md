@@ -6,7 +6,7 @@ collapsed to one line each below (full detail, including how each was
 verified, lives in `docs/PROGRESS.md`'s dated entries) so this file stays
 focused on what's actually still open.
 
-Last updated: 2026-09-21.
+Last updated: 2026-09-22.
 
 ---
 
@@ -26,16 +26,42 @@ works end-to-end, but `SMS_API_URL`/`SMS_API_KEY` aren't set, so every SMS
 attempt fails. Needs an account with a Bangladeshi bulk-SMS gateway
 (BulkSMSBD, MimSMS, SSL Wireless, etc.).
 
-**2.8 — Pathao courier integration needs real credentials + a live test.**
-The code is built (`server/src/integrations/pathao.ts`, gated the same way
-`bkash.ts` is; "Book with Pathao" in each order's Courier & delivery panel)
-but, unlike bKash, has never actually talked to Pathao's API — Pathao only
-hands out sandbox credentials per-merchant on request, not a public test
-app. Set `PATHAO_*` in `server/.env` (client id/secret, username, password,
-store id — see `.env.example`'s comments) and book one real test order;
-expect to adjust the response parsing in that one file if Pathao's actual
-shapes differ from what's documented. Manual courier entry (no API needed)
-already works today regardless.
+**2.8 — Pathao integration needs a Store ID + a live test.** The code is
+built (`server/src/integrations/pathao.ts`, gated the same way `bkash.ts`
+is) but, unlike bKash, has never actually talked to Pathao's API — this now
+gates two features, not just one: "Book with Pathao" in each order's Courier
+& delivery panel, and the live delivery-fee quote at checkout (added
+2026-09-22, see `docs/PROGRESS.md`). Both stay on their existing fallback
+(manual courier entry; the flat per-product delivery fee) until this is
+done.
+- As of 2026-09-22, `server/.env` has `PATHAO_BASE_URL`/`CLIENT_ID`/
+  `CLIENT_SECRET`/`USERNAME`/`PASSWORD` filled in with Pathao's published
+  sandbox test credentials (`test@pathao.com`/`lovePathao` — publicly known,
+  not secret, same idea as bKash's public sandbox app). **Only
+  `PATHAO_STORE_ID` is still blank** — `isPathaoConfigured()` requires it, so
+  Pathao is still treated as "not configured" until it's set.
+- Get it from Pathao's Store API/dashboard once logged into the sandbox with
+  those credentials — it's tied to a merchant's own store, not part of the
+  shared test credentials, so it can't be filled in from a tutorial.
+- Once set, run a real smoke test (city list, then one real booking and one
+  delivery-fee quote) — expect to adjust the response parsing in
+  `integrations/pathao.ts` if Pathao's actual shapes differ from what's
+  documented, same caveat as before.
+
+**2.10 — Site likely isn't submitted to Google Search Console or Bing
+Webmaster Tools.** `sitemap.ts`/`robots.ts` are correctly built and served
+(audited 2026-09-22 — static routes + every product, proper priorities,
+`/admin`/`/dashboard`/etc. disallowed), but nothing in the code proves
+ownership to Google/Bing or tells them the sitemap exists — no
+`google-site-verification` meta tag anywhere. This is mostly a manual step
+(verify domain ownership in Search Console/Bing Webmaster Tools, submit the
+sitemap URL) plus one small code change (add the verification meta tag they
+give you). Until this is done, initial discovery relies on Google finding
+the site organically (backlinks, direct visits) rather than being told about
+it directly — could take meaningfully longer to get indexed.
+Also: no `Organization`/`WebSite` JSON-LD exists yet (only `Product` and
+`FAQPage` schemas do) — that's what can earn a sitelinks search box or
+knowledge-panel treatment in Google results, separate from ordinary indexing.
 
 ### Priority 3 — Security & reliability hardening
 
@@ -55,6 +81,25 @@ one's genuinely blocked, not skipped by choice: X (Twitter) needs a paid API
 tier to actually post; Instagram needs a real public HTTPS domain to even
 test (see 1.2); the "4th platform" was mentioned once early on but never
 specified, so there's nothing concrete to build.
+
+**4.11 — Static pages (`/shop`, `/categories`, `/about`, `/contact`) all
+inherit the root's generic title/description/OG image instead of having
+their own.** Only the homepage and individual product pages set
+page-specific `metadata`/`generateMetadata` today (2.9's fix gave the root
+default a real image, so this is now a "nice to have" rather than "broken,"
+just less precise than it could be — e.g. sharing `/shop` on Facebook still
+shows the generic site card, not something like "Shop all products —
+Shohoje Pai").
+
+**4.10 — Catalog has leftover test products with garbage delivery fees.**
+Found while debugging a ৳54,576 delivery fee at checkout (2026-09-22) — not
+a code bug, just placeholder products (e.g. "dsfa sdfsdfs af", keyboard-mash
+names) with keyboard-mash `deliveryFeeInsideCity`/`OutsideCity` values
+(455454, 54544, etc.) left over from earlier testing, correctly summed by
+the flat-fee fallback. Delete or fix these via `/admin/products` before
+relying on real checkout totals. Same products' `weightKg` is also unset
+(defaults to 0.5kg in code) — worth setting real weights too once 2.8's
+Pathao quote is actually live, since that's what sizes it.
 
 ---
 
@@ -91,3 +136,5 @@ the full design and how it was verified live.
 - ✅ **2.7** — Bangla translation, whole storefront covered. DB-backed dictionary, `/admin/translations` for editing Bangla text without a code deploy, `<T>`/`t()` wired everywhere: chrome (Navbar/Footer/WhatsApp), homepage (category tiles, trust badges, FAQ), shop/product/cart/checkout, and auth/account pages (login, dashboard, orders, settings) — 303 keys total. Admin panel itself deliberately stays English-only. See `docs/ARCHITECTURE.md`'s "Translations (i18n)" section and `docs/PROGRESS.md`'s 2026-09-21 entries.
 - ✅ **Extra, not from the original list** — an admin-only, filtered "Reset analytics data" section on `/admin/analytics` (checkboxes for which event field, an age cutoff, a real count preview before deleting) — added on request, not part of the original audit.
 - ✅ **Extra, not from the original list** — fixed two real hydration-mismatch bugs found via user report: the navbar cart-count badge (`useCartStore`) and the language switcher (`useUIStore`), both caused by zustand's `persist` middleware reading `localStorage` synchronously before the server/client first render could agree.
+- ✅ **2.9** — Fixed 2026-09-22: sharing any page had no preview image at all (`openGraph.images` unset on the root layout) and no Twitter/X image anywhere, even on product pages. Generated a real branded 1200×630 default (`frontend/public/og-image.png`, via `next/og`'s `ImageResponse` — actual logo, brand colors/fonts, not a mockup) wired into the root layout as the site-wide fallback; the product page now also sets a matching `twitter.images` (falls back to the same default when a product has no photos yet, instead of silently losing the image). See `docs/PROGRESS.md`'s 2026-09-22 entry. Giving `/shop`/`/categories`/`/about`/`/contact` their own page-specific metadata (title/description/image, not just the shared default) remains open as **4.11**.
+- ✅ **2.11** — Built 2026-09-22: Google Tag Manager wiring (`frontend/src/lib/gtm.ts`, gated by `NEXT_PUBLIC_GTM_ID`) plus five GA4-shaped `dataLayer` events at the real lifecycle points — `page_view`, `view_item`, `add_to_cart`, `begin_checkout`, `purchase` (split cod-vs-bkash so a purchase only counts once payment is actually confirmed). Full design in `docs/ARCHITECTURE.md`'s new "Tracking pixel" section. **Not actually live yet** — `NEXT_PUBLIC_GTM_ID` is blank in `frontend/.env.local`; nothing fires until a real GTM container id is created (tagmanager.google.com) and added there (and in the deployed environment), same "leave it for now" status as Pathao's Store ID (2.8). Once a container id exists, still needs an actual Meta Pixel/GA4 tag configured *inside* GTM's own UI — this app's code only pushes the data, it doesn't configure which platform reads it.
