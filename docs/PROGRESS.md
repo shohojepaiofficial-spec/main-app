@@ -793,4 +793,7 @@ User asked what SEO work was left; the audit surfaced 4.11 as still open (title/
 - Verified: `tsc --noEmit` and `eslint` clean.
 - **Known follow-up**: once real social page URLs exist, add them to `Organization.sameAs` here *and* fix the same placeholder URLs in `Navbar.tsx`/`Footer.tsx`'s `SOCIAL_LINKS` (a pre-existing gap, not introduced by this change).
 
+## 2026-09-23 (later still) — Search Console + Bing sitemap both confirmed "Success"
+User confirmed in Google Search Console's **Sitemaps** report (not URL Inspection) that `sitemap.xml` now shows status **"Success"** after the recent live fetch, with Discover already surfacing 18 pages. Bing Webmaster Tools independently confirmed the same — sitemap status **"Success"**, 18 URLs discovered. This fully closes out the manual half of 2.10 — see `docs/REMAINING_WORK.md`. No code change; both search engines have completed their first crawl of the live site.
+
 
