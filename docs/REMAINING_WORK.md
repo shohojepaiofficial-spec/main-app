@@ -6,7 +6,7 @@ collapsed to one line each below (full detail, including how each was
 verified, lives in `docs/PROGRESS.md`'s dated entries) so this file stays
 focused on what's actually still open.
 
-Last updated: 2026-09-22.
+Last updated: 2026-09-23.
 
 ---
 
@@ -47,14 +47,6 @@ done.
   delivery-fee quote) — expect to adjust the response parsing in
   `integrations/pathao.ts` if Pathao's actual shapes differ from what's
   documented, same caveat as before.
-
-**2.10 — Search Console/Bing submission: done.** Domain ownership verified
-in Google Search Console via DNS TXT record (confirmed propagated
-2026-09-23), sitemap submitted there and confirmed **"Success"** in the
-Sitemaps report after the live fetch (2026-09-23); Discover is already
-surfacing 18 pages. Bing Webmaster Tools (set up via "Import from Google")
-also confirmed **"Success"** with 18 URLs discovered (2026-09-23). Nothing
-left to code here — both search engines have completed their first crawl.
 
 ### Priority 3 — Security & reliability hardening
 
@@ -126,4 +118,4 @@ the full design and how it was verified live.
   - A real Meta Business Page (`FACEBOOK_PAGE_ID=1266547903216241`, set in the **local** `server/.env` only so far — not yet added to Railway's production env) and a Meta Pixel (`1895884008258040`) now exist. Inside GTM: a base `Meta Pixel - Base` Custom HTML tag (All Pages trigger) plus four event tags (`ViewContent`/`AddToCart`/`InitiateCheckout`/`Purchase`, Custom HTML, reading `DLV - ecommerce.*` Data Layer Variables at Version 2) wired to matching Custom Event triggers (`view_item`/`add_to_cart`/`begin_checkout`/`purchase`) — user fixed a couple of real setup mistakes caught along the way (a missing `<script>` tag, a `ViewContent` tag wired to the wrong trigger).
   - **Status as of 2026-09-22: configured, not yet confirmed live** — user says "done for this part" but hasn't yet confirmed (a) Tag Sequencing is set so the base pixel always fires before an event tag, and (b) a live Preview-mode walkthrough actually showed all four events firing, before hitting Submit → Publish. Worth a follow-up check.
   - `FACEBOOK_PAGE_ACCESS_TOKEN`/`INSTAGRAM_BUSINESS_ACCOUNT_ID` still blank — the separate `/admin/ads` posting feature needs those (a Facebook Developer app + long-lived Page token), not needed for the pixel/GTM work above.
-- ✅ **2.10** — `Organization`/`WebSite` JSON-LD added to the homepage (2026-09-23), same script-tag pattern as `FAQSection`'s existing JSON-LD. Deliberately omitted `sameAs` (Navbar.tsx/Footer.tsx's `SOCIAL_LINKS` are still placeholder URLs like `https://facebook.com`, not the store's real profiles — fabricating `sameAs` would be worse than omitting it) and `potentialAction`/SearchAction (no working search endpoint exists to point one at). Both are easy follow-ups once real social URLs/search exist. Manual submission half: both Search Console and Bing Webmaster Tools sitemaps confirmed **"Success"** with 18 URLs discovered (2026-09-23) — see the Priority 2 entry above.
+- ✅ **2.10** — `Organization`/`WebSite` JSON-LD added to the homepage (2026-09-23), same script-tag pattern as `FAQSection`'s existing JSON-LD. Deliberately omitted `sameAs` (Navbar.tsx/Footer.tsx's `SOCIAL_LINKS` are still placeholder URLs like `https://facebook.com`, not the store's real profiles — fabricating `sameAs` would be worse than omitting it) and `potentialAction`/SearchAction (no working search endpoint exists to point one at). Both are easy follow-ups once real social URLs/search exist. Manual submission half: domain verified in Google Search Console via DNS TXT record, sitemap submitted to both Search Console and Bing Webmaster Tools (set up via "Import from Google") — both now confirmed **"Success"** with 18 URLs discovered, Google Discover also surfacing the same 18 pages (2026-09-23).
