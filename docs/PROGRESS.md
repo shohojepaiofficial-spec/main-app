@@ -796,4 +796,9 @@ User asked what SEO work was left; the audit surfaced 4.11 as still open (title/
 ## 2026-09-23 (later still) — Search Console + Bing sitemap both confirmed "Success"
 User confirmed in Google Search Console's **Sitemaps** report (not URL Inspection) that `sitemap.xml` now shows status **"Success"** after the recent live fetch, with Discover already surfacing 18 pages. Bing Webmaster Tools independently confirmed the same — sitemap status **"Success"**, 18 URLs discovered. This fully closes out the manual half of 2.10 — see `docs/REMAINING_WORK.md`. No code change; both search engines have completed their first crawl of the live site.
 
+## 2026-09-23 (later still) — Real Facebook Page URL wired in
+User created the store's real Facebook Page (`https://www.facebook.com/profile.php?id=61594292297060`) and asked to link it up. Replaced the placeholder `https://facebook.com` in `Navbar.tsx`/`Footer.tsx`'s `SOCIAL_LINKS` and added it to the homepage's `Organization.sameAs` JSON-LD (`app/(public)/page.tsx`), closing the "Known follow-up" noted in the JSON-LD entry above. Instagram/Twitter/YouTube stay as placeholders — no real profiles yet, and `sameAs` must stay genuine.
+- Verified: `tsc --noEmit` clean.
+- **Not part of this pass**: posting to the Page from `/admin/ads` (`server/src/integrations/meta.ts`) still needs `FACEBOOK_PAGE_ACCESS_TOKEN` (+ `INSTAGRAM_BUSINESS_ACCOUNT_ID` for IG) generated via a Facebook Developer app — tracked separately, user is deciding whether to set that up next.
+
 

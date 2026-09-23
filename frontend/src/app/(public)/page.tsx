@@ -27,11 +27,11 @@ const organizationJsonLd = {
     contactType: "customer service",
     areaServed: "BD",
   },
-  // Deliberately no `sameAs`: Navbar.tsx/Footer.tsx's SOCIAL_LINKS still
-  // point at generic placeholder URLs (https://facebook.com, etc.), not the
-  // store's real profiles — sameAs must link to genuine authoritative
-  // profiles, so a placeholder would be fabricated data. Add it here (and
-  // fix those two files) once real social page URLs exist.
+  // Only Facebook is a real profile so far; Instagram/Twitter/YouTube in
+  // Navbar.tsx/Footer.tsx's SOCIAL_LINKS are still placeholders
+  // (https://instagram.com, etc.) — sameAs must link to genuine
+  // authoritative profiles, so those stay out until they're real too.
+  sameAs: ["https://www.facebook.com/profile.php?id=61594292297060"],
 };
 
 const websiteJsonLd = {

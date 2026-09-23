@@ -21,7 +21,7 @@ const COMPANY_LINKS = [
 ];
 
 const SOCIAL_LINKS = [
-  { href: "https://facebook.com", label: "Facebook", Icon: FaFacebookF },
+  { href: "https://www.facebook.com/profile.php?id=61594292297060", label: "Facebook", Icon: FaFacebookF },
   { href: "https://instagram.com", label: "Instagram", Icon: FaInstagram },
   { href: "https://twitter.com", label: "Twitter", Icon: FaXTwitter },
   { href: "https://youtube.com", label: "YouTube", Icon: FaYoutube },
