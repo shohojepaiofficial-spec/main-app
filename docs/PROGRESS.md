@@ -779,4 +779,18 @@ Continuing the same SEO/discovery audit's third item: no ad-platform tracking pi
 - Added `NEXT_PUBLIC_GTM_ID=` (blank) to `frontend/.env.local` — nothing fires until a real GTM container id is added, same "leave it for now" status as Pathao's `PATHAO_STORE_ID` (docs/REMAINING_WORK.md's 2.8).
 - Verified: `tsc --noEmit` clean, full frontend suite passing (15/15), lint clean on every changed file (same pre-existing, unrelated `react-hooks/immutability` warning on `CheckoutView.tsx`'s bkash redirect line noted in the earlier Pathao entry). Not click-tested live — no GTM container id exists yet to test against.
 
+## 2026-09-23 (Item 4.11: per-page Open Graph/Twitter cards for the remaining static pages)
+User asked what SEO work was left; the audit surfaced 4.11 as still open (title/description were already page-specific on `/shop`, `/categories`, `/about`, `/contact`, but none set their own `openGraph`/`twitter` blocks, so sharing any of them still showed the root layout's generic card).
+
+- All four now set `openGraph`/`twitter` with the page's own title/description (matching `shop/[id]`'s existing pattern of not relying on inheritance from `layout.tsx`), still pointing at the shared `/og-image.png` since none of these pages has a natural per-page photo to use instead. `/shop`'s version stays inside its existing `generateMetadata` so the category-aware title carries through to the social card too (e.g. sharing `/shop?category=Nike` now cards as "Nike — Shop", not the generic site title).
+- Verified: `tsc --noEmit` clean.
+- **Left open, deliberately manual**: Search Console/Bing Webmaster Tools submission (`docs/REMAINING_WORK.md`'s 2.10) — needs the user's own Google/Bing account access to verify domain ownership; explained the steps rather than doing it here.
+
+## 2026-09-23 (later) — Search Console/Bing verified + submitted; Organization/WebSite JSON-LD
+- User verified `shohojepai.com` in Google Search Console via DNS TXT record (added in Namecheap's Advanced DNS alongside the existing SPF record — confirmed propagated against Google's own DNS, 8.8.8.8) and submitted `sitemap.xml` there. Confirmed the sitemap and `robots.txt` were both correctly fetchable/valid externally (19 URLs, proper `Sitemap:` reference, no root disallow) before troubleshooting — an initial "Couldn't fetch" status in Search Console was just a stale pre-propagation cache, not a real fetch problem.
+- Set up Bing Webmaster Tools via "Import from Google," submitted the same sitemap — showing "Processing," Bing's normal first-pass status.
+- **`Organization`/`WebSite` JSON-LD** added to the homepage (`app/(public)/page.tsx`), closing 2.10's coding half — same `<script type="application/ld+json">` pattern `FAQSection` already used, placed on the homepage rather than the root layout since it's a once-per-site declaration. `Organization` includes name/url/logo/`contactPoint` (phone+email from `lib/contact.ts`) but deliberately no `sameAs` — `Navbar.tsx`/`Footer.tsx`'s `SOCIAL_LINKS` are still placeholder URLs (`https://facebook.com`, etc.), not the store's real profiles, and fabricating `sameAs` would be actively wrong rather than just incomplete. `WebSite` deliberately has no `potentialAction`/SearchAction either, since there's no working search endpoint to point one at.
+- Verified: `tsc --noEmit` and `eslint` clean.
+- **Known follow-up**: once real social page URLs exist, add them to `Organization.sameAs` here *and* fix the same placeholder URLs in `Navbar.tsx`/`Footer.tsx`'s `SOCIAL_LINKS` (a pre-existing gap, not introduced by this change).
+
 

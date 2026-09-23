@@ -6,6 +6,43 @@ import { FAQSection } from "@/views/FAQSection";
 import { getPublicBanners } from "@/services/bannerService";
 import { getProductCategories, getProducts } from "@/services/productService";
 import { getStoreCity } from "@/services/configService";
+import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { CONTACT_PHONE_TEL, CONTACT_EMAIL } from "@/lib/contact";
+
+// Organization + WebSite JSON-LD (site identity, for a knowledge-panel /
+// sitelinks-searchbox rich result — separate from ordinary indexing, which
+// sitemap.ts/robots.ts already cover). Lives on the homepage, matching where
+// FAQSection's own JSON-LD sits, rather than the root layout, since it's a
+// once-per-site declaration, not per-page.
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: SITE_NAME,
+  url: SITE_URL,
+  logo: `${SITE_URL}/logo-icon.png`,
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: CONTACT_PHONE_TEL,
+    email: CONTACT_EMAIL,
+    contactType: "customer service",
+    areaServed: "BD",
+  },
+  // Deliberately no `sameAs`: Navbar.tsx/Footer.tsx's SOCIAL_LINKS still
+  // point at generic placeholder URLs (https://facebook.com, etc.), not the
+  // store's real profiles — sameAs must link to genuine authoritative
+  // profiles, so a placeholder would be fabricated data. Add it here (and
+  // fix those two files) once real social page URLs exist.
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  url: SITE_URL,
+  // Deliberately no `potentialAction`/SearchAction: the site has no working
+  // search endpoint to point one at, and a non-functional one would fail
+  // rich-result validation (and just be wrong).
+};
 
 // No metadata export here on purpose: the root layout's default title/description
 // already target "/" with the full branded copy. A page-level override would
@@ -31,6 +68,14 @@ export default async function Home() {
 
   return (
     <main className="pt-[var(--navbar-height)]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
       <HeroSlider slides={slides} />
       <CategoryShowcase categories={categories} />
       <FeaturedProducts products={featuredProducts} isFallback={isFallback} />

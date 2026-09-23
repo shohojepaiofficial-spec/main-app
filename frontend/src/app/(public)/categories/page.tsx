@@ -3,9 +3,18 @@ import { getProductCategories } from "@/services/productService";
 import { CategoryTile } from "@/views/CategoryTile";
 import { T } from "@/components/ui/T";
 
+const title = "Categories";
+const description = "Explore products by category.";
+
 export const metadata: Metadata = {
-  title: "Categories",
-  description: "Explore products by category.",
+  title,
+  description,
+  openGraph: {
+    title,
+    description,
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+  },
+  twitter: { title, description, images: ["/og-image.png"] },
 };
 
 export default async function CategoriesPage() {

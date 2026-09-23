@@ -16,9 +16,23 @@ export async function generateMetadata({
   searchParams: Promise<ShopSearchParams>;
 }): Promise<Metadata> {
   const { category } = await searchParams;
-  return category
-    ? { title: `${category} — Shop`, description: `Browse our ${category} products.` }
-    : { title: "Shop", description: "Browse our full catalog of products." };
+  const title = category ? `${category} — Shop` : "Shop";
+  const description = category
+    ? `Browse our ${category} products.`
+    : "Browse our full catalog of products.";
+
+  return {
+    title,
+    description,
+    // Falls back to the site's default OG image (not inherited automatically
+    // from layout.tsx — see the shop/[id] product page for why).
+    openGraph: {
+      title,
+      description,
+      images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    },
+    twitter: { title, description, images: ["/og-image.png"] },
+  };
 }
 
 export default async function ShopPage({
