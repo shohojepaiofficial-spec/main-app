@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { format } from "date-fns";
 import { Plus, Trash2, Send, RotateCw, CheckCircle2, XCircle, Loader2, Link2Off } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAdminAds } from "@/controllers/useAdminAds";
 import { AdminAdFormModal } from "@/views/AdminAdFormModal";
+import * as productService from "@/services/productService";
 import { toUploadUrl } from "@/lib/api";
 import { confirmDialog } from "@/lib/confirm";
-import { Ad, AdPlatform, AdPlatformStatus } from "@/models";
+import { Ad, AdPlatform, AdPlatformStatus, Product } from "@/models";
 
 const SOURCE_LABEL: Record<Ad["sourceType"], string> = {
   product: "Product",
@@ -113,6 +115,36 @@ export function AdminAdsView() {
   const { isChecking, isAllowed } = useRequirePermission("ads:manage");
   const { ads, isLoading, publishingId, deletingId, publish, remove, reload } = useAdminAds();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [initialProduct, setInitialProduct] = useState<Product | null>(null);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const productId = searchParams.get("productId");
+
+  // Manage Products' "Create ad" shortcut links here as
+  // `/admin/ads?productId=<id>` — resolve it to a real product, open the
+  // form pre-filled and ready to post, then drop the query param so a
+  // refresh (or clicking "New ad" afterwards) doesn't keep reopening it.
+  useEffect(() => {
+    if (!productId) return;
+    let ignore = false;
+    productService
+      .getProductById(productId)
+      .then((product) => {
+        if (ignore) return;
+        if (product) {
+          setInitialProduct(product);
+          setIsFormOpen(true);
+        }
+      })
+      .finally(() => {
+        if (!ignore) router.replace("/admin/ads");
+      });
+    return () => {
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
 
   if (isChecking || !isAllowed) {
     return (
@@ -121,6 +153,16 @@ export function AdminAdsView() {
       </div>
     );
   }
+
+  const openBlankForm = () => {
+    setInitialProduct(null);
+    setIsFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setIsFormOpen(false);
+    setInitialProduct(null);
+  };
 
   const onDelete = async (ad: Ad) => {
     const confirmed = await confirmDialog(`Delete "${ad.title}"? This can't be undone.`, {
@@ -142,7 +184,7 @@ export function AdminAdsView() {
           </p>
         </div>
         <button
-          onClick={() => setIsFormOpen(true)}
+          onClick={openBlankForm}
           className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
         >
           <Plus size={16} /> New ad
@@ -168,7 +210,12 @@ export function AdminAdsView() {
         </div>
       )}
 
-      <AdminAdFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onCreated={reload} />
+      <AdminAdFormModal
+        isOpen={isFormOpen}
+        onClose={closeForm}
+        onCreated={reload}
+        initialProduct={initialProduct}
+      />
     </main>
   );
 }

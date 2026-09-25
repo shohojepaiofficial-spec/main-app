@@ -31,6 +31,17 @@ const PLATFORM_OPTIONS: { value: AdPlatform; label: string; note?: string }[] = 
   { value: "x", label: "X (Twitter)" },
 ];
 
+// Shared by onSelectProduct (picking a product inside the form) and the
+// form's initial state (arriving with a product already picked, e.g. via
+// Manage Products' "Create ad" shortcut) so both start from the same copy.
+function productAdCopy(product: Product) {
+  return {
+    title: product.name,
+    caption: `${product.name} — now ${formatCurrency(product.price)}! Shop now while stocks last.`,
+    link: `${SITE_URL}/shop/${product._id}`,
+  };
+}
+
 function ProductPicker({
   selected,
   onSelect,
@@ -131,26 +142,29 @@ function ProductPicker({
   );
 }
 
-interface AdminAdFormModalProps {
-  isOpen: boolean;
+interface AdFormProps {
+  initialProduct: Product | null;
   onClose: () => void;
   onCreated: () => void;
 }
 
-export function AdminAdFormModal({ isOpen, onClose, onCreated }: AdminAdFormModalProps) {
+// Mounted fresh (via the `key` in AdminAdFormModal below, and the fact that
+// it's only rendered at all while the drawer is open) every time the
+// drawer opens, so all its state starts from the right place with no reset
+// effect needed — same convention as ProductFormModal's ProductForm.
+function AdForm({ initialProduct, onClose, onCreated }: AdFormProps) {
   const [sourceType, setSourceType] = useState<AdSourceType>("product");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(initialProduct);
   const [activePromos, setActivePromos] = useState<AppliedPromo[]>([]);
   const [selectedPromoCode, setSelectedPromoCode] = useState("");
-  const [title, setTitle] = useState("");
-  const [caption, setCaption] = useState("");
-  const [link, setLink] = useState("");
+  const [title, setTitle] = useState(() => (initialProduct ? productAdCopy(initialProduct).title : ""));
+  const [caption, setCaption] = useState(() => (initialProduct ? productAdCopy(initialProduct).caption : ""));
+  const [link, setLink] = useState(() => (initialProduct ? productAdCopy(initialProduct).link : ""));
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [platforms, setPlatforms] = useState<AdPlatform[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
     let ignore = false;
     promoService
       .getActivePromoCodes()
@@ -161,7 +175,7 @@ export function AdminAdFormModal({ isOpen, onClose, onCreated }: AdminAdFormModa
     return () => {
       ignore = true;
     };
-  }, [isOpen]);
+  }, []);
 
   const selectedPromo = useMemo(
     () => activePromos.find((p) => p.code === selectedPromoCode) ?? null,
@@ -173,11 +187,10 @@ export function AdminAdFormModal({ isOpen, onClose, onCreated }: AdminAdFormModa
   const onSelectProduct = (product: Product | null) => {
     setSelectedProduct(product);
     if (!product) return;
-    setTitle(product.name);
-    setCaption(
-      `${product.name} — now ${formatCurrency(product.price)}! Shop now while stocks last.`
-    );
-    setLink(`${SITE_URL}/shop/${product._id}`);
+    const copy = productAdCopy(product);
+    setTitle(copy.title);
+    setCaption(copy.caption);
+    setLink(copy.link);
   };
 
   const onSelectPromo = (code: string) => {
@@ -199,18 +212,6 @@ export function AdminAdFormModal({ isOpen, onClose, onCreated }: AdminAdFormModa
     setPlatforms((prev) =>
       prev.includes(platform) ? prev.filter((p) => p !== platform) : [...prev, platform]
     );
-  };
-
-  const resetAndClose = () => {
-    setSourceType("product");
-    setSelectedProduct(null);
-    setSelectedPromoCode("");
-    setTitle("");
-    setCaption("");
-    setLink("");
-    setImageFile(null);
-    setPlatforms([]);
-    onClose();
   };
 
   const hasImage = !!imageFile || (sourceType === "product" && !!selectedProduct?.images[0]);
@@ -251,7 +252,7 @@ export function AdminAdFormModal({ isOpen, onClose, onCreated }: AdminAdFormModa
       });
       toast.success("Ad created");
       onCreated();
-      resetAndClose();
+      onClose();
     } catch (err) {
       toast.error(extractErrorMessage(err, "Failed to create ad"));
     } finally {
@@ -260,8 +261,7 @@ export function AdminAdFormModal({ isOpen, onClose, onCreated }: AdminAdFormModa
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={resetAndClose} title="New ad" widthClassName="max-w-lg">
-      <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
         <div>
           <label className="text-sm font-medium">Based on</label>
           <div className="mt-1 flex gap-2">
@@ -391,6 +391,29 @@ export function AdminAdFormModal({ isOpen, onClose, onCreated }: AdminAdFormModa
           {isSubmitting ? "Saving..." : "Save ad"}
         </button>
       </div>
+  );
+}
+
+interface AdminAdFormModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  // Pre-fills the form with a product already picked — e.g. Manage
+  // Products' "Create ad" shortcut.
+  initialProduct?: Product | null;
+}
+
+export function AdminAdFormModal({ isOpen, onClose, onCreated, initialProduct }: AdminAdFormModalProps) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="New ad" widthClassName="max-w-lg">
+      {isOpen && (
+        <AdForm
+          key={initialProduct?._id ?? "new"}
+          initialProduct={initialProduct ?? null}
+          onClose={onClose}
+          onCreated={onCreated}
+        />
+      )}
     </Modal>
   );
 }

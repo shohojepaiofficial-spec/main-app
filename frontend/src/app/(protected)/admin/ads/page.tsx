@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AdminAdsView } from "@/views/AdminAdsView";
 
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function AdminAdsPage() {
-  return <AdminAdsView />;
+  return (
+    <Suspense>
+      <AdminAdsView />
+    </Suspense>
+  );
 }

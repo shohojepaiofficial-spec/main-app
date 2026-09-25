@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Trash2, Loader2, Plus, Star, X } from "lucide-react";
+import Link from "next/link";
+import { Pencil, Trash2, Loader2, Plus, Star, X, Megaphone } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
+import { useAuthController } from "@/controllers/useAuthController";
 import { useAdminProducts, ProductFilters } from "@/controllers/useAdminProducts";
 import { useDebouncedValue } from "@/controllers/useDebouncedValue";
 import { ProductFormModal } from "@/views/ProductFormModal";
@@ -131,6 +133,8 @@ function ProductFilterBar({
 
 export function AdminProductsView() {
   const { isChecking, isAllowed } = useRequirePermission("products:manage");
+  const { hasPermission } = useAuthController();
+  const canManageAds = hasPermission("ads:manage");
   const {
     products,
     isLoading,
@@ -250,6 +254,16 @@ export function AdminProductsView() {
                   <td className="py-3 pr-4 align-top text-sm">{product.stock}</td>
                   <td className="py-3 pr-4 align-top">
                     <div className="flex items-center gap-3">
+                      {canManageAds && (
+                        <Link
+                          href={`/admin/ads?productId=${product._id}`}
+                          aria-label={`Create ad for ${product.name}`}
+                          title="Create ad"
+                          className="text-muted hover:text-foreground"
+                        >
+                          <Megaphone size={16} />
+                        </Link>
+                      )}
                       <button
                         onClick={() => openEditForm(product)}
                         aria-label={`Edit ${product.name}`}
