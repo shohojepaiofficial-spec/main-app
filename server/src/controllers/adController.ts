@@ -162,7 +162,7 @@ export const publishAd = async (req: AuthRequest, res: Response) => {
         } else if (platform === "instagram") {
           if (!isInstagramConfigured()) throw { notConnected: true };
           if (!imageUrl) throw new Error("Instagram posts require an image");
-          externalPostId = await postToInstagram(ad.caption, imageUrl);
+          externalPostId = await postToInstagram(ad.caption, imageUrl, ad.link);
         } else {
           if (!isXConfigured()) throw { notConnected: true };
           const text = ad.link ? `${ad.caption}\n\n${ad.link}` : ad.caption;

@@ -38,7 +38,16 @@ export async function postToFacebook(caption: string, imageUrl?: string, link?: 
   const accessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN as string;
 
   if (imageUrl) {
-    const data = await graphPost(`${pageId}/photos`, { url: imageUrl, caption, access_token: accessToken });
+    // The /photos endpoint has no separate "link" field the way /feed does
+    // below — Meta only turns a bare `link` param into a clickable preview
+    // card for a link-only post, never for a photo post. Appending it to
+    // the caption text is the only way it shows up on the post at all.
+    const photoCaption = link ? `${caption}\n\n${link}` : caption;
+    const data = await graphPost(`${pageId}/photos`, {
+      url: imageUrl,
+      caption: photoCaption,
+      access_token: accessToken,
+    });
     return data.id;
   }
 
@@ -54,14 +63,20 @@ export async function postToFacebook(caption: string, imageUrl?: string, link?: 
 // container, then publish it) and always needs an image — there's no
 // text-only Instagram post. `imageUrl` must be a publicly reachable https
 // URL (Meta's servers fetch it directly) — see SERVER_PUBLIC_URL in
-// server/.env.example; a localhost URL won't work here.
-export async function postToInstagram(caption: string, imageUrl: string): Promise<string> {
+// server/.env.example; a localhost URL won't work here. Instagram captions
+// have no clickable-link field at all (unlike Facebook's `/feed`), so — same
+// as the photo case above — the only way a link shows up is as plain text
+// appended to the caption; it won't be tappable, which is a platform
+// limitation, not something this code can work around.
+export async function postToInstagram(caption: string, imageUrl: string, link?: string): Promise<string> {
   const igUserId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID as string;
   const accessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN as string;
 
+  const fullCaption = link ? `${caption}\n\n${link}` : caption;
+
   const container = await graphPost(`${igUserId}/media`, {
     image_url: imageUrl,
-    caption,
+    caption: fullCaption,
     access_token: accessToken,
   });
   const published = await graphPost(`${igUserId}/media_publish`, {
