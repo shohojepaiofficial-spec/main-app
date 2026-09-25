@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
 import { User } from "../models/User";
 import { AuthRequest } from "../middleware/auth";
+import { isNonEmptyString } from "../utils/validate";
 import { shapeUser } from "./authController";
 import {
   generateTwoFactorSecret,
@@ -53,7 +54,7 @@ export const setupTwoFactor = async (req: AuthRequest, res: Response) => {
 // secret from permanently locking the account out.
 export const confirmTwoFactor = async (req: AuthRequest, res: Response) => {
   const { code } = req.body as { code?: string };
-  if (!code) return res.status(400).json({ message: "A code is required" });
+  if (!isNonEmptyString(code)) return res.status(400).json({ message: "A code is required" });
 
   const user = await User.findById(req.userId).select("+twoFactor.pendingSecret");
   if (!user) return res.status(404).json({ message: "User not found" });
@@ -83,7 +84,7 @@ export const confirmTwoFactor = async (req: AuthRequest, res: Response) => {
 // actually controls the second factor before turning it off.
 export const disableTwoFactor = async (req: AuthRequest, res: Response) => {
   const { code } = req.body as { code?: string };
-  if (!code) return res.status(400).json({ message: "A code is required" });
+  if (!isNonEmptyString(code)) return res.status(400).json({ message: "A code is required" });
 
   const user = await User.findById(req.userId).select("+twoFactor.secret +twoFactor.backupCodeHashes");
   if (!user) return res.status(404).json({ message: "User not found" });
@@ -110,7 +111,7 @@ export const disableTwoFactor = async (req: AuthRequest, res: Response) => {
 // a completed login.
 export const verifyTwoFactorLogin = async (req: Request, res: Response) => {
   const { tempToken, code } = req.body as { tempToken?: string; code?: string };
-  if (!tempToken || !code) {
+  if (!isNonEmptyString(tempToken) || !isNonEmptyString(code)) {
     return res.status(400).json({ message: "tempToken and code are required" });
   }
 

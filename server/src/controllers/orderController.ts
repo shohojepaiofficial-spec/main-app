@@ -8,6 +8,7 @@ import { PromoCode } from "../models/PromoCode";
 import { SharedCart } from "../models/SharedCart";
 import { User } from "../models/User";
 import { STORE_CITY } from "../utils/store";
+import { isNonEmptyString } from "../utils/validate";
 import { AuthRequest } from "../middleware/auth";
 import {
   isBkashConfigured,
@@ -143,7 +144,7 @@ export async function computeOrderTotals(
 
   let discount = 0;
   let appliedCode: string | undefined;
-  if (promoCode) {
+  if (isNonEmptyString(promoCode)) {
     const promo = await PromoCode.findOne({ code: promoCode.trim().toUpperCase() }).session(
       session ?? null
     );

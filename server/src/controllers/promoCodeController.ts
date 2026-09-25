@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Types } from "mongoose";
 import { PromoCode, DiscountType, PromoScope } from "../models/PromoCode";
 import { Product } from "../models/Product";
+import { isNonEmptyString } from "../utils/validate";
 
 const shapePromo = (promo: InstanceType<typeof PromoCode>) => ({
   id: promo.id,
@@ -62,7 +63,7 @@ const validateInput = (body: Record<string, unknown>) => {
     expiresAt?: string | null;
   };
 
-  if (!code || !code.trim()) return { error: "Code is required" };
+  if (!isNonEmptyString(code)) return { error: "Code is required" };
   if (discountType !== "percentage" && discountType !== "flat") {
     return { error: "discountType must be 'percentage' or 'flat'" };
   }
@@ -128,7 +129,7 @@ export const deletePromoCode = async (req: Request, res: Response) => {
 // pattern elsewhere — nothing server-side to check it against yet).
 export const validatePromoCode = async (req: Request, res: Response) => {
   const { code, productId } = req.body as { code?: string; productId?: string };
-  if (!code) return res.status(400).json({ message: "code is required" });
+  if (!isNonEmptyString(code)) return res.status(400).json({ message: "code is required" });
 
   const promo = await PromoCode.findOne({ code: code.trim().toUpperCase() });
   if (!promo || !promo.isActive) {

@@ -5,6 +5,7 @@ import { PromoCode } from "../models/PromoCode";
 import { sendEmail } from "../utils/sendEmail";
 import { generateUnsubscribeToken } from "../utils/campaignTokens";
 import { isSmsConfigured, sendSms } from "../integrations/sms";
+import { isNonEmptyString } from "../utils/validate";
 import { AuthRequest } from "../middleware/auth";
 
 const ALL_CHANNELS: CampaignChannel[] = ["email", "sms"];
@@ -74,7 +75,7 @@ export const createCampaign = async (req: AuthRequest, res: Response) => {
 
   let promoDoc = null;
   if (sourceType === "promotion") {
-    if (!promoCodeInput?.trim()) return res.status(400).json({ message: "Pick a promo code" });
+    if (!isNonEmptyString(promoCodeInput)) return res.status(400).json({ message: "Pick a promo code" });
     promoDoc = await PromoCode.findOne({ code: promoCodeInput.trim().toUpperCase() });
     if (!promoDoc) return res.status(400).json({ message: "That promo code no longer exists" });
   }

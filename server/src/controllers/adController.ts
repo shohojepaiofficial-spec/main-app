@@ -11,6 +11,7 @@ import {
 } from "../integrations/meta";
 import { isXConfigured, postToX } from "../integrations/x";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
+import { isNonEmptyString } from "../utils/validate";
 
 const ALL_PLATFORMS: AdPlatform[] = ["facebook", "instagram", "x"];
 
@@ -93,7 +94,7 @@ export const createAd = async (req: AuthRequest, res: Response) => {
 
   let promoDoc = null;
   if (sourceType === "promotion") {
-    if (!promoCodeInput?.trim()) {
+    if (!isNonEmptyString(promoCodeInput)) {
       return res.status(400).json({ message: "Pick a promo code" });
     }
     promoDoc = await PromoCode.findOne({ code: promoCodeInput.trim().toUpperCase() });

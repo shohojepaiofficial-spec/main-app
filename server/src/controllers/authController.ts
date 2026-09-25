@@ -6,6 +6,7 @@ import { generateRawAndHash, hashToken } from "../utils/authTokens";
 import { verifyUnsubscribeToken } from "../utils/campaignTokens";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { signTwoFactorChallenge } from "../utils/twoFactor";
+import { isNonEmptyString } from "../utils/validate";
 import { AuthRequest } from "../middleware/auth";
 
 const signToken = (id: string, role: string) =>
@@ -75,7 +76,7 @@ async function sendVerificationEmail(user: InstanceType<typeof User>) {
 export const register = async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
 
-  if (!name || !email || !password) {
+  if (!isNonEmptyString(name) || !isNonEmptyString(email) || !isNonEmptyString(password)) {
     return res.status(400).json({ message: "name, email and password are required" });
   }
 
@@ -95,7 +96,7 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
+  if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
     return res.status(400).json({ message: "email and password are required" });
   }
 
@@ -153,7 +154,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     newPassword?: string;
   };
 
-  if (!currentPassword || !newPassword) {
+  if (!isNonEmptyString(currentPassword) || !isNonEmptyString(newPassword)) {
     return res.status(400).json({ message: "currentPassword and newPassword are required" });
   }
   if (newPassword.length < 6) {
@@ -228,7 +229,7 @@ export const updateMarketingOptIn = async (req: AuthRequest, res: Response) => {
 // whole account or SMS opt-in.
 export const unsubscribeFromMarketing = async (req: Request, res: Response) => {
   const { uid, token } = req.query as { uid?: string; token?: string };
-  if (!uid || !token || !verifyUnsubscribeToken(uid, token)) {
+  if (!isNonEmptyString(uid) || !isNonEmptyString(token) || !verifyUnsubscribeToken(uid, token)) {
     return res.status(400).json({ message: "This unsubscribe link is invalid." });
   }
 
@@ -249,7 +250,10 @@ export const unsubscribeFromMarketing = async (req: Request, res: Response) => {
 export const oauthSync = async (req: Request, res: Response) => {
   const { name, email, provider, providerId, image } = req.body;
 
-  if (!email || !provider) {
+  // "google" is the only OAuth provider this app supports (Facebook sign-in
+  // was removed — see docs/PROGRESS.md) — reject anything else outright
+  // rather than letting an arbitrary string reach User.create below.
+  if (!isNonEmptyString(email) || provider !== "google") {
     return res.status(400).json({ message: "email and provider are required" });
   }
 
@@ -320,7 +324,7 @@ export const resendVerificationEmail = async (req: AuthRequest, res: Response) =
 // whatever device/browser opens the email link.
 export const verifyEmail = async (req: Request, res: Response) => {
   const { token } = req.body as { token?: string };
-  if (!token) return res.status(400).json({ message: "Missing token" });
+  if (!isNonEmptyString(token)) return res.status(400).json({ message: "Missing token" });
 
   const user = await User.findOne({
     emailVerificationTokenHash: hashToken(token),
@@ -344,7 +348,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
 // enumeration) — the real work only happens when a match is found.
 export const forgotPassword = async (req: Request, res: Response) => {
   const { email } = req.body as { email?: string };
-  if (!email) return res.status(400).json({ message: "Email is required" });
+  if (!isNonEmptyString(email)) return res.status(400).json({ message: "Email is required" });
 
   const genericResponse = {
     message: "If an account with that email exists, we've sent a password reset link.",
@@ -376,7 +380,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
 // no reason to also make them type their new password in again to sign in.
 export const resetPassword = async (req: Request, res: Response) => {
   const { token, password } = req.body as { token?: string; password?: string };
-  if (!token || !password) return res.status(400).json({ message: "Token and password are required" });
+  if (!isNonEmptyString(token) || !isNonEmptyString(password)) {
+    return res.status(400).json({ message: "Token and password are required" });
+  }
   if (password.length < 6) {
     return res.status(400).json({ message: "Password must be at least 6 characters" });
   }
