@@ -10,7 +10,7 @@
 // A single self-owned Page/app can use these without Meta's App Review — add
 // your own Facebook/Instagram accounts as "testers" on the app in
 // developers.facebook.com and generate a long-lived Page token from there.
-const GRAPH_VERSION = "v19.0";
+const GRAPH_VERSION = "v26.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
 export function isFacebookConfigured(): boolean {
