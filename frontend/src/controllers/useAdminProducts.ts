@@ -3,24 +3,46 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import * as productService from "@/services/productService";
+import { DeliveryType, StockStatus } from "@/services/productService";
 import { Product } from "@/models";
+
+export interface ProductFilters {
+  search?: string;
+  category?: string;
+  stockStatus?: StockStatus;
+  deliveryType?: DeliveryType;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+// Empty-string values are how the filter bar's <select>/<input>s represent
+// "no filter" — dropped here rather than sent as `category=`, etc., since
+// the backend only ever checks a query param's presence.
+function cleanFilters(filters: ProductFilters): ProductFilters {
+  const cleaned: ProductFilters = {};
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) cleaned[key as keyof ProductFilters] = value as never;
+  }
+  return cleaned;
+}
 
 export function useAdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
+  const [filters, setFiltersState] = useState<ProductFilters>({});
+  const [page, setPageState] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const load = useCallback((targetPage: number) => {
+  const load = useCallback((targetPage: number, targetFilters: ProductFilters) => {
     setIsLoading(true);
     return productService
-      .getProducts({ page: targetPage })
+      .getProducts({ page: targetPage, ...cleanFilters(targetFilters) })
       .then((data) => {
         setProducts(data.items);
         setTotalPages(data.totalPages);
-        setPage(data.page);
+        setPageState(data.page);
       })
       .catch(() => {
         toast.error("Failed to load products");
@@ -30,6 +52,12 @@ export function useAdminProducts() {
       });
   }, []);
 
+  // Mount-only fetch, deliberately not routed through `load` — `isLoading`
+  // already starts `true`, and calling `load` (which sets it synchronously)
+  // directly in the effect body trips `react-hooks/set-state-in-effect`
+  // (see docs/PROGRESS.md's "Manage Products" entry for the same fix
+  // applied the first time this rule was hit). `load` itself is only for
+  // interactive re-fetches (filters/pagination/upsert/remove) below.
   useEffect(() => {
     let ignore = false;
     productService
@@ -38,7 +66,7 @@ export function useAdminProducts() {
         if (ignore) return;
         setProducts(data.items);
         setTotalPages(data.totalPages);
-        setPage(data.page);
+        setPageState(data.page);
       })
       .catch(() => {
         if (!ignore) toast.error("Failed to load products");
@@ -57,11 +85,20 @@ export function useAdminProducts() {
     };
   }, []);
 
+  const setPage = (targetPage: number) => load(targetPage, filters);
+
+  // Any filter change resets to page 1 — the previous page number is
+  // meaningless against a differently-sized result set.
+  const setFilters = (next: ProductFilters) => {
+    setFiltersState(next);
+    load(1, next);
+  };
+
   const upsert = () => {
     // Re-fetch the current page rather than patch it in place — a create
     // can push the last item on the page onto a new one, and either way the
-    // server's sort/pagination stays the source of truth.
-    load(page);
+    // server's sort/pagination/filters stay the source of truth.
+    load(page, filters);
   };
 
   const remove = async (id: string) => {
@@ -69,7 +106,7 @@ export function useAdminProducts() {
     try {
       await productService.deleteProduct(id);
       toast.success("Product deleted");
-      await load(page);
+      await load(page, filters);
     } catch {
       toast.error("Failed to delete product");
     } finally {
@@ -80,9 +117,11 @@ export function useAdminProducts() {
   return {
     products,
     categories,
+    filters,
+    setFilters,
     page,
     totalPages,
-    setPage: load,
+    setPage,
     isLoading,
     deletingId,
     remove,

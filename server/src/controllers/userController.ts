@@ -2,12 +2,16 @@ import { Response } from "express";
 import { User, UserRole } from "../models/User";
 import { PERMISSIONS, isPermission } from "../utils/permissions";
 import { AuthRequest } from "../middleware/auth";
+import { escapeRegex } from "../utils/regex";
 
 // "admin" is deliberately excluded: there is exactly one admin at a time,
 // set only by the promote-admin bootstrap script (which transfers the role
 // rather than adding a second one). This endpoint can only ever move
 // someone between "user" and "coadmin".
 const ASSIGNABLE_ROLES: UserRole[] = ["user", "coadmin"];
+const ALL_ROLES: UserRole[] = ["user", "coadmin", "admin"];
+
+const DEFAULT_PAGE_SIZE = 20;
 
 const shapeUser = (user: InstanceType<typeof User>) => ({
   id: user.id,
@@ -20,9 +24,47 @@ const shapeUser = (user: InstanceType<typeof User>) => ({
   createdAt: user.createdAt,
 });
 
-export const getUsers = async (_req: AuthRequest, res: Response) => {
-  const users = await User.find().sort({ createdAt: -1 });
-  res.json(users.map(shapeUser));
+// Same paginated `{ items, total, page, totalPages }` shape as getProducts —
+// this list has no upper bound (every signed-up customer, not just
+// admin-created records), so it needed the same treatment once a real store
+// accumulates more than a page's worth of accounts.
+export const getUsers = async (req: AuthRequest, res: Response) => {
+  const { search, role, permission, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
+  const filter: Record<string, unknown> = {};
+
+  if (search) filter.email = { $regex: escapeRegex(search), $options: "i" };
+  if (role && (ALL_ROLES as string[]).includes(role)) filter.role = role;
+  if (permission && isPermission(permission)) filter.permissions = permission;
+
+  if (dateFrom || dateTo) {
+    const createdAt: Record<string, Date> = {};
+    if (dateFrom) createdAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      // Inclusive of the whole end day, not just midnight at its start.
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      createdAt.$lte = end;
+    }
+    filter.createdAt = createdAt;
+  }
+
+  const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || DEFAULT_PAGE_SIZE));
+
+  const [items, total] = await Promise.all([
+    User.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit),
+    User.countDocuments(filter),
+  ]);
+
+  res.json({
+    items: items.map(shapeUser),
+    total,
+    page,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+  });
 };
 
 // Admin-only (see routes/userRoutes.ts) — grants/revokes a user's role and,

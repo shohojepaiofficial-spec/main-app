@@ -1,11 +1,18 @@
 import { api } from "@/lib/api";
 import { Paginated, Product, ProductCategory, ProductStats } from "@/models";
 
+export type StockStatus = "in_stock" | "low_stock" | "out_of_stock";
+export type DeliveryType = "free" | "paid";
+
 export interface GetProductsParams {
   category?: string;
   search?: string;
   excludeId?: string;
   featured?: boolean;
+  stockStatus?: StockStatus;
+  deliveryType?: DeliveryType;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   limit?: number;
 }

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, X } from "lucide-react";
 import { useRequireAdmin } from "@/controllers/useRequireAdmin";
-import { useAdminUsers } from "@/controllers/useAdminUsers";
+import { useAdminUsers, UserFilters } from "@/controllers/useAdminUsers";
+import { useDebouncedValue } from "@/controllers/useDebouncedValue";
+import { Pagination } from "@/views/Pagination";
 import { ALL_PERMISSIONS, ManagedUser, PERMISSION_LABELS, Permission, UserRole } from "@/models";
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -11,6 +13,106 @@ const ROLE_LABELS: Record<UserRole, string> = {
   coadmin: "Co-admin",
   admin: "Admin",
 };
+
+const inputClass =
+  "rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-foreground";
+
+function UserFilterBar({
+  filters,
+  onChange,
+}: {
+  filters: UserFilters;
+  onChange: (next: UserFilters) => void;
+}) {
+  const [searchInput, setSearchInput] = useState(filters.search ?? "");
+  const debouncedSearch = useDebouncedValue(searchInput);
+
+  useEffect(() => {
+    if (debouncedSearch !== (filters.search ?? "")) {
+      onChange({ ...filters, search: debouncedSearch || undefined });
+    }
+    // Only fire when the debounced value settles, not on every filters change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  const hasActiveFilters = Object.values(filters).some(Boolean);
+
+  const clearAll = () => {
+    setSearchInput("");
+    onChange({});
+  };
+
+  return (
+    <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-border bg-background p-3">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-muted">Search</label>
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Email address..."
+          className={`${inputClass} w-52`}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-muted">Role</label>
+        <select
+          value={filters.role ?? ""}
+          onChange={(e) => onChange({ ...filters, role: (e.target.value || undefined) as UserRole })}
+          className={inputClass}
+        >
+          <option value="">All roles</option>
+          {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+            <option key={role} value={role}>
+              {ROLE_LABELS[role]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-muted">Permission</label>
+        <select
+          value={filters.permission ?? ""}
+          onChange={(e) => onChange({ ...filters, permission: (e.target.value || undefined) as Permission })}
+          className={inputClass}
+        >
+          <option value="">Any permission</option>
+          {ALL_PERMISSIONS.map((permission) => (
+            <option key={permission} value={permission}>
+              {PERMISSION_LABELS[permission]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-muted">Joined from</label>
+        <input
+          type="date"
+          value={filters.dateFrom ?? ""}
+          onChange={(e) => onChange({ ...filters, dateFrom: e.target.value || undefined })}
+          className={inputClass}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-muted">Joined to</label>
+        <input
+          type="date"
+          value={filters.dateTo ?? ""}
+          onChange={(e) => onChange({ ...filters, dateTo: e.target.value || undefined })}
+          className={inputClass}
+        />
+      </div>
+      {hasActiveFilters && (
+        <button
+          onClick={clearAll}
+          className="flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-muted hover:text-foreground"
+        >
+          <X size={14} /> Clear filters
+        </button>
+      )}
+    </div>
+  );
+}
 
 function UserAccessRow({
   managedUser,
@@ -101,7 +203,8 @@ function UserAccessRow({
 
 export function AdminUsersView() {
   const { user: currentUser, isChecking, isAllowed } = useRequireAdmin();
-  const { users, isLoading, savingId, updateAccess } = useAdminUsers();
+  const { users, filters, setFilters, page, totalPages, setPage, isLoading, savingId, updateAccess } =
+    useAdminUsers();
 
   if (isChecking || !isAllowed) {
     return (
@@ -118,8 +221,14 @@ export function AdminUsersView() {
         Promote a user to co-admin and grant only the permissions they need.
       </p>
 
+      <UserFilterBar filters={filters} onChange={setFilters} />
+
       {isLoading ? (
         <p className="text-sm text-muted">Loading users...</p>
+      ) : users.length === 0 ? (
+        <p className="text-sm text-muted">
+          {Object.values(filters).some(Boolean) ? "No users match these filters." : "No users yet."}
+        </p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full min-w-[640px] text-left">
@@ -145,6 +254,8 @@ export function AdminUsersView() {
           </table>
         </div>
       )}
+
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </main>
   );
 }
