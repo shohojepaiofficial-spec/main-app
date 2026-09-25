@@ -10,7 +10,7 @@ import {
   postToInstagram,
 } from "../integrations/meta";
 import { isXConfigured, postToX } from "../integrations/x";
-import { storeUploadedFile } from "../utils/upload";
+import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 
 const ALL_PLATFORMS: AdPlatform[] = ["facebook", "instagram", "x"];
 
@@ -123,6 +123,7 @@ export const createAd = async (req: AuthRequest, res: Response) => {
     promoCode: sourceType === "promotion" ? promoDoc?.id : undefined,
     caption: caption.trim(),
     image,
+    ownsImage: !!file,
     link: link?.trim() || undefined,
     platforms,
     results: platforms.map((platform) => ({ platform, status: "pending" as AdPlatformStatus })),
@@ -194,15 +195,13 @@ export const publishAd = async (req: AuthRequest, res: Response) => {
   res.json(shapeAd(ad));
 };
 
-// Deliberately does NOT clean up `ad.image` the way productController and
-// bannerController clean up theirs (see utils/upload.ts#deleteUploadedFile)
-// — unlike those, an ad's image is often *borrowed* from a product
-// (createAd above falls back to `product.images[0]` when nothing was
-// uploaded specifically for the ad), so deleting it here could delete an
-// image a live product still depends on. Only safe to add if the model
-// starts distinguishing "own upload" from "borrowed reference".
+// Only cleans up `ad.image` when `ownsImage` is set — an ad's image is
+// often *borrowed* from a product (createAd above falls back to
+// `product.images[0]` when nothing was uploaded specifically for the ad),
+// and deleting that would delete an image a live product still depends on.
 export const deleteAd = async (req: AuthRequest, res: Response) => {
   const ad = await Ad.findByIdAndDelete(req.params.id);
   if (!ad) return res.status(404).json({ message: "Ad not found" });
+  if (ad.ownsImage) await deleteUploadedFile(ad.image);
   res.json({ message: "Ad deleted" });
 };

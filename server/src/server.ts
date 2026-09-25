@@ -4,8 +4,24 @@ dotenv.config({ quiet: true });
 import app from "./app";
 import { connectDB } from "./config/db";
 import { initErrorMonitoring, reportError } from "./utils/errorMonitoring";
+import { isCloudinaryConfigured } from "./utils/cloudinary";
 
 initErrorMonitoring();
+
+// A production host with an ephemeral filesystem (Railway, etc.) wipes
+// server/uploads on every redeploy/restart — any image that fell back to
+// local-disk storage (see utils/upload.ts) because Cloudinary wasn't
+// configured is gone for good at that point, with nothing in the app
+// itself to signal it. This is the one config gap serious enough to fail
+// loudly for rather than degrade silently like every other optional
+// integration in this app.
+if (process.env.NODE_ENV === "production" && !isCloudinaryConfigured()) {
+  console.warn(
+    "WARNING: Cloudinary is not configured (CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET) " +
+      "in this production environment. Uploaded images are falling back to local disk " +
+      "and will be permanently lost on the next redeploy or restart."
+  );
+}
 
 // Express 5 already forwards a rejected promise/thrown error from any route
 // handler to errorHandler.ts instead of crashing the process (see that

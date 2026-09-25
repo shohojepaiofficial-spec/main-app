@@ -258,7 +258,10 @@ export const oauthSync = async (req: Request, res: Response) => {
     }).catch((err) => console.error("Welcome email failed:", err.message));
   } else {
     let changed = false;
-    if (image && user.image !== image) {
+    // Only set it if the account has no image at all yet — otherwise every
+    // future Google sign-in would silently overwrite a profile picture the
+    // user uploaded themselves in Settings back to their Google avatar.
+    if (image && !user.image) {
       user.image = image;
       changed = true;
     }

@@ -28,6 +28,11 @@ export interface IAd extends Document {
   caption: string;
   // A relative /uploads path, same convention as Product/Banner images.
   image?: string;
+  // True only when `image` was uploaded specifically for this ad (createAd
+  // received a file); false when it was borrowed from a product's/promo's
+  // product's existing photo. Deleting the ad should only ever delete its
+  // own upload — a borrowed image is still in use by that product.
+  ownsImage: boolean;
   link?: string;
   platforms: AdPlatform[];
   results: IAdPlatformResult[];
@@ -58,6 +63,7 @@ const adSchema = new Schema<IAd>(
     promoCode: { type: Schema.Types.ObjectId, ref: "PromoCode" },
     caption: { type: String, required: true, trim: true },
     image: { type: String },
+    ownsImage: { type: Boolean, default: false },
     link: { type: String, trim: true },
     platforms: { type: [String], enum: ["facebook", "instagram", "x"], default: [] },
     results: { type: [resultSchema], default: [] },
