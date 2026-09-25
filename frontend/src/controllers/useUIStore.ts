@@ -5,11 +5,21 @@ import { AuthModalMode, Locale } from "@/models";
 interface UIState {
   isAuthModalOpen: boolean;
   authModalMode: AuthModalMode;
+  // The short-lived challenge token from a login/oauth-sync/reset-password
+  // response that came back `{ twoFactorRequired: true, tempToken }` —
+  // AuthModal's "twoFactor" mode reads this to complete the exchange. Never
+  // persisted (see `partialize` below) — it's only ever meant to survive
+  // this one page load, same lifetime as the backend token itself (5min).
+  twoFactorTempToken: string | null;
   isCartModalOpen: boolean;
   locale: Locale;
   openAuthModal: (mode?: AuthModalMode) => void;
   closeAuthModal: () => void;
   setAuthModalMode: (mode: AuthModalMode) => void;
+  // Opens the modal straight into the code-entry step — used both by
+  // AuthModal's own local-login flow and useOAuthBridge for a pending
+  // Google sign-in.
+  openTwoFactorChallenge: (tempToken: string) => void;
   openCartModal: () => void;
   closeCartModal: () => void;
   setLocale: (locale: Locale) => void;
@@ -20,11 +30,14 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       isAuthModalOpen: false,
       authModalMode: "login",
+      twoFactorTempToken: null,
       isCartModalOpen: false,
       locale: "en",
       openAuthModal: (mode = "login") => set({ isAuthModalOpen: true, authModalMode: mode }),
-      closeAuthModal: () => set({ isAuthModalOpen: false }),
+      closeAuthModal: () => set({ isAuthModalOpen: false, twoFactorTempToken: null }),
       setAuthModalMode: (mode) => set({ authModalMode: mode }),
+      openTwoFactorChallenge: (tempToken) =>
+        set({ isAuthModalOpen: true, authModalMode: "twoFactor", twoFactorTempToken: tempToken }),
       openCartModal: () => set({ isCartModalOpen: true }),
       closeCartModal: () => set({ isCartModalOpen: false }),
       setLocale: (locale) => set({ locale }),

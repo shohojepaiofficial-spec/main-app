@@ -47,6 +47,23 @@ export interface IUser extends Document {
   emailVerificationExpires?: Date;
   resetPasswordTokenHash?: string;
   resetPasswordExpires?: Date;
+  // TOTP-based two-step verification — see controllers/twoFactorController.ts.
+  // `secret`/`pendingSecret`/`backupCodeHashes` are all `select: false`
+  // (same convention as the password-reset/email-verification token hashes
+  // above): a plain `User.findById`/`findOne` never pulls them back, only
+  // the explicit `.select("+twoFactor.secret")` calls that need them do.
+  twoFactor: {
+    enabled: boolean;
+    // Set once setup starts, cleared once confirmed into `secret` below —
+    // this two-step dance (generate, then only commit once the admin proves
+    // they actually scanned it and can produce a valid code) is what stops
+    // enabling 2FA with a secret that was never actually saved to an app,
+    // which would otherwise lock the account out immediately.
+    pendingSecret?: string;
+    secret?: string;
+    // bcrypt-hashed, single-use — see utils/twoFactor.ts#generateBackupCodes.
+    backupCodeHashes?: string[];
+  };
   createdAt: Date;
   comparePassword: (candidate: string) => Promise<boolean>;
 }
@@ -91,6 +108,13 @@ const userSchema = new Schema<IUser>(
     emailVerificationExpires: { type: Date, select: false },
     resetPasswordTokenHash: { type: String, select: false },
     resetPasswordExpires: { type: Date, select: false },
+    twoFactor: {
+      enabled: { type: Boolean, default: false },
+      pendingSecret: { type: String, select: false },
+      secret: { type: String, select: false },
+      backupCodeHashes: { type: [String], select: false },
+      _id: false,
+    },
   },
   { timestamps: true }
 );

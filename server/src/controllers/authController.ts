@@ -5,6 +5,7 @@ import { sendEmail } from "../utils/sendEmail";
 import { generateRawAndHash, hashToken } from "../utils/authTokens";
 import { verifyUnsubscribeToken } from "../utils/campaignTokens";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
+import { signTwoFactorChallenge } from "../utils/twoFactor";
 import { AuthRequest } from "../middleware/auth";
 
 const signToken = (id: string, role: string) =>
@@ -17,8 +18,10 @@ const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000; // 1h
 
 // Shared response shape for "here's who's logged in" — register/login/getMe/
-// updateProfile/oauthSync all return exactly this.
-const shapeUser = (user: InstanceType<typeof User>) => ({
+// updateProfile/oauthSync all return exactly this. Exported so
+// twoFactorController's verify-login endpoint (the other place a real
+// session gets issued) produces an identical shape.
+export const shapeUser = (user: InstanceType<typeof User>) => ({
   id: user.id,
   name: user.name,
   email: user.email,
@@ -30,7 +33,20 @@ const shapeUser = (user: InstanceType<typeof User>) => ({
   deliveryLocation: user.deliveryLocation,
   isEmailVerified: user.isEmailVerified,
   marketingOptIn: user.marketingOptIn,
+  twoFactorEnabled: user.twoFactor?.enabled ?? false,
 });
+
+// Every place that verifies a credential and would normally hand back a
+// real session (login, oauth-sync, password reset) routes through here
+// instead of signing a token directly, so a 2FA-enabled admin/coadmin gets
+// challenged at all three, not just the one path someone remembered to gate.
+function respondWithSessionOrChallenge(res: Response, user: InstanceType<typeof User>) {
+  if (user.twoFactor?.enabled) {
+    return res.json({ twoFactorRequired: true, tempToken: signTwoFactorChallenge(user.id) });
+  }
+  const token = signToken(user.id, user.role);
+  return res.json({ token, user: shapeUser(user) });
+}
 
 // Fire-and-forget, same convention as the existing "welcome" email — a
 // down/unconfigured mail provider should never block or fail the request
@@ -88,9 +104,7 @@ export const login = async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Invalid email or password" });
   }
 
-  const token = signToken(user.id, user.role);
-
-  res.json({ token, user: shapeUser(user) });
+  respondWithSessionOrChallenge(res, user);
 };
 
 // Lets an already-logged-in client refresh its cached `user` (role/
@@ -272,9 +286,7 @@ export const oauthSync = async (req: Request, res: Response) => {
     if (changed) await user.save();
   }
 
-  const token = signToken(user.id, user.role);
-
-  res.json({ token, user: shapeUser(user) });
+  respondWithSessionOrChallenge(res, user);
 };
 
 // Re-sends the verification email for the currently logged-in account —
@@ -383,6 +395,5 @@ export const resetPassword = async (req: Request, res: Response) => {
   user.resetPasswordExpires = undefined;
   await user.save();
 
-  const jwtToken = signToken(user.id, user.role);
-  res.json({ token: jwtToken, user: shapeUser(user) });
+  respondWithSessionOrChallenge(res, user);
 };

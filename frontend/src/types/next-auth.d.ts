@@ -9,6 +9,10 @@ declare module "@auth/core/types" {
   interface Session {
     backendToken?: string;
     backendUser?: AppUser;
+    // Set instead of backendToken/backendUser when oauth-sync reports the
+    // account has two-step verification enabled — see useOAuthBridge.ts.
+    twoFactorRequired?: boolean;
+    tempToken?: string;
   }
 }
 
@@ -16,5 +20,7 @@ declare module "@auth/core/jwt" {
   interface JWT {
     backendToken?: string;
     backendUser?: AppUser;
+    twoFactorRequired?: boolean;
+    tempToken?: string;
   }
 }

@@ -62,6 +62,9 @@ export interface User {
   // set. See views/EmailVerificationBanner.tsx's sibling, the Settings
   // "Promotions" section, and the checkout page's SMS checkbox.
   marketingOptIn?: MarketingOptIn;
+  // Only admin/co-admin accounts can turn this on — see SettingsView's
+  // "Two-step verification" section.
+  twoFactorEnabled?: boolean;
 }
 
 export interface MarketingOptIn {
@@ -281,7 +284,7 @@ export interface Translation {
   updatedAt: string;
 }
 
-export type AuthModalMode = "login" | "signup" | "forgot";
+export type AuthModalMode = "login" | "signup" | "forgot" | "twoFactor";
 
 export interface CtaLink {
   label: string;

@@ -34,8 +34,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           if (res.ok) {
             const data = await res.json();
-            token.backendToken = data.token;
-            token.backendUser = data.user;
+            if (data.twoFactorRequired) {
+              // Account has 2FA enabled — don't hand out a real session yet,
+              // just carry the challenge through so useOAuthBridge can open
+              // the code-entry step. Clear any stale backend session fields
+              // from a previous sign-in on this same browser token.
+              token.twoFactorRequired = true;
+              token.tempToken = data.tempToken;
+              token.backendToken = undefined;
+              token.backendUser = undefined;
+            } else {
+              token.backendToken = data.token;
+              token.backendUser = data.user;
+              token.twoFactorRequired = undefined;
+              token.tempToken = undefined;
+            }
           } else {
             console.error("oauth-sync failed:", res.status, await res.text());
           }
@@ -48,6 +61,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (token.backendToken) session.backendToken = token.backendToken;
       if (token.backendUser) session.backendUser = token.backendUser;
+      if (token.twoFactorRequired) {
+        session.twoFactorRequired = true;
+        session.tempToken = token.tempToken;
+      }
       return session;
     },
   },

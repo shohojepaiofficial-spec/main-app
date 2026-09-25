@@ -1,13 +1,53 @@
 import { api } from "@/lib/api";
 import { DeliveryLocation, MarketingOptIn, User } from "@/models";
 
-interface AuthResponse {
+export interface AuthResponse {
   token: string;
   user: User;
 }
 
-export const loginWithEmail = async (email: string, password: string): Promise<AuthResponse> => {
-  const { data } = await api.post<AuthResponse>("/auth/login", { email, password });
+// A login/oauth-sync/reset-password request returns this instead of a real
+// session when the account has two-step verification enabled — see
+// AuthModal's "twoFactor" mode and useOAuthBridge.ts.
+export interface TwoFactorChallenge {
+  twoFactorRequired: true;
+  tempToken: string;
+}
+
+export type LoginResult = AuthResponse | TwoFactorChallenge;
+
+export const loginWithEmail = async (email: string, password: string): Promise<LoginResult> => {
+  const { data } = await api.post<LoginResult>("/auth/login", { email, password });
+  return data;
+};
+
+export const verifyTwoFactorLogin = async (tempToken: string, code: string): Promise<AuthResponse> => {
+  const { data } = await api.post<AuthResponse>("/auth/2fa/verify-login", { tempToken, code });
+  return data;
+};
+
+export interface TwoFactorSetup {
+  secret: string;
+  otpauthUrl: string;
+  qrCodeDataUrl: string;
+}
+
+export const setupTwoFactor = async (): Promise<TwoFactorSetup> => {
+  const { data } = await api.post<TwoFactorSetup>("/auth/2fa/setup");
+  return data;
+};
+
+export const confirmTwoFactor = async (
+  code: string
+): Promise<{ message: string; backupCodes: string[] }> => {
+  const { data } = await api.post<{ message: string; backupCodes: string[] }>("/auth/2fa/confirm", {
+    code,
+  });
+  return data;
+};
+
+export const disableTwoFactor = async (code: string): Promise<{ message: string }> => {
+  const { data } = await api.post<{ message: string }>("/auth/2fa/disable", { code });
   return data;
 };
 
@@ -56,8 +96,8 @@ export const forgotPassword = async (email: string): Promise<{ message: string }
   return data;
 };
 
-export const resetPassword = async (token: string, password: string): Promise<AuthResponse> => {
-  const { data } = await api.post<AuthResponse>("/auth/reset-password", { token, password });
+export const resetPassword = async (token: string, password: string): Promise<LoginResult> => {
+  const { data } = await api.post<LoginResult>("/auth/reset-password", { token, password });
   return data;
 };
 

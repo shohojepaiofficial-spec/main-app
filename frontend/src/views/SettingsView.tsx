@@ -308,6 +308,206 @@ function MarketingSection() {
   );
 }
 
+// Only ever shown to admin/coadmin accounts (see the section's render check
+// in SettingsView below) — matches the backend's own eligibility check in
+// twoFactorController.ts#assertEligible. Renders one of four inline steps
+// rather than separate modals, since each step's contents (QR code, backup
+// codes, a disable confirmation) briefly needs their own inputs but never
+// enough that navigating away and back makes sense.
+type TwoFactorStep =
+  | { name: "idle" }
+  | { name: "settingUp"; secret: string; qrCodeDataUrl: string }
+  | { name: "backupCodes"; codes: string[] }
+  | { name: "disabling" };
+
+function TwoFactorSection() {
+  const { user } = useAuthController();
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const [step, setStep] = useState<TwoFactorStep>({ name: "idle" });
+  const [code, setCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { t } = useTranslations();
+
+  if (!user) return null;
+
+  const startSetup = async () => {
+    setIsSubmitting(true);
+    try {
+      const data = await authService.setupTwoFactor();
+      setStep({ name: "settingUp", secret: data.secret, qrCodeDataUrl: data.qrCodeDataUrl });
+      setCode("");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("settings.failedToStart2fa", "Failed to start setup")));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmSetup = async () => {
+    setIsSubmitting(true);
+    try {
+      const data = await authService.confirmTwoFactor(code.trim());
+      updateUser({ ...user, twoFactorEnabled: true });
+      setStep({ name: "backupCodes", codes: data.backupCodes });
+      setCode("");
+      toast.success(t("settings.twoFactorEnabled", "Two-step verification enabled"));
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("settings.invalidCode", "That code didn't match — try again")));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmDisable = async () => {
+    setIsSubmitting(true);
+    try {
+      await authService.disableTwoFactor(code.trim());
+      updateUser({ ...user, twoFactorEnabled: false });
+      setStep({ name: "idle" });
+      setCode("");
+      toast.success(t("settings.twoFactorDisabled", "Two-step verification disabled"));
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("settings.invalidCode", "That code didn't match — try again")));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const cancel = () => {
+    setStep({ name: "idle" });
+    setCode("");
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4">
+      <div>
+        <h2 className="text-sm font-semibold">{t("settings.twoFactor", "Two-step verification")}</h2>
+        <p className="mt-1 text-xs text-muted">
+          {t(
+            "settings.twoFactorHint",
+            "Require a code from an authenticator app (Google Authenticator, Authy, etc.) when signing in."
+          )}
+        </p>
+      </div>
+
+      {step.name === "idle" && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm">
+            {user.twoFactorEnabled
+              ? t("settings.twoFactorStatusOn", "Enabled")
+              : t("settings.twoFactorStatusOff", "Disabled")}
+          </span>
+          {user.twoFactorEnabled ? (
+            <button
+              onClick={() => setStep({ name: "disabling" })}
+              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-background"
+            >
+              {t("settings.disable", "Disable")}
+            </button>
+          ) : (
+            <button
+              onClick={startSetup}
+              disabled={isSubmitting}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+            >
+              {t("settings.enable", "Enable")}
+            </button>
+          )}
+        </div>
+      )}
+
+      {step.name === "settingUp" && (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm">
+            {t(
+              "settings.twoFactorScanQr",
+              "Scan this QR code with your authenticator app, then enter the 6-digit code it shows."
+            )}
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a base64 data URI, not a servable file next/image could optimize */}
+          <img src={step.qrCodeDataUrl} alt="Two-step verification QR code" className="h-40 w-40 self-center" />
+          <p className="break-all text-center text-xs text-muted">{step.secret}</p>
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder={t("settings.sixDigitCode", "123456")}
+            className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={confirmSetup}
+              disabled={isSubmitting || !code.trim()}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+            >
+              {isSubmitting ? t("settings.verifying", "Verifying...") : t("settings.confirmAndEnable", "Confirm and enable")}
+            </button>
+            <button
+              onClick={cancel}
+              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
+            >
+              {t("settings.cancel", "Cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step.name === "backupCodes" && (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium text-red-600">
+            {t(
+              "settings.backupCodesWarning",
+              "Save these backup codes now — this is the only time they're shown. Each one works once, if you ever lose access to your authenticator app."
+            )}
+          </p>
+          <div className="grid grid-cols-2 gap-2 rounded border border-border bg-background p-3 font-mono text-sm">
+            {step.codes.map((c) => (
+              <span key={c}>{c}</span>
+            ))}
+          </div>
+          <button
+            onClick={() => setStep({ name: "idle" })}
+            className="self-start rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
+          >
+            {t("settings.savedTheseCodes", "I've saved these codes")}
+          </button>
+        </div>
+      )}
+
+      {step.name === "disabling" && (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm">
+            {t(
+              "settings.twoFactorDisableInstructions",
+              "Enter a current 6-digit code, or one of your backup codes, to confirm."
+            )}
+          </p>
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder={t("settings.twoFactorCodePlaceholder", "123456 or XXXXX-XXXXX")}
+            className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={confirmDisable}
+              disabled={isSubmitting || !code.trim()}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {isSubmitting ? t("settings.verifying", "Verifying...") : t("settings.confirmDisable", "Confirm disable")}
+            </button>
+            <button
+              onClick={cancel}
+              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
+            >
+              {t("settings.cancel", "Cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),
@@ -412,6 +612,7 @@ export function SettingsView() {
         <ProfileSection />
         <DeliveryLocationSection />
         <MarketingSection />
+        {(user.role === "admin" || user.role === "coadmin") && <TwoFactorSection />}
         {user.provider === "google" ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted">
             {t("settings.signedInWithGoogle", "You signed in with Google, so there's no password to manage here.")}
