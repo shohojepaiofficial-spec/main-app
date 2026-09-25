@@ -830,3 +830,9 @@ User reported both admin tables getting laggy with more data. Manage Products al
 - No composite/text index added on `Product`/`User` for these new filter fields — fine at current data volume (a few dozen rows), worth revisiting with `explain()` if the catalog/user base grows into the thousands.
 - Not click-tested live in a browser this pass (no active admin browser session available) — worth the user clicking through both filter bars once to confirm the UI feels right, not just that the API responses are correct.
 
+## 2026-09-26 (later) — Category filter dropdown now stays in sync after add/edit/delete
+The category list was already genuinely dynamic (`GET /api/products/categories`, a real aggregate over `Product.category` — never hardcoded), but `useAdminProducts` only fetched it once on mount. Adding a product in a brand-new category, or deleting the last product in one, wouldn't show up in the filter dropdown until a page reload.
+
+- New `loadCategories()` in `useAdminProducts` (`frontend/src/controllers/useAdminProducts.ts`), called from both `upsert` (after add/edit) and `remove` (after delete) alongside the existing product re-fetch, so the dropdown reflects reality immediately.
+- Verified: `tsc --noEmit` and `eslint` clean.
+

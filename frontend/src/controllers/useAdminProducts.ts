@@ -52,6 +52,16 @@ export function useAdminProducts() {
       });
   }, []);
 
+  // Re-fetches the live set of in-use categories from the server — called
+  // after add/edit/delete so a brand-new category (or the last product in
+  // one) shows up in the filter dropdown without needing a page reload.
+  const loadCategories = useCallback(() => {
+    return productService
+      .getProductCategories()
+      .then((data) => setCategories(data.map((c) => c.category)))
+      .catch(() => {});
+  }, []);
+
   // Mount-only fetch, deliberately not routed through `load` — `isLoading`
   // already starts `true`, and calling `load` (which sets it synchronously)
   // directly in the effect body trips `react-hooks/set-state-in-effect`
@@ -99,6 +109,7 @@ export function useAdminProducts() {
     // can push the last item on the page onto a new one, and either way the
     // server's sort/pagination/filters stay the source of truth.
     load(page, filters);
+    loadCategories();
   };
 
   const remove = async (id: string) => {
@@ -107,6 +118,7 @@ export function useAdminProducts() {
       await productService.deleteProduct(id);
       toast.success("Product deleted");
       await load(page, filters);
+      await loadCategories();
     } catch {
       toast.error("Failed to delete product");
     } finally {
