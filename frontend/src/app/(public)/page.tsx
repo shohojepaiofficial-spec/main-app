@@ -8,6 +8,7 @@ import { getProductCategories, getProducts } from "@/services/productService";
 import { getStoreCity } from "@/services/configService";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { CONTACT_PHONE_TEL, CONTACT_EMAIL } from "@/lib/contact";
+import { toJsonLdScript } from "@/lib/jsonLd";
 
 // Organization + WebSite JSON-LD (site identity, for a knowledge-panel /
 // sitelinks-searchbox rich result — separate from ordinary indexing, which
@@ -70,11 +71,11 @@ export default async function Home() {
     <main className="pt-[var(--navbar-height)]">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLdScript(organizationJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLdScript(websiteJsonLd) }}
       />
       <HeroSlider slides={slides} />
       <CategoryShowcase categories={categories} />

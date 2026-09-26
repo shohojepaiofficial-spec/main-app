@@ -62,7 +62,7 @@ export function signTwoFactorChallenge(userId: string): string {
 // access token to this endpoint instead).
 export function verifyTwoFactorChallenge(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ["HS256"] }) as {
       id: string;
       purpose?: string;
     };

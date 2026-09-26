@@ -7,6 +7,7 @@ import { getActivePromoCodes } from "@/services/promoService";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
 import { SITE_URL } from "@/lib/seo";
+import { toJsonLdScript } from "@/lib/jsonLd";
 import { ProductGallery } from "@/views/ProductGallery";
 import { ProductBuyBox } from "@/views/ProductBuyBox";
 import { ProductReviews } from "@/views/ProductReviews";
@@ -136,10 +137,10 @@ export default async function ProductDetailPage({
 
   return (
     <main className="mx-auto max-w-6xl px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdScript(jsonLd) }} />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLdScript(breadcrumbJsonLd) }}
       />
 
       <PromoAutoApply code={promo} productId={product._id} />

@@ -18,7 +18,13 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction) => 
   const token = header.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+    // Pinning the algorithm is defense-in-depth, not a fix for an active
+    // exploit here — this app only ever signs with a plain string secret
+    // (HS256), never an asymmetric keypair, so the classic "RS256 public
+    // key used as an HS256 secret" confusion attack has no public key to
+    // exploit in the first place. Still worth not leaving it to whatever
+    // jsonwebtoken's default happens to accept.
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ["HS256"] }) as {
       id: string;
       role: string;
     };
@@ -38,7 +44,9 @@ export const optionalAuth = (req: AuthRequest, _res: Response, next: NextFunctio
   const header = req.headers.authorization;
   if (header?.startsWith("Bearer ")) {
     try {
-      const decoded = jwt.verify(header.split(" ")[1], process.env.JWT_SECRET as string) as {
+      const decoded = jwt.verify(header.split(" ")[1], process.env.JWT_SECRET as string, {
+        algorithms: ["HS256"],
+      }) as {
         id: string;
         role: string;
       };

@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { useTranslations } from "@/controllers/useTranslations";
+import { toJsonLdScript } from "@/lib/jsonLd";
 
 function getFaqs(t: ReturnType<typeof useTranslations>["t"], storeCity: string) {
   return [
@@ -59,7 +60,7 @@ export function FAQSection({ storeCity }: { storeCity: string }) {
 
   return (
     <section className="mx-auto max-w-3xl px-6 py-12">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdScript(faqJsonLd) }} />
 
       <h2 className="mb-6 text-center text-2xl font-semibold">
         {t("faq.heading", "Frequently Asked Questions")}
