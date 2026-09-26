@@ -6,7 +6,7 @@ collapsed to one line each below (full detail, including how each was
 verified, lives in `docs/PROGRESS.md`'s dated entries) so this file stays
 focused on what's actually still open.
 
-Last updated: 2026-09-23.
+Last updated: 2026-09-26.
 
 ---
 
@@ -58,6 +58,25 @@ sales event or if the catalog/order volume grows.
 
 **3.8 — No backup strategy documented** beyond whatever Atlas does by
 default on its own tier.
+
+**3.9 — Two-step verification (2FA) is built but not turned on yet.**
+TOTP-based, admin/co-admin only, in Settings → "Two-step verification" (see
+`docs/ARCHITECTURE.md`'s "Two-step verification" section and
+`docs/PROGRESS.md`'s 2026-09-26 entry for the full design). Nothing left to
+build — just needs the admin to actually install an authenticator app
+(Google Authenticator, Authy, etc.), scan the QR code, and save the 10
+backup codes somewhere safe.
+
+**3.10 — Infrastructure-account security hasn't been checked**, separate
+from anything in this codebase: (a) MongoDB Atlas Network Access — is it
+locked to specific IPs or open to "allow access from anywhere"? The single
+most common cause of a leaked database. (b) Account-level 2FA on MongoDB
+Atlas, Railway, GitHub, Cloudinary, and the domain registrar — a breach of
+any of those logins bypasses the app entirely, 3.9 above included. Raised
+2026-09-26 after user asked about site security following a well-known BD
+ecommerce breach; see that date's `docs/PROGRESS.md` entries for the
+NoSQL-injection and other findings that *were* fixable from inside the
+codebase.
 
 ### Priority 4 — Smaller, lower-priority polish
 
