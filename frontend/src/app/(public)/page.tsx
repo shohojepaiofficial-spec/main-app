@@ -3,9 +3,12 @@ import { CategoryShowcase } from "@/views/CategoryShowcase";
 import { FeaturedProducts } from "@/views/FeaturedProducts";
 import { TrustBadges } from "@/views/TrustBadges";
 import { FAQSection } from "@/views/FAQSection";
+import { StoreStatsRow } from "@/views/StoreStatsRow";
 import { getPublicBanners } from "@/services/bannerService";
 import { getProductCategories, getProducts } from "@/services/productService";
 import { getStoreCity } from "@/services/configService";
+import { getStoreStats } from "@/services/statsService";
+import { visibleStats } from "@/lib/storeStats";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { CONTACT_PHONE_TEL, CONTACT_EMAIL } from "@/lib/contact";
 import { toJsonLdScript } from "@/lib/jsonLd";
@@ -50,11 +53,12 @@ const websiteJsonLd = {
 // route through the `%s | ${SITE_NAME}` template instead, which reads worse
 // on the homepage than anywhere else.
 export default async function Home() {
-  const [slides, categories, featuredResult, storeCity] = await Promise.all([
+  const [slides, categories, featuredResult, storeCity, stats] = await Promise.all([
     getPublicBanners(),
     getProductCategories(),
     getProducts({ featured: true, limit: 8 }),
     getStoreCity(),
+    getStoreStats(),
   ]);
 
   // Nothing marked featured yet (a fresh store) shouldn't mean an empty
@@ -78,6 +82,7 @@ export default async function Home() {
         dangerouslySetInnerHTML={{ __html: toJsonLdScript(websiteJsonLd) }}
       />
       <HeroSlider slides={slides} />
+      <StoreStatsRow stats={visibleStats(stats)} />
       <CategoryShowcase categories={categories} />
       <FeaturedProducts products={featuredProducts} isFallback={isFallback} />
       <TrustBadges storeCity={storeCity} />
