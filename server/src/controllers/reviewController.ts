@@ -4,6 +4,7 @@ import { Review } from "../models/Review";
 import { User } from "../models/User";
 import { Order } from "../models/Order";
 import { AuthRequest } from "../middleware/auth";
+import { isNonEmptyString } from "../utils/validate";
 
 const PAGE_SIZE = 5;
 
@@ -13,6 +14,9 @@ export const getProductReviews = async (req: AuthRequest, res: Response) => {
 
   const [items, total, summary] = await Promise.all([
     Review.find({ product: productId })
+      // The public sees the reply as the store's, not which staff member
+      // wrote it — see Review.ts.
+      .select("-reply.repliedBy -reply.repliedByName")
       .sort({ createdAt: -1 })
       .skip((page - 1) * PAGE_SIZE)
       .limit(PAGE_SIZE),
@@ -60,6 +64,82 @@ export const submitReview = async (req: AuthRequest, res: Response) => {
   );
 
   res.status(201).json(review);
+};
+
+const ADMIN_PAGE_SIZE = 20;
+
+// Every review across every product, for the admin Reviews page
+// (reviews:manage). `status=unreplied` is the default working view — the
+// reviews still waiting on a store response — and the response always
+// carries that count so the page can show it whichever filter is active.
+export const getAllReviews = async (req: AuthRequest, res: Response) => {
+  const { status, rating } = req.query;
+  const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+
+  const filter: Record<string, unknown> = {};
+  if (status === "unreplied") filter.reply = { $exists: false };
+  else if (status === "replied") filter.reply = { $exists: true };
+  const ratingNumber = Number(rating);
+  if (Number.isInteger(ratingNumber) && ratingNumber >= 1 && ratingNumber <= 5) filter.rating = ratingNumber;
+
+  const [items, total, unrepliedCount] = await Promise.all([
+    Review.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * ADMIN_PAGE_SIZE)
+      .limit(ADMIN_PAGE_SIZE)
+      .populate("product", "name images"),
+    Review.countDocuments(filter),
+    Review.countDocuments({ reply: { $exists: false } }),
+  ]);
+
+  res.json({
+    items,
+    total,
+    page,
+    totalPages: Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE)),
+    unrepliedCount,
+  });
+};
+
+// Writes (or rewrites) the store's public response to a review — one reply
+// per review, no thread. Editing replaces it and moves repliedAt forward.
+export const replyToReview = async (req: AuthRequest, res: Response) => {
+  const { text } = req.body as { text?: unknown };
+  if (!isNonEmptyString(text)) {
+    return res.status(400).json({ message: "Reply can't be empty" });
+  }
+  if (text.trim().length > 2000) {
+    return res.status(400).json({ message: "Reply is too long (max 2000 characters)" });
+  }
+
+  const admin = await User.findById(req.userId).select("name");
+  if (!admin) return res.status(401).json({ message: "Not authorized" });
+
+  const review = await Review.findByIdAndUpdate(
+    req.params.reviewId,
+    { reply: { text: text.trim(), repliedBy: admin._id, repliedByName: admin.name, repliedAt: new Date() } },
+    { new: true, runValidators: true }
+  ).populate("product", "name images");
+  if (!review) return res.status(404).json({ message: "Review not found" });
+  res.json(review);
+};
+
+export const deleteReviewReply = async (req: AuthRequest, res: Response) => {
+  const review = await Review.findByIdAndUpdate(
+    req.params.reviewId,
+    { $unset: { reply: 1 } },
+    { new: true }
+  ).populate("product", "name images");
+  if (!review) return res.status(404).json({ message: "Review not found" });
+  res.json(review);
+};
+
+// The admin Reviews page's delete — same as deleteReview below, just
+// addressed by review id alone (that page lists reviews across products).
+export const deleteReviewById = async (req: AuthRequest, res: Response) => {
+  const review = await Review.findByIdAndDelete(req.params.reviewId);
+  if (!review) return res.status(404).json({ message: "Review not found" });
+  res.status(204).send();
 };
 
 // Moderation (reviews:manage) — previously there was no way to remove a

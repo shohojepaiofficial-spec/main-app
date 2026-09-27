@@ -916,3 +916,10 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - **Low-stock stats are still product-level**: the dashboard's "running low" and the stock filter use the product total, so one sold-out size of an otherwise well-stocked hoodie isn't flagged there (Manage Products' row does show "N variants sold out").
 - **Ad/campaign captions** ("now ৳X") use the product's lowest variant price.
 - Run `npm run sync-translations` (server) to add the 5 new storefront strings' Bangla text to the database.
+
+## 2026-09-28 — Store replies to reviews, and the real favicon
+- **Favicon**: the browser tab still showed the create-next-app placeholder because `app/favicon.ico` was never replaced (browsers request `/favicon.ico` first, ahead of `app/icon.png`). Regenerated it (16/32/48px) from the logo.
+- **Store replies to reviews** (user picked "store only" over open customer threads): one public reply per review, managed from a new admin **Reviews** page ("Needs a reply" / "Replied" / "All", rating filter, edit/remove reply, delete review). See ARCHITECTURE.md's "Reviews, wishlist, and categories".
+- Verified: server `tsc` + 53 tests, frontend `tsc`, ESLint clean on touched files; locally, `GET /api/reviews` rejects anonymous requests (401), the public review list and product page still load, and `/admin/reviews` renders. Posting a real reply was not exercised (local dev shares the production database).
+- Follow-up idea: email the customer when the store replies to their review.
+- Run `npm run sync-translations` for the new `product.storeResponse` string.

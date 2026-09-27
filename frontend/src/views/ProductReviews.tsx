@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, ShieldCheck, Trash2 } from "lucide-react";
+import { Star, ShieldCheck, Trash2, MessageSquareReply } from "lucide-react";
 import { format } from "date-fns";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useUIStore } from "@/controllers/useUIStore";
@@ -9,8 +9,9 @@ import { useProductReviews } from "@/controllers/useProductReviews";
 import { Pagination } from "@/views/Pagination";
 import { confirmDialog } from "@/lib/confirm";
 import { useTranslations } from "@/controllers/useTranslations";
+import { SITE_NAME } from "@/lib/seo";
 
-function Stars({ value, size = 16 }: { value: number; size?: number }) {
+export function Stars({ value, size = 16 }: { value: number; size?: number }) {
   const { t } = useTranslations();
   return (
     <div className="flex items-center gap-0.5" aria-label={t("product.starsOutOf5", "{value} out of 5 stars", { value })}>
@@ -154,6 +155,18 @@ export function ProductReviews({ productId }: { productId: string }) {
                 {format(new Date(review.createdAt), "PPP")}
               </p>
               <p className="text-sm">{review.comment}</p>
+              {review.reply && (
+                <div className="mt-3 ml-4 rounded border-l-2 border-primary bg-surface px-3 py-2">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                    <MessageSquareReply size={12} />
+                    {t("product.storeResponse", "Response from {store}", { store: SITE_NAME })}
+                    <span className="font-normal text-muted">
+                      &middot; {format(new Date(review.reply.repliedAt), "PPP")}
+                    </span>
+                  </p>
+                  <p className="mt-1 whitespace-pre-line text-sm">{review.reply.text}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>

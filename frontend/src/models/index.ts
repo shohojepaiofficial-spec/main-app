@@ -146,7 +146,29 @@ export interface Review {
   rating: number;
   comment: string;
   isVerifiedPurchase: boolean;
+  // The store's one public response — shown as "Response from <store>",
+  // never as the individual admin (the public API doesn't even send who).
+  reply?: ReviewReply;
   createdAt: string;
+}
+
+export interface ReviewReply {
+  text: string;
+  repliedAt: string;
+  // Admin API only.
+  repliedByName?: string;
+}
+
+// A review as the admin Reviews page sees it — across every product, so it
+// carries which product it's about (null if that product was deleted).
+export interface AdminReview extends Omit<Review, "product"> {
+  product: { _id: string; name: string; images: string[] } | null;
+}
+
+export type ReviewReplyStatus = "unreplied" | "replied" | "all";
+
+export interface AdminReviewList extends Paginated<AdminReview> {
+  unrepliedCount: number;
 }
 
 export interface ReviewList extends Paginated<Review> {

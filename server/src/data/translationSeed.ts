@@ -185,6 +185,7 @@ export const translationSeed: TranslationSeedEntry[] = [
     en: "In stock — only {count} left",
     bn: "স্টকে আছে — মাত্র {count}টি বাকি",
   },
+  { key: "product.storeResponse", en: "Response from {store}", bn: "{store}-এর উত্তর" },
   { key: "product.chooseOption", en: "Choose one", bn: "একটি বেছে নিন" },
   {
     key: "product.pleaseChooseOption",

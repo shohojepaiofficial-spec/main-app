@@ -17,6 +17,7 @@ import {
   Mail,
   Inbox,
   Languages,
+  MessageSquareReply,
   LogOut,
   ArrowLeft,
   Menu,
@@ -86,6 +87,11 @@ export function DashboardSidebar() {
       href: "/admin/messages",
       label: "Messages",
       Icon: Inbox,
+    },
+    hasPermission("reviews:manage") && {
+      href: "/admin/reviews",
+      label: "Reviews",
+      Icon: MessageSquareReply,
     },
     hasPermission("translations:manage") && {
       href: "/admin/translations",
