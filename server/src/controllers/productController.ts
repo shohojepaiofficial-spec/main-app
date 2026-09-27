@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Product } from "../models/Product";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { escapeRegex } from "../utils/regex";
+import { normalizeVariantInput, presetOptionsForCategory, summarizeVariants } from "../utils/productVariants";
 
 const DEFAULT_PAGE_SIZE = 12;
 
@@ -111,11 +112,34 @@ export const getProductById = async (req: Request, res: Response) => {
   res.json(product);
 };
 
+// Builds the options/variants part of a create or update — and, for a
+// product with variants, the derived top-level price/stock (see Product.ts).
+// Returns an empty object when the request doesn't touch variants at all
+// (an older client, or an edit that only changes other fields), so the
+// stored ones are left alone.
+function variantFields(body: Record<string, unknown>, finalImages: string[], newImages: string[]) {
+  if (body.options === undefined && body.variants === undefined) return {};
+  const { options, variants } = normalizeVariantInput(body.options, body.variants, finalImages, newImages);
+  return variants.length > 0 ? { options, variants, ...summarizeVariants(variants) } : { options, variants };
+}
+
 export const createProduct = async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const images = await Promise.all(files.map((file) => storeUploadedFile(file)));
 
-  const product = await Product.create({ ...req.body, images });
+  const { options: _options, variants: _variants, ...fields } = req.body;
+  let variantData;
+  try {
+    variantData = variantFields(req.body, images, images);
+  } catch (err) {
+    // Nothing references the just-uploaded images yet — don't leave them
+    // orphaned in Cloudinary/on disk.
+    await Promise.all(images.map((img) => deleteUploadedFile(img)));
+    const { status, message } = err as { status?: number; message?: string };
+    return res.status(status ?? 400).json({ message: message ?? "Invalid options" });
+  }
+
+  const product = await Product.create({ ...fields, images, ...variantData });
   res.status(201).json(product);
 };
 
@@ -124,7 +148,7 @@ export const updateProduct = async (req: Request, res: Response) => {
   // alongside text fields), so the client sends which existing images to
   // keep as a JSON-stringified array under `existingImages`, separate from
   // the `images` file field multer parses into req.files.
-  const { existingImages, ...fields } = req.body;
+  const { existingImages, options: _options, variants: _variants, ...fields } = req.body;
 
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const newImages = await Promise.all(files.map((file) => storeUploadedFile(file)));
@@ -139,9 +163,20 @@ export const updateProduct = async (req: Request, res: Response) => {
   // Read the old image list before it's overwritten — the only way to know
   // which URLs are being dropped, so they can be cleaned up from
   // Cloudinary/disk afterward instead of accumulating forever.
-  const previousImages = imagesChanging
-    ? ((await Product.findById(req.params.id).select("images"))?.images ?? [])
-    : [];
+  const current = await Product.findById(req.params.id).select("images");
+  if (!current) {
+    await Promise.all(newImages.map((img) => deleteUploadedFile(img)));
+    return res.status(404).json({ message: "Product not found" });
+  }
+  const previousImages = current.images;
+
+  try {
+    Object.assign(update, variantFields(req.body, (update.images as string[]) ?? previousImages, newImages));
+  } catch (err) {
+    await Promise.all(newImages.map((img) => deleteUploadedFile(img)));
+    const { status, message } = err as { status?: number; message?: string };
+    return res.status(status ?? 400).json({ message: message ?? "Invalid options" });
+  }
 
   const product = await Product.findByIdAndUpdate(req.params.id, update, {
     new: true,
@@ -167,4 +202,46 @@ export const deleteProduct = async (req: Request, res: Response) => {
   res.json({ message: "Product deleted" });
 
   await Promise.all(product.images.map((img) => deleteUploadedFile(img)));
+};
+
+// Suggested options for the admin product form when a category is picked:
+// whatever option names/values that category's existing products already
+// use (so the second hoodie offers the same Size/Color the first one did),
+// falling back to a keyword preset for a category with no products using
+// options yet. Case-insensitive on category, same as getProducts' filter.
+export const getOptionSuggestions = async (req: Request, res: Response) => {
+  const { category } = req.query;
+  if (typeof category !== "string" || !category.trim()) return res.json([]);
+
+  const used = await Product.aggregate([
+    { $match: { category: { $regex: `^${escapeRegex(category.trim())}$`, $options: "i" } } },
+    // Oldest product first, and each value kept in the order the admin
+    // entered it — so sizes come back S, M, L, XL rather than alphabetized.
+    { $sort: { createdAt: 1 } },
+    { $unwind: { path: "$options", includeArrayIndex: "position" } },
+    {
+      $group: {
+        _id: { $toLower: "$options.name" },
+        name: { $first: "$options.name" },
+        position: { $min: "$position" },
+        valueLists: { $push: "$options.values" },
+      },
+    },
+    { $sort: { position: 1 } },
+  ]);
+
+  if (used.length === 0) return res.json(presetOptionsForCategory(category));
+
+  res.json(
+    used.map((option) => {
+      const seen = new Set<string>();
+      const values: string[] = [];
+      for (const value of (option.valueLists as string[][]).flat()) {
+        if (seen.has(value.toLowerCase())) continue;
+        seen.add(value.toLowerCase());
+        values.push(value);
+      }
+      return { name: option.name as string, values };
+    })
+  );
 };

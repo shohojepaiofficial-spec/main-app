@@ -2,6 +2,8 @@ import { Schema, model, Document, Types } from "mongoose";
 
 interface ISharedCartItem {
   product: Types.ObjectId;
+  // Which variant, for a product with options — see Product.ts.
+  variant?: Types.ObjectId;
   quantity: number;
 }
 
@@ -22,6 +24,7 @@ const sharedCartSchema = new Schema<ISharedCart>(
     items: [
       {
         product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+        variant: { type: Schema.Types.ObjectId },
         quantity: { type: Number, required: true, min: 1 },
       },
     ],

@@ -4,6 +4,14 @@ interface IOrderItem {
   product: Types.ObjectId;
   quantity: number;
   price: number;
+  // Only for a product with variants (see Product.ts). The id is what stock
+  // is restored to on cancellation; the label/selections are a snapshot
+  // taken at purchase, so the order still reads "Black / L" even if the
+  // admin later renames or deletes that variant.
+  variant?: Types.ObjectId;
+  variantLabel?: string;
+  selections?: { name: string; value: string }[];
+  sku?: string;
 }
 
 export interface IShippingDetails {
@@ -92,6 +100,13 @@ const orderSchema = new Schema<IOrder>(
         product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
         quantity: { type: Number, required: true, min: 1 },
         price: { type: Number, required: true },
+        variant: { type: Schema.Types.ObjectId },
+        variantLabel: { type: String },
+        selections: {
+          type: [new Schema({ name: String, value: String }, { _id: false })],
+          default: undefined,
+        },
+        sku: { type: String },
       },
     ],
     itemsTotal: { type: Number, required: true },

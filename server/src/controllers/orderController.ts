@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { format } from "date-fns";
-import mongoose, { ClientSession } from "mongoose";
+import mongoose, { ClientSession, Types } from "mongoose";
 import { Order, OrderSource, PaymentMethod } from "../models/Order";
 import { Review } from "../models/Review";
 import { Product } from "../models/Product";
@@ -9,6 +9,7 @@ import { SharedCart } from "../models/SharedCart";
 import { User } from "../models/User";
 import { STORE_CITY } from "../utils/store";
 import { isNonEmptyString } from "../utils/validate";
+import { resolvePurchasable } from "../utils/productVariants";
 import { AuthRequest } from "../middleware/auth";
 import {
   isBkashConfigured,
@@ -35,7 +36,27 @@ const MAX_ITEM_WEIGHT_KG = 10;
 
 interface CheckoutItemInput {
   productId: string;
+  // Required for a product with variants — see utils/productVariants.ts's
+  // resolvePurchasable.
+  variantId?: string;
   quantity: number;
+}
+
+export interface OrderLine {
+  product: string;
+  quantity: number;
+  price: number;
+  name: string;
+  variant?: string;
+  variantLabel?: string;
+  selections?: { name: string; value: string }[];
+  sku?: string;
+}
+
+// Line name used in stock errors — "Hoodie (Black / L)" rather than just
+// "Hoodie", so the customer knows which of two lines sold out.
+function lineName(line: { name: string; variantLabel?: string }) {
+  return line.variantLabel ? `${line.name} (${line.variantLabel})` : line.name;
 }
 
 interface ShippingInput {
@@ -113,26 +134,40 @@ export async function computeOrderTotals(
   );
   const productById = new Map(products.map((p) => [p.id as string, p]));
 
-  const orderItems: { product: string; quantity: number; price: number; name: string }[] = [];
+  const orderItems: OrderLine[] = [];
   let itemsTotal = 0;
   let flatDeliveryFee = 0;
   let totalWeightKg = 0;
+  // The flat fee is once per distinct product, not per line — two sizes of
+  // the same hoodie ship in one parcel, same as two units of one size.
+  const productsWithFee = new Set<string>();
 
-  for (const { productId, quantity } of items) {
-    if (!productId || !quantity || quantity < 1) {
+  for (const { productId, variantId, quantity } of items) {
+    if (!isNonEmptyString(productId) || !Number.isInteger(quantity) || quantity < 1) {
       throw { status: 400, message: "Invalid item in cart" };
     }
     const product = productById.get(productId);
     if (!product) {
       throw { status: 400, message: "One of the items no longer exists" };
     }
-    if (product.stock < quantity) {
-      throw { status: 409, message: `Not enough stock for "${product.name}"` };
+    const line = resolvePurchasable(product, variantId);
+    const orderLine: OrderLine = { product: productId, quantity, price: line.price, name: product.name };
+    if (line.variant) {
+      orderLine.variant = line.variant._id.toString();
+      orderLine.variantLabel = line.variant.label;
+      orderLine.selections = line.variant.selections;
+      if (line.variant.sku) orderLine.sku = line.variant.sku;
     }
-    orderItems.push({ product: productId, quantity, price: product.price, name: product.name });
-    itemsTotal += product.price * quantity;
-    flatDeliveryFee += isInsideCity ? product.deliveryFeeInsideCity : product.deliveryFeeOutsideCity;
-    totalWeightKg += (product.weightKg || DEFAULT_ITEM_WEIGHT_KG) * quantity;
+    if (line.stock < quantity) {
+      throw { status: 409, message: `Not enough stock for "${lineName(orderLine)}"` };
+    }
+    orderItems.push(orderLine);
+    itemsTotal += line.price * quantity;
+    if (!productsWithFee.has(productId)) {
+      productsWithFee.add(productId);
+      flatDeliveryFee += isInsideCity ? product.deliveryFeeInsideCity : product.deliveryFeeOutsideCity;
+    }
+    totalWeightKg += (line.weightKg || DEFAULT_ITEM_WEIGHT_KG) * quantity;
   }
 
   const { deliveryFee, deliveryFeeSource } = await resolveDeliveryFee(
@@ -157,9 +192,11 @@ export async function computeOrderTotals(
             : Math.min(promo.value, itemsTotal);
         appliedCode = promo.code;
       } else {
-        const line = orderItems.find((i) => i.product === promo.product?.toString());
-        if (line) {
-          const lineTotal = line.price * line.quantity;
+        // Every line of the promo's product counts — with variants, one
+        // product can be several lines (two sizes of the same hoodie).
+        const lines = orderItems.filter((i) => i.product === promo.product?.toString());
+        if (lines.length > 0) {
+          const lineTotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
           discount =
             promo.discountType === "percentage"
               ? lineTotal * (promo.value / 100)
@@ -203,12 +240,22 @@ export const getDeliveryQuote = async (req: AuthRequest, res: Response) => {
 
   let flatFee = 0;
   let totalWeightKg = 0;
-  for (const { productId, quantity } of items) {
-    if (!productId || !quantity || quantity < 1) continue;
+  const productsWithFee = new Set<string>();
+  for (const { productId, variantId, quantity } of items) {
+    if (!isNonEmptyString(productId) || !Number.isInteger(quantity) || quantity < 1) continue;
     const product = productById.get(productId);
     if (!product) continue;
-    flatFee += isInsideCity ? product.deliveryFeeInsideCity : product.deliveryFeeOutsideCity;
-    totalWeightKg += (product.weightKg || DEFAULT_ITEM_WEIGHT_KG) * quantity;
+    let weightKg: number | undefined;
+    try {
+      weightKg = resolvePurchasable(product, variantId).weightKg;
+    } catch {
+      continue;
+    }
+    if (!productsWithFee.has(productId)) {
+      productsWithFee.add(productId);
+      flatFee += isInsideCity ? product.deliveryFeeInsideCity : product.deliveryFeeOutsideCity;
+    }
+    totalWeightKg += (weightKg || DEFAULT_ITEM_WEIGHT_KG) * quantity;
   }
 
   const { deliveryFee, deliveryFeeSource } = await resolveDeliveryFee(
@@ -228,18 +275,28 @@ export const getDeliveryQuote = async (req: AuthRequest, res: Response) => {
 // succeed. The caller runs this inside a transaction, so throwing here rolls
 // back any earlier lines in the same order that already succeeded — an
 // order can never end up half-decremented.
+//
+// For a variant line, the condition is on that variant's own stock, and the
+// product's top-level `stock` (the total across variants — see Product.ts)
+// moves by the same amount in the same write so the two never drift.
 export async function decrementStockAtomically(
-  orderItems: { product: string; quantity: number; name: string }[],
+  orderItems: { product: string; quantity: number; name: string; variant?: string; variantLabel?: string }[],
   session: ClientSession
 ) {
   for (const item of orderItems) {
-    const result = await Product.updateOne(
-      { _id: item.product, stock: { $gte: item.quantity } },
-      { $inc: { stock: -item.quantity } },
-      { session }
-    );
+    const result = item.variant
+      ? await Product.updateOne(
+          { _id: item.product, variants: { $elemMatch: { _id: item.variant, stock: { $gte: item.quantity } } } },
+          { $inc: { "variants.$.stock": -item.quantity, stock: -item.quantity } },
+          { session }
+        )
+      : await Product.updateOne(
+          { _id: item.product, stock: { $gte: item.quantity } },
+          { $inc: { stock: -item.quantity } },
+          { session }
+        );
     if (result.modifiedCount === 0) {
-      throw { status: 409, message: `"${item.name}" just sold out — please update your cart and try again.` };
+      throw { status: 409, message: `"${lineName(item)}" just sold out — please update your cart and try again.` };
     }
   }
 }
@@ -559,10 +616,22 @@ export const getAllOrders = async (_req: AuthRequest, res: Response) => {
 // or an admin did), never on any other status change. Only called once per
 // order (callers check the previous status wasn't already "cancelled"), so a
 // repeat PATCH to "cancelled" can't double-restore the same stock.
-async function restoreStock(order: InstanceType<typeof Order>) {
+//
+// A variant line goes back to that same variant (and the product's total). If
+// the admin has since deleted that variant there's nothing sensible to put the
+// units back into, so it's skipped — adding them to the product's total alone
+// would make the total disagree with the sum of its variants.
+export async function restoreStock(order: {
+  items: { product: Types.ObjectId | string; quantity: number; variant?: Types.ObjectId | string }[];
+}) {
   await Promise.all(
     order.items.map((item) =>
-      Product.updateOne({ _id: item.product }, { $inc: { stock: item.quantity } })
+      item.variant
+        ? Product.updateOne(
+            { _id: item.product, "variants._id": item.variant },
+            { $inc: { "variants.$.stock": item.quantity, stock: item.quantity } }
+          )
+        : Product.updateOne({ _id: item.product }, { $inc: { stock: item.quantity } })
     )
   );
 }

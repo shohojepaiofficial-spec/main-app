@@ -3,6 +3,7 @@ import {
   getProducts,
   getProductCategories,
   getProductStats,
+  getOptionSuggestions,
   getProductById,
   createProduct,
   updateProduct,
@@ -19,6 +20,7 @@ const canManageReviews = authorize("reviews:manage");
 router.get("/", getProducts);
 router.get("/categories", getProductCategories);
 router.get("/stats", protect, canManageProducts, getProductStats);
+router.get("/option-suggestions", protect, canManageProducts, getOptionSuggestions);
 router.get("/:id", getProductById);
 router.get("/:id/reviews", getProductReviews);
 router.post("/:id/reviews", protect, submitReview);

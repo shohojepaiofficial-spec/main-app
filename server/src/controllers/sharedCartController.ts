@@ -1,10 +1,13 @@
 import { Response, Request } from "express";
 import { SharedCart } from "../models/SharedCart";
 import { Product } from "../models/Product";
+import { Types } from "mongoose";
 import { AuthRequest } from "../middleware/auth";
-
+import { isNonEmptyString } from "../utils/validate";
+import { resolvePurchasable } from "../utils/productVariants";
 interface CartItemInput {
   productId: string;
+  variantId?: string;
   quantity: number;
 }
 
@@ -18,7 +21,11 @@ export const createSharedCart = async (req: AuthRequest, res: Response) => {
   }
 
   const sharedCart = await SharedCart.create({
-    items: items.map((i) => ({ product: i.productId, quantity: i.quantity })),
+    items: items.map((i) => ({
+      product: i.productId,
+      variant: isNonEmptyString(i.variantId) && Types.ObjectId.isValid(i.variantId) ? i.variantId : undefined,
+      quantity: i.quantity,
+    })),
     createdBy: req.userId,
   });
 
@@ -39,11 +46,22 @@ export const getSharedCart = async (req: Request, res: Response) => {
     .map((item) => {
       const product = productById.get(item.product.toString());
       if (!product) return null;
+      // A variant deleted (or a product that gained options) since the link
+      // was made has no well-defined price any more — drop the line, same
+      // as a deleted product, rather than show a price checkout would reject.
+      let line;
+      try {
+        line = resolvePurchasable(product, item.variant?.toString());
+      } catch {
+        return null;
+      }
       return {
         productId: product.id as string,
+        variantId: line.variant?._id.toString(),
+        variantLabel: line.variant?.label,
         name: product.name,
-        image: product.images[0],
-        price: product.price,
+        image: line.variant?.image ?? product.images[0],
+        price: line.price,
         quantity: item.quantity,
         deliveryFeeInsideCity: product.deliveryFeeInsideCity,
         deliveryFeeOutsideCity: product.deliveryFeeOutsideCity,

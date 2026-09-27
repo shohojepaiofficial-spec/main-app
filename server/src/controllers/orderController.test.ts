@@ -12,7 +12,8 @@ vi.mock("../models/PromoCode", () => ({
 
 import { Product } from "../models/Product";
 import { PromoCode } from "../models/PromoCode";
-import { computeOrderTotals, decrementStockAtomically } from "./orderController";
+import { Types } from "mongoose";
+import { computeOrderTotals, decrementStockAtomically, restoreStock } from "./orderController";
 
 function queryResult<T>(result: T) {
   // Mirrors the real `Model.find(...).session(session ?? null)` chain used
@@ -36,6 +37,9 @@ function fakeProduct(overrides: Partial<Record<string, unknown>> = {}) {
     stock: 10,
     deliveryFeeInsideCity: 10,
     deliveryFeeOutsideCity: 100,
+    weightKg: 0.5,
+    options: [],
+    variants: [],
     ...overrides,
   };
 }
@@ -203,6 +207,123 @@ describe("computeOrderTotals", () => {
   });
 });
 
+describe("computeOrderTotals with variants", () => {
+  const blackL = { _id: new Types.ObjectId(), selections: [{ name: "Color", value: "Black" }, { name: "Size", value: "L" }], price: 900, stock: 3, sku: "HD-BL-L" };
+  const greyM = { _id: new Types.ObjectId(), selections: [{ name: "Color", value: "Grey" }, { name: "Size", value: "M" }], price: 800, stock: 0, weightKg: 2 };
+  const hoodie = () =>
+    fakeProduct({
+      name: "Hoodie",
+      price: 800,
+      stock: 3,
+      options: [
+        { name: "Color", values: ["Black", "Grey"] },
+        { name: "Size", values: ["M", "L"] },
+      ],
+      variants: [blackL, greyM],
+    });
+
+  it("charges the variant's own price and snapshots its label/selections/sku", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([hoodie()]) as never);
+
+    const result = await computeOrderTotals(
+      [{ productId: "p1", variantId: blackL._id.toString(), quantity: 2 }],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA
+    );
+
+    expect(result.itemsTotal).toBe(1800);
+    expect(result.orderItems[0]).toMatchObject({
+      price: 900,
+      variant: blackL._id.toString(),
+      variantLabel: "Black / L",
+      selections: [
+        { name: "Color", value: "Black" },
+        { name: "Size", value: "L" },
+      ],
+      sku: "HD-BL-L",
+    });
+  });
+
+  it("rejects a product with variants when no variant was picked", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([hoodie()]) as never);
+
+    await expect(
+      computeOrderTotals([{ productId: "p1", quantity: 1 }], STORE_CITY_ZILA, TEST_UPAZILA)
+    ).rejects.toMatchObject({ status: 400, message: 'Please choose color and size for "Hoodie"' });
+  });
+
+  it("rejects a variant id that no longer exists on the product", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([hoodie()]) as never);
+
+    await expect(
+      computeOrderTotals(
+        [{ productId: "p1", variantId: new Types.ObjectId().toString(), quantity: 1 }],
+        STORE_CITY_ZILA,
+        TEST_UPAZILA
+      )
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("checks stock per variant, not the product total", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([hoodie()]) as never);
+
+    await expect(
+      computeOrderTotals(
+        [{ productId: "p1", variantId: greyM._id.toString(), quantity: 1 }],
+        STORE_CITY_ZILA,
+        TEST_UPAZILA
+      )
+    ).rejects.toMatchObject({ status: 409, message: 'Not enough stock for "Hoodie (Grey / M)"' });
+  });
+
+  it("charges the flat delivery fee once per product, even across two variants", async () => {
+    const withStock = hoodie();
+    (withStock.variants as { stock: number }[])[1].stock = 5;
+    vi.mocked(Product.find).mockReturnValue(queryResult([withStock]) as never);
+
+    const result = await computeOrderTotals(
+      [
+        { productId: "p1", variantId: blackL._id.toString(), quantity: 1 },
+        { productId: "p1", variantId: greyM._id.toString(), quantity: 1 },
+      ],
+      OUTSIDE_ZILA,
+      TEST_UPAZILA
+    );
+
+    expect(result.itemsTotal).toBe(1700);
+    expect(result.deliveryFee).toBe(100);
+  });
+
+  it("applies a product-scoped promo across every variant line of that product", async () => {
+    const withStock = hoodie();
+    (withStock.variants as { stock: number }[])[1].stock = 5;
+    vi.mocked(Product.find).mockReturnValue(queryResult([withStock]) as never);
+    vi.mocked(PromoCode.findOne).mockReturnValue(
+      queryResult({
+        code: "HOODIE10",
+        discountType: "percentage",
+        value: 10,
+        scope: "product",
+        product: "p1",
+        isActive: true,
+        expiresAt: undefined,
+      }) as never
+    );
+
+    const result = await computeOrderTotals(
+      [
+        { productId: "p1", variantId: blackL._id.toString(), quantity: 1 },
+        { productId: "p1", variantId: greyM._id.toString(), quantity: 1 },
+      ],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA,
+      "hoodie10"
+    );
+
+    expect(result.discount).toBe(170); // 10% of 900 + 800
+  });
+});
+
 describe("decrementStockAtomically", () => {
   const items = [{ product: "p1", quantity: 2, name: "Towel" }];
   const fakeSession = {} as never;
@@ -236,5 +357,49 @@ describe("decrementStockAtomically", () => {
 
     await expect(decrementStockAtomically(twoItems, fakeSession)).rejects.toMatchObject({ status: 409 });
     expect(Product.updateOne).toHaveBeenCalledTimes(1);
+  });
+
+  it("conditions a variant line on that variant's stock and moves the product total with it", async () => {
+    vi.mocked(Product.updateOne).mockResolvedValue({ modifiedCount: 1 } as never);
+
+    await decrementStockAtomically(
+      [{ product: "p1", quantity: 2, name: "Hoodie", variant: "v1", variantLabel: "Black / L" }],
+      fakeSession
+    );
+    expect(Product.updateOne).toHaveBeenCalledWith(
+      { _id: "p1", variants: { $elemMatch: { _id: "v1", stock: { $gte: 2 } } } },
+      { $inc: { "variants.$.stock": -2, stock: -2 } },
+      { session: fakeSession }
+    );
+  });
+
+  it("names the variant in the sold-out message", async () => {
+    vi.mocked(Product.updateOne).mockResolvedValue({ modifiedCount: 0 } as never);
+
+    await expect(
+      decrementStockAtomically(
+        [{ product: "p1", quantity: 1, name: "Hoodie", variant: "v1", variantLabel: "Black / L" }],
+        fakeSession
+      )
+    ).rejects.toMatchObject({ message: '"Hoodie (Black / L)" just sold out — please update your cart and try again.' });
+  });
+});
+
+describe("restoreStock", () => {
+  it("puts a variant line back into that variant and the product total", async () => {
+    vi.mocked(Product.updateOne).mockResolvedValue({ modifiedCount: 1 } as never);
+
+    await restoreStock({
+      items: [
+        { product: "p1", quantity: 2, variant: "v1" },
+        { product: "p2", quantity: 1 },
+      ],
+    });
+
+    expect(Product.updateOne).toHaveBeenCalledWith(
+      { _id: "p1", "variants._id": "v1" },
+      { $inc: { "variants.$.stock": 2, stock: 2 } }
+    );
+    expect(Product.updateOne).toHaveBeenCalledWith({ _id: "p2" }, { $inc: { stock: 1 } });
   });
 });
