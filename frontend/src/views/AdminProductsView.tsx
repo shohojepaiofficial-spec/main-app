@@ -12,10 +12,22 @@ import { Pagination } from "@/views/Pagination";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
 import { confirmDialog } from "@/lib/confirm";
+import { formatPriceRange, hasVariants } from "@/lib/variants";
 import { Product } from "@/models";
 
 const inputClass =
   "rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-foreground";
+
+// A product's total stock can look healthy while individual sizes/colors
+// have run out — this flags those under the total.
+function VariantStockNote({ soldOut }: { soldOut: number }) {
+  if (soldOut === 0) return null;
+  return (
+    <span className="block text-xs text-red-600">
+      {soldOut} variant{soldOut === 1 ? "" : "s"} sold out
+    </span>
+  );
+}
 
 function ProductFilterBar({
   categories,
@@ -241,17 +253,24 @@ export function AdminProductsView() {
                         </p>
                         <p className="text-xs text-muted">
                           {product.images.length} image{product.images.length === 1 ? "" : "s"}
+                          {hasVariants(product) &&
+                            ` · ${product.variants!.length} variant${product.variants!.length === 1 ? "" : "s"}`}
                         </p>
                       </div>
                     </div>
                   </td>
                   <td className="py-3 pr-4 align-top text-sm text-muted">{product.category}</td>
-                  <td className="py-3 pr-4 align-top text-sm">{formatCurrency(product.price)}</td>
+                  <td className="py-3 pr-4 align-top text-sm">{formatPriceRange(product)}</td>
                   <td className="py-3 pr-4 align-top text-sm">
                     {product.deliveryFeeInsideCity > 0 ? formatCurrency(product.deliveryFeeInsideCity) : "Free"} /{" "}
                     {product.deliveryFeeOutsideCity > 0 ? formatCurrency(product.deliveryFeeOutsideCity) : "Free"}
                   </td>
-                  <td className="py-3 pr-4 align-top text-sm">{product.stock}</td>
+                  <td className="py-3 pr-4 align-top text-sm">
+                    {product.stock}
+                    {hasVariants(product) && (
+                      <VariantStockNote soldOut={product.variants!.filter((v) => v.stock === 0).length} />
+                    )}
+                  </td>
                   <td className="py-3 pr-4 align-top">
                     <div className="flex items-center gap-3">
                       {canManageAds && (

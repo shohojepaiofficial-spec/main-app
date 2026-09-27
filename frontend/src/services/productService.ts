@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { Paginated, Product, ProductCategory, ProductStats } from "@/models";
+import { Paginated, Product, ProductCategory, ProductOption, ProductStats } from "@/models";
 
 export type StockStatus = "in_stock" | "low_stock" | "out_of_stock";
 export type DeliveryType = "free" | "paid";
@@ -43,6 +43,28 @@ export const getProductById = async (id: string): Promise<Product | null> => {
   }
 };
 
+// Admin ("products:manage") only — options to pre-fill the product form
+// with once a category is picked: whatever that category's existing
+// products use, or a keyword preset for a brand-new category.
+export const getOptionSuggestions = async (category: string): Promise<ProductOption[]> => {
+  const { data } = await api.get<ProductOption[]>("/products/option-suggestions", { params: { category } });
+  return data;
+};
+
+// A variant as the admin form submits it. `image` is either one of the
+// product's existing image URLs or "new:N" for the Nth file in `newImages`
+// (it has no URL until the server stores it). `_id` is present for a
+// variant that already exists, so carts/orders pointing at it stay valid.
+export interface VariantInput {
+  _id?: string;
+  selections: { name: string; value: string }[];
+  price: number;
+  stock: number;
+  sku?: string;
+  image?: string;
+  weightKg?: number;
+}
+
 export interface ProductInput {
   name: string;
   description: string;
@@ -53,6 +75,10 @@ export interface ProductInput {
   deliveryFeeOutsideCity: number;
   isFeatured: boolean;
   weightKg: number;
+  // Both empty for a simple product (price/stock above are then the real
+  // ones); otherwise the server derives price/stock from the variants.
+  options: ProductOption[];
+  variants: VariantInput[];
   newImages: File[];
 }
 
@@ -67,6 +93,8 @@ export const createProduct = async (input: ProductInput): Promise<Product> => {
   formData.append("deliveryFeeOutsideCity", String(input.deliveryFeeOutsideCity));
   formData.append("isFeatured", String(input.isFeatured));
   formData.append("weightKg", String(input.weightKg));
+  formData.append("options", JSON.stringify(input.options));
+  formData.append("variants", JSON.stringify(input.variants));
   input.newImages.forEach((file) => formData.append("images", file));
 
   const { data } = await api.post<Product>("/products", formData);
@@ -87,6 +115,8 @@ export const updateProduct = async (
   formData.append("deliveryFeeOutsideCity", String(input.deliveryFeeOutsideCity));
   formData.append("isFeatured", String(input.isFeatured));
   formData.append("weightKg", String(input.weightKg));
+  formData.append("options", JSON.stringify(input.options));
+  formData.append("variants", JSON.stringify(input.variants));
   formData.append("existingImages", JSON.stringify(input.existingImages));
   input.newImages.forEach((file) => formData.append("images", file));
 

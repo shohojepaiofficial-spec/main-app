@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
@@ -10,6 +10,8 @@ import { Modal } from "@/components/ui/Modal";
 import { toUploadUrl } from "@/lib/api";
 import * as productService from "@/services/productService";
 import { Product } from "@/models";
+import { useVariantEditor } from "@/controllers/useVariantEditor";
+import { ProductVariantsEditor } from "./ProductVariantsEditor";
 
 const productSchema = z.object({
   name: z.string().min(2, "Name is too short"),
@@ -51,6 +53,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -89,6 +92,18 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
 
   const totalImages = existingImages.length + newImages.length;
 
+  const category = useWatch({ control, name: "category" }) ?? "";
+  const basePrice = useWatch({ control, name: "price" });
+  const variantEditor = useVariantEditor({
+    product: editingProduct,
+    category,
+    basePrice: String(basePrice ?? ""),
+  });
+  const imageChoices = [
+    ...existingImages.map((src) => ({ value: src, src: toUploadUrl(src) })),
+    ...newImages.map((file, i) => ({ value: file, src: newImagePreviews[i] })),
+  ];
+
   const onFilesSelected = (files: FileList | null) => {
     if (!files) return;
     // Read the FileList into a plain array right away: the caller resets
@@ -102,14 +117,21 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
   };
 
   const onSubmit = async (values: ProductFormValues) => {
+    const variantError = variantEditor.validate();
+    if (variantError) {
+      toast.error(variantError);
+      return;
+    }
+    const variantPayload = variantEditor.toPayload(existingImages, newImages);
     try {
       const product = editingProduct
         ? await productService.updateProduct(editingProduct._id, {
             ...values,
+            ...variantPayload,
             newImages,
             existingImages,
           })
-        : await productService.createProduct({ ...values, newImages });
+        : await productService.createProduct({ ...values, ...variantPayload, newImages });
       toast.success(editingProduct ? "Product updated" : "Product created");
       onSaved(product);
       onClose();
@@ -141,6 +163,11 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
         )}
       </div>
 
+      {variantEditor.hasVariants ? (
+        <p className="text-sm text-muted rounded bg-surface border border-border px-3 py-2">
+          Price and stock are set per variant below.
+        </p>
+      ) : (
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-sm font-medium">Price</label>
@@ -164,6 +191,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
           {errors.stock && <p className="text-red-600 text-sm mt-1">{errors.stock.message}</p>}
         </div>
       </div>
+      )}
 
       <div>
         <label className="text-sm font-medium">Delivery fee</label>
@@ -214,6 +242,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
         {errors.weightKg && <p className="text-red-600 text-sm mt-1">{errors.weightKg.message}</p>}
         <p className="text-xs text-muted mt-1">
           Used to size a live Pathao delivery quote at checkout — never shown to the customer.
+          {variantEditor.hasVariants && " Variants can override it (e.g. a 1kg tub vs. a 250g one)."}
         </p>
       </div>
 
@@ -252,7 +281,10 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
               <img src={toUploadUrl(src)} alt="" className="w-full h-full object-cover" />
               <button
                 type="button"
-                onClick={() => setExistingImages((prev) => prev.filter((s) => s !== src))}
+                onClick={() => {
+                  setExistingImages((prev) => prev.filter((s) => s !== src));
+                  variantEditor.clearImage(src);
+                }}
                 className="absolute top-0 right-0 bg-black/60 text-white rounded-bl p-0.5"
                 aria-label="Remove image"
               >
@@ -269,7 +301,10 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
               <img src={src} alt="" className="w-full h-full object-cover" />
               <button
                 type="button"
-                onClick={() => setNewImages((prev) => prev.filter((_, idx) => idx !== i))}
+                onClick={() => {
+                  variantEditor.clearImage(newImages[i]);
+                  setNewImages((prev) => prev.filter((_, idx) => idx !== i));
+                }}
                 className="absolute top-0 right-0 bg-black/60 text-white rounded-bl p-0.5"
                 aria-label="Remove image"
               >
@@ -291,6 +326,8 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
         />
         <p className="text-xs text-muted mt-1">Up to {MAX_IMAGES} images total.</p>
       </div>
+
+      <ProductVariantsEditor editor={variantEditor} category={category} imageChoices={imageChoices} />
 
       <button
         type="submit"
@@ -323,7 +360,7 @@ export function ProductFormModal({
       isOpen={isOpen}
       onClose={onClose}
       title={editingProduct ? "Edit product" : "Add product"}
-      widthClassName="max-w-lg"
+      widthClassName="max-w-2xl"
     >
       {isOpen && (
         <ProductForm

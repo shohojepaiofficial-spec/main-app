@@ -93,7 +93,37 @@ export interface Product {
   // Used only to size a live Pathao delivery quote at checkout — never
   // shown to the customer.
   weightKg: number;
+  // Empty (or absent, on an older API response) for a simple product. When
+  // there are variants, `price` above is the lowest variant price ("from
+  // ৳X") and `stock` the total across variants — the real per-combination
+  // numbers live on each variant. See server/src/models/Product.ts.
+  options?: ProductOption[];
+  variants?: ProductVariant[];
   createdAt: string;
+}
+
+// One axis a customer picks from — "Size": S/M/L. Order is display order.
+export interface ProductOption {
+  name: string;
+  values: string[];
+}
+
+export interface VariantSelection {
+  name: string;
+  value: string;
+}
+
+// One buyable combination ("Black / L") with its own price and stock.
+export interface ProductVariant {
+  _id: string;
+  selections: VariantSelection[];
+  price: number;
+  stock: number;
+  sku?: string;
+  // One of the product's own `images`.
+  image?: string;
+  // Admin-only shipping weight override — see Product.weightKg.
+  weightKg?: number;
 }
 
 export interface Paginated<T> {
