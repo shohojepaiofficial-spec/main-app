@@ -82,5 +82,50 @@ export function useProductReviews(productId: string) {
     }
   };
 
-  return { reviews, average, total, page, totalPages, isLoading, isSubmitting, setPage, submit, remove };
+  // The store's public reply (reviews:manage) — same API the admin Reviews
+  // page uses. Refetches the page afterwards rather than splicing in the
+  // admin-shaped response, which carries fields this public list omits.
+  const refetchPage = async () => {
+    const data = await reviewService.getProductReviews(productId, page);
+    setReviews(data.items);
+  };
+
+  const reply = async (reviewId: string, text: string): Promise<boolean> => {
+    try {
+      await reviewService.replyToReview(reviewId, text);
+      await refetchPage();
+      toast.success("Reply posted");
+      return true;
+    } catch (err) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message || "Failed to save reply");
+      return false;
+    }
+  };
+
+  const removeReply = async (reviewId: string) => {
+    try {
+      await reviewService.deleteReviewReply(reviewId);
+      await refetchPage();
+      toast.success("Reply removed");
+    } catch {
+      toast.error("Failed to remove reply");
+    }
+  };
+
+  return {
+    reviews,
+    average,
+    total,
+    page,
+    totalPages,
+    isLoading,
+    isSubmitting,
+    setPage,
+    submit,
+    remove,
+    reply,
+    removeReply,
+  };
 }

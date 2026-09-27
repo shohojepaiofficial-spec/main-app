@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, ShieldCheck, Trash2, MessageSquareReply } from "lucide-react";
+import { Star, ShieldCheck, Trash2, MessageSquareReply, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useUIStore } from "@/controllers/useUIStore";
@@ -10,6 +10,7 @@ import { Pagination } from "@/views/Pagination";
 import { confirmDialog } from "@/lib/confirm";
 import { useTranslations } from "@/controllers/useTranslations";
 import { SITE_NAME } from "@/lib/seo";
+import { ReviewReplyEditor } from "@/views/ReviewReplyEditor";
 
 export function Stars({ value, size = 16 }: { value: number; size?: number }) {
   const { t } = useTranslations();
@@ -77,9 +78,20 @@ export function ProductReviews({ productId }: { productId: string }) {
   const { isAuthenticated, hasPermission } = useAuthController();
   const openAuthModal = useUIStore((s) => s.openAuthModal);
   const canModerate = hasPermission("reviews:manage");
-  const { reviews, average, total, page, totalPages, isLoading, isSubmitting, setPage, submit, remove } =
+  const { reviews, average, total, page, totalPages, isLoading, isSubmitting, setPage, submit, remove, reply, removeReply } =
     useProductReviews(productId);
   const { t } = useTranslations();
+  // Which review's reply box is open (moderators only) — one at a time.
+  const [editingReplyFor, setEditingReplyFor] = useState<string | null>(null);
+
+  const onRemoveReply = async (reviewId: string) => {
+    const confirmed = await confirmDialog("Remove the store's reply to this review?", {
+      title: "Remove reply",
+      confirmLabel: "Remove",
+      danger: true,
+    });
+    if (confirmed) removeReply(reviewId);
+  };
 
   const onDelete = async (reviewId: string) => {
     const confirmed = await confirmDialog(t("product.confirmDeleteReview", "Delete this review? This can't be undone."), {
@@ -155,7 +167,7 @@ export function ProductReviews({ productId }: { productId: string }) {
                 {format(new Date(review.createdAt), "PPP")}
               </p>
               <p className="text-sm">{review.comment}</p>
-              {review.reply && (
+              {review.reply && editingReplyFor !== review._id && (
                 <div className="mt-3 ml-4 rounded border-l-2 border-primary bg-surface px-3 py-2">
                   <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
                     <MessageSquareReply size={12} />
@@ -167,6 +179,39 @@ export function ProductReviews({ productId }: { productId: string }) {
                   <p className="mt-1 whitespace-pre-line text-sm">{review.reply.text}</p>
                 </div>
               )}
+              {/* Store staff only (reviews:manage) — admin panel stays English. */}
+              {canModerate &&
+                (editingReplyFor === review._id ? (
+                  <div className="ml-4">
+                    <ReviewReplyEditor
+                      initialText={review.reply?.text ?? ""}
+                      onSave={async (text) => {
+                        const ok = await reply(review._id, text);
+                        if (ok) setEditingReplyFor(null);
+                        return ok;
+                      }}
+                      onCancel={() => setEditingReplyFor(null)}
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-2 ml-4 flex items-center gap-3 text-xs">
+                    <button
+                      onClick={() => setEditingReplyFor(review._id)}
+                      className="flex items-center gap-1 font-medium text-primary hover:underline"
+                    >
+                      {review.reply ? <Pencil size={12} /> : <MessageSquareReply size={12} />}
+                      {review.reply ? "Edit reply" : "Reply"}
+                    </button>
+                    {review.reply && (
+                      <button
+                        onClick={() => onRemoveReply(review._id)}
+                        className="text-muted hover:text-red-600"
+                      >
+                        Remove reply
+                      </button>
+                    )}
+                  </div>
+                ))}
             </div>
           ))}
         </div>
