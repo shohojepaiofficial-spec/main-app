@@ -132,6 +132,7 @@ export function OrdersView() {
                       <p className="truncate text-sm font-medium">
                         {item.product?.name ?? t("orders.productNoLongerAvailable", "Product no longer available")}
                       </p>
+                      {item.variantLabel && <p className="text-xs text-muted">{item.variantLabel}</p>}
                       <p className="text-xs text-muted">
                         {t("orders.qtyEach", "Qty {quantity} · {price} each", {
                           quantity: item.quantity,

@@ -183,6 +183,12 @@ function OrderRow({
                   <p className="truncate text-sm">
                     {item.product?.name ?? "Product no longer available"}
                   </p>
+                  {(item.variantLabel || item.sku) && (
+                    <p className="text-xs font-medium text-foreground">
+                      {item.variantLabel}
+                      {item.sku && <span className="ml-1 font-normal text-muted">· SKU {item.sku}</span>}
+                    </p>
+                  )}
                   <p className="text-xs text-muted">
                     Qty {item.quantity} &middot; {formatCurrency(item.price)} each
                   </p>

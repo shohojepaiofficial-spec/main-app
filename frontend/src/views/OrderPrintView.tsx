@@ -120,7 +120,12 @@ export function OrderPrintView({ orderId }: { orderId: string }) {
           <tbody>
             {order.items.map((item, index) => (
               <tr key={index} className="border-b border-border">
-                <td className="py-2">{item.product?.name ?? "Product no longer available"}</td>
+                <td className="py-2">
+                  {item.product?.name ?? "Product no longer available"}
+                  {/* What the packer actually needs to pick off the shelf. */}
+                  {item.variantLabel && <span className="block text-xs font-semibold">{item.variantLabel}</span>}
+                  {item.sku && <span className="block text-xs text-muted">SKU {item.sku}</span>}
+                </td>
                 <td className="py-2 text-right">{item.quantity}</td>
                 <td className="py-2 text-right">{formatCurrency(item.price)}</td>
                 <td className="py-2 text-right">{formatCurrency(item.price * item.quantity)}</td>

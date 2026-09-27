@@ -13,6 +13,7 @@ import * as productService from "@/services/productService";
 import * as orderService from "@/services/orderService";
 import { formatCurrency } from "@/lib/currency";
 import { BANGLADESH_ZILAS } from "@/lib/bangladeshGeo";
+import { variantLabel } from "@/lib/variants";
 import { Product } from "@/models";
 
 function extractErrorMessage(err: unknown, fallback: string) {
@@ -28,14 +29,43 @@ function extractErrorMessage(err: unknown, fallback: string) {
 const ADMIN_PAYMENT_METHODS = PAYMENT_METHODS.map((m) => ({ ...m, available: true }));
 
 interface OrderLineItem {
+  // productId, or productId:variantId — two sizes of one product are two lines.
+  key: string;
   productId: string;
+  variantId?: string;
   name: string;
   price: number;
   stock: number;
   quantity: number;
 }
 
-function ProductPicker({ onAdd }: { onAdd: (product: Product) => void }) {
+// One pickable row per thing that can actually be ordered — a simple
+// product, or each variant of a product with variants ("Hoodie — Black / L"),
+// so the admin picks the exact size/color the customer asked for.
+interface PickableItem {
+  key: string;
+  productId: string;
+  variantId?: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
+function toPickableItems(product: Product): PickableItem[] {
+  if (!product.variants?.length) {
+    return [{ key: product._id, productId: product._id, name: product.name, price: product.price, stock: product.stock }];
+  }
+  return product.variants.map((variant) => ({
+    key: `${product._id}:${variant._id}`,
+    productId: product._id,
+    variantId: variant._id,
+    name: `${product.name} — ${variantLabel(variant.selections)}`,
+    price: variant.price,
+    stock: variant.stock,
+  }));
+}
+
+function ProductPicker({ onAdd }: { onAdd: (item: PickableItem) => void }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -82,22 +112,22 @@ function ProductPicker({ onAdd }: { onAdd: (product: Product) => void }) {
           ) : results.length === 0 ? (
             <p className="p-3 text-xs text-muted">No products found</p>
           ) : (
-            results.map((product) => (
+            results.flatMap(toPickableItems).map((item) => (
               <button
-                key={product._id}
+                key={item.key}
                 type="button"
                 onClick={() => {
-                  onAdd(product);
+                  onAdd(item);
                   setQuery("");
                   setResults([]);
                 }}
-                disabled={product.stock === 0}
+                disabled={item.stock === 0}
                 className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="truncate">{product.name}</span>
+                <span className="truncate">{item.name}</span>
                 <span className="shrink-0 text-xs text-muted">
-                  {formatCurrency(product.price)} &middot;{" "}
-                  {product.stock === 0 ? "Out of stock" : `${product.stock} in stock`}
+                  {formatCurrency(item.price)} &middot;{" "}
+                  {item.stock === 0 ? "Out of stock" : `${item.stock} in stock`}
                 </span>
               </button>
             ))
@@ -162,37 +192,32 @@ export function AdminOrderFormModal({ isOpen, onClose, onCreated }: AdminOrderFo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zila]);
 
-  const addItem = (product: Product) => {
+  const addItem = (picked: PickableItem) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i.productId === product._id);
+      const existing = prev.find((i) => i.key === picked.key);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        if (existing.quantity >= picked.stock) {
           toast.error("No more stock available");
           return prev;
         }
-        return prev.map((i) =>
-          i.productId === product._id ? { ...i, quantity: i.quantity + 1 } : i
-        );
+        return prev.map((i) => (i.key === picked.key ? { ...i, quantity: i.quantity + 1 } : i));
       }
-      return [
-        ...prev,
-        { productId: product._id, name: product.name, price: product.price, stock: product.stock, quantity: 1 },
-      ];
+      return [...prev, { ...picked, quantity: 1 }];
     });
   };
 
-  const changeQuantity = (productId: string, delta: number) => {
+  const changeQuantity = (key: string, delta: number) => {
     setItems((prev) =>
       prev.map((i) =>
-        i.productId === productId
+        i.key === key
           ? { ...i, quantity: Math.min(i.stock, Math.max(1, i.quantity + delta)) }
           : i
       )
     );
   };
 
-  const removeItem = (productId: string) => {
-    setItems((prev) => prev.filter((i) => i.productId !== productId));
+  const removeItem = (key: string) => {
+    setItems((prev) => prev.filter((i) => i.key !== key));
   };
 
   const itemsTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -210,7 +235,7 @@ export function AdminOrderFormModal({ isOpen, onClose, onCreated }: AdminOrderFo
     }
     try {
       await orderService.adminCreateOrder({
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
         shippingAddress: {
           fullName: values.fullName,
           phone: values.phone,
@@ -241,14 +266,14 @@ export function AdminOrderFormModal({ isOpen, onClose, onCreated }: AdminOrderFo
             <div className="mt-2 flex flex-col gap-2">
               {items.map((item) => (
                 <div
-                  key={item.productId}
+                  key={item.key}
                   className="flex items-center justify-between gap-2 rounded border border-border p-2 text-sm"
                 >
                   <span className="min-w-0 flex-1 truncate">{item.name}</span>
                   <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => changeQuantity(item.productId, -1)}
+                      onClick={() => changeQuantity(item.key, -1)}
                       className="rounded border border-border p-1 hover:bg-background"
                     >
                       <Minus size={12} />
@@ -256,7 +281,7 @@ export function AdminOrderFormModal({ isOpen, onClose, onCreated }: AdminOrderFo
                     <span className="w-6 text-center">{item.quantity}</span>
                     <button
                       type="button"
-                      onClick={() => changeQuantity(item.productId, 1)}
+                      onClick={() => changeQuantity(item.key, 1)}
                       className="rounded border border-border p-1 hover:bg-background"
                     >
                       <Plus size={12} />
@@ -267,7 +292,7 @@ export function AdminOrderFormModal({ isOpen, onClose, onCreated }: AdminOrderFo
                   </span>
                   <button
                     type="button"
-                    onClick={() => removeItem(item.productId)}
+                    onClick={() => removeItem(item.key)}
                     aria-label={`Remove ${item.name}`}
                     className="shrink-0 text-red-600 hover:text-red-700"
                   >

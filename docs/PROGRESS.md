@@ -895,3 +895,24 @@ User asked to keep going past the injection fix and check other vulnerability cl
 ### Known follow-ups (new)
 - `POST /api/analytics/track` (public, for guest tracking) has no rate limiting — could be used to flood fake page-view events. Low severity (pollutes analytics numbers, doesn't leak or corrupt anything sensitive), not fixed this pass since it wasn't asked for.
 - `POST /api/products/:id/reviews` (any logged-in customer) also has no rate limiting — could be used to spam review submissions. Same low-severity, not-yet-fixed category as above.
+
+## 2026-09-27 — Product options & variants (sizes, colors, weights...)
+User's framing: the store sells many kinds of products, so one price + one stock + a free-text description often didn't fit — a hoodie needs Color and Size, creatine needs Weight — and whatever the customer picks has to carry through from adding the product all the way to order management, the way professional stores do it. Agreed design (user picked both recommended defaults): per-variant price and stock, and category-based option suggestions. Built in four stages, one commit each:
+
+1. **Backend** — `Product.options`/`variants`, validation in `utils/productVariants.ts`, variant-aware `computeOrderTotals`/`getDeliveryQuote`/stock decrement/restore/shared carts, order-line snapshots, `GET /api/products/option-suggestions`. Simple products are untouched (empty arrays), so no migration.
+2. **Admin product form** — options as value chips, generated combination rows with price/stock/SKU/image/weight, remove a combination you don't sell, bulk "set every price/stock", "Suggested for <category>: Use these". Manage Products shows price ranges, variant counts and "N variants sold out".
+3. **Storefront** — option buttons on the product page (sold-out values struck through, price/stock/photo follow the pick, `?variant=` shareable link), cart lines per variant, ProductGroup JSON-LD, canonical URL, price ranges on cards.
+4. **Orders** — variant label (+ SKU for admins) on My Orders, Manage Orders and the packing slip; manual admin orders list each variant as its own pickable row.
+
+Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
+
+- **Behavior change**: the flat delivery fee is now charged once per *product*, not once per cart line — previously a product could only ever be one line, so this only differs for two variants of the same product (which pay one fee, like two units of one variant). Server and `lib/delivery.ts` changed together.
+- **Behavior change**: a product-scoped promo code now discounts every variant line of that product, not just the first matching line.
+- Verified: server `tsc` + 53 tests (new: variant pricing, per-variant stock, missing/deleted variant, one delivery fee across variants, promo across variant lines, atomic variant decrement/restore, input validation); frontend `tsc` + 25 tests (new: combinations, matching, availability, price range, delivery per product); ESLint clean on every touched file (the 6 pre-existing errors elsewhere are unchanged). Rendered a real existing (simple) product page against the local servers — price, Product JSON-LD and canonical all correct.
+- **Not verified end-to-end**: local dev points at the same Atlas cluster as production, so no product with variants was actually created and no order placed from this session. First real use should be a quick smoke test (see Known follow-ups).
+
+### Known follow-ups (new)
+- **Smoke test on first use**: create a product with 2 options, open it in the storefront, add two different variants to the cart, place a COD order, check Manage Orders / the packing slip, then cancel it and confirm the variant stock came back.
+- **Low-stock stats are still product-level**: the dashboard's "running low" and the stock filter use the product total, so one sold-out size of an otherwise well-stocked hoodie isn't flagged there (Manage Products' row does show "N variants sold out").
+- **Ad/campaign captions** ("now ৳X") use the product's lowest variant price.
+- Run `npm run sync-translations` (server) to add the 5 new storefront strings' Bangla text to the database.

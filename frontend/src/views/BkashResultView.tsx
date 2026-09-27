@@ -47,6 +47,7 @@ export function BkashResultView() {
               items: fetchedOrder.items.map((i) => ({
                 item_id: i.product?._id ?? "",
                 item_name: i.product?.name ?? "",
+                ...(i.variantLabel ? { item_variant: i.variantLabel } : {}),
                 price: i.price,
                 quantity: i.quantity,
               })),
