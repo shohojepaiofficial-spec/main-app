@@ -1,14 +1,27 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { AppliedPromo, CartItem } from "@/models";
+import { AppliedPromo, CartItem, OrderLineInput } from "@/models";
 import { pushToDataLayer } from "@/lib/gtm";
+
+// A cart line is one product *and* one variant — "Hoodie, Black / L" and
+// "Hoodie, Grey / M" are two lines, each with its own quantity. Every
+// per-line action (remove, set quantity) is keyed by this.
+export function cartLineKey(item: Pick<CartItem, "productId" | "variantId">): string {
+  return item.variantId ? `${item.productId}:${item.variantId}` : item.productId;
+}
+
+// What checkout, delivery quotes and shared carts send the server for the
+// cart — ids and quantities only.
+export function toOrderLineInputs(items: CartItem[]): OrderLineInput[] {
+  return items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity }));
+}
 
 interface CartState {
   items: CartItem[];
   promo: AppliedPromo | null;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  setQuantity: (productId: string, quantity: number) => void;
+  removeItem: (lineKey: string) => void;
+  setQuantity: (lineKey: string, quantity: number) => void;
   clear: () => void;
   applyPromo: (promo: AppliedPromo) => void;
   clearPromo: () => void;
@@ -28,11 +41,12 @@ export const useCartStore = create<CartState>()(
       promo: null,
       addItem: (item, quantity = 1) => {
         set((state) => {
-          const existing = state.items.find((i) => i.productId === item.productId);
+          const key = cartLineKey(item);
+          const existing = state.items.find((i) => cartLineKey(i) === key);
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.productId === item.productId
+                cartLineKey(i) === key
                   ? { ...i, quantity: i.quantity + quantity }
                   : i
               ),
@@ -48,20 +62,28 @@ export const useCartStore = create<CartState>()(
           ecommerce: {
             currency: "BDT",
             value: item.price * quantity,
-            items: [{ item_id: item.productId, item_name: item.name, price: item.price, quantity }],
+            items: [
+              {
+                item_id: item.productId,
+                item_name: item.name,
+                ...(item.variantLabel ? { item_variant: item.variantLabel } : {}),
+                price: item.price,
+                quantity,
+              },
+            ],
           },
         });
       },
-      removeItem: (productId) => {
-        set((state) => ({ items: state.items.filter((i) => i.productId !== productId) }));
+      removeItem: (lineKey) => {
+        set((state) => ({ items: state.items.filter((i) => cartLineKey(i) !== lineKey) }));
       },
-      setQuantity: (productId, quantity) => {
+      setQuantity: (lineKey, quantity) => {
         if (quantity <= 0) {
-          get().removeItem(productId);
+          get().removeItem(lineKey);
           return;
         }
         set((state) => ({
-          items: state.items.map((i) => (i.productId === productId ? { ...i, quantity } : i)),
+          items: state.items.map((i) => (cartLineKey(i) === lineKey ? { ...i, quantity } : i)),
         }));
       },
       clear: () => set({ items: [], promo: null }),
@@ -81,12 +103,14 @@ export const useCartStore = create<CartState>()(
             : Math.min(promo.value, subtotal);
         }
 
-        // scope === "product" — only discounts that one line item, and only
-        // if it's actually in the cart (e.g. a code shared for one product
-        // applied while browsing, then something else added instead).
-        const item = items.find((i) => i.productId === promo.productId);
-        if (!item) return 0;
-        const lineTotal = item.quantity * item.price;
+        // scope === "product" — only discounts that product's lines (every
+        // variant of it — two sizes of one hoodie both count), and only if
+        // it's actually in the cart (e.g. a code shared for one product
+        // applied while browsing, then something else added instead). Same
+        // rule as the server's computeOrderTotals.
+        const lines = items.filter((i) => i.productId === promo.productId);
+        if (lines.length === 0) return 0;
+        const lineTotal = lines.reduce((sum, i) => sum + i.quantity * i.price, 0);
         return promo.discountType === "percentage"
           ? lineTotal * (promo.value / 100)
           : Math.min(promo.value, lineTotal);

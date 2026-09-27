@@ -44,6 +44,15 @@ describe("calculateDeliveryTotal", () => {
     expect(calculateDeliveryTotal(items, "Sylhet", STORE_CITY)).toBe(30);
   });
 
+  it("charges one fee per product even when it's in the cart as two variants", () => {
+    const items = [
+      item({ productId: "p1", variantId: "black-l", deliveryFeeInsideCity: 10 }),
+      item({ productId: "p1", variantId: "grey-m", deliveryFeeInsideCity: 10 }),
+      item({ productId: "p2", deliveryFeeInsideCity: 20 }),
+    ];
+    expect(calculateDeliveryTotal(items, "Sylhet", STORE_CITY)).toBe(30);
+  });
+
   it("uses the outside-city fee for a zila that isn't the store's city", () => {
     const items = [item({ deliveryFeeOutsideCity: 100 })];
     expect(calculateDeliveryTotal(items, "Dhaka", STORE_CITY)).toBe(100);

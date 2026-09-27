@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/models";
 import { toUploadUrl } from "@/lib/api";
-import { formatCurrency } from "@/lib/currency";
+import { formatPriceRange } from "@/lib/variants";
 import { T } from "@/components/ui/T";
 
 export function ProductSuggestions({ products }: { products: Product[] }) {
@@ -32,7 +32,7 @@ export function ProductSuggestions({ products }: { products: Product[] }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{product.name}</p>
-              <p className="text-sm text-muted">{formatCurrency(product.price)}</p>
+              <p className="text-sm text-muted">{formatPriceRange(product)}</p>
             </div>
           </Link>
         ))}

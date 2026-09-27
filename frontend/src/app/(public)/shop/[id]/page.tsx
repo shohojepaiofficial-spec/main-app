@@ -5,7 +5,8 @@ import { getProductById, getProducts } from "@/services/productService";
 import { getProductReviews } from "@/services/reviewService";
 import { getActivePromoCodes } from "@/services/promoService";
 import { toUploadUrl } from "@/lib/api";
-import { formatCurrency } from "@/lib/currency";
+import { hasVariants, variantLabel } from "@/lib/variants";
+import type { Product } from "@/models";
 import { SITE_URL } from "@/lib/seo";
 import { toJsonLdScript } from "@/lib/jsonLd";
 import { ProductGallery } from "@/views/ProductGallery";
@@ -37,6 +38,9 @@ export async function generateMetadata({
   return {
     title: product.name,
     description,
+    // ?variant= (a shared link to one size/color) and ?promo= are the same
+    // page as far as search engines are concerned — one indexed URL.
+    alternates: { canonical: `/shop/${product._id}` },
     openGraph: { title: product.name, description, images: [image] },
     twitter: { title: product.name, description, images: [image] },
   };
@@ -47,12 +51,14 @@ export default async function ProductDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ promo?: string }>;
+  searchParams: Promise<{ promo?: string; variant?: string }>;
 }) {
   const { id } = await params;
-  const { promo } = await searchParams;
+  const { promo, variant: variantParam } = await searchParams;
   const product = await getProductById(id);
   if (!product) notFound();
+
+  const initialVariant = product.variants?.find((v) => v._id === variantParam);
 
   const [{ items: categoryMatches }, reviewSummary, activePromos] = await Promise.all([
     getProducts({ category: product.category, excludeId: product._id, limit: 4 }),
@@ -97,33 +103,36 @@ export default async function ProductDetailPage({
     })),
   };
 
+  // schema.org can express per-region shipping rates (shippingDestination
+  // + DefinedRegion), but that needs real geographic data we don't have —
+  // "inside vs. outside city" isn't a defined region. Using the inside-city
+  // fee here as the representative rate keeps this valid without
+  // fabricating one.
+  const offerFor = (price: number, stock: number, url?: string) => ({
+    "@type": "Offer",
+    price: price.toFixed(2),
+    priceCurrency: "BDT",
+    availability: stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    ...(url ? { url } : {}),
+    shippingDetails: {
+      "@type": "OfferShippingDetails",
+      shippingRate: {
+        "@type": "MonetaryAmount",
+        value: product.deliveryFeeInsideCity.toFixed(2),
+        currency: "BDT",
+      },
+    },
+  });
+
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
+    ...(hasVariants(product)
+      ? productGroupJsonLd(product, offerFor)
+      : { "@type": "Product", offers: offerFor(product.price, product.stock) }),
     name: product.name,
     description: product.description,
     image: product.images.map(toUploadUrl),
     category: product.category,
-    offers: {
-      "@type": "Offer",
-      price: product.price.toFixed(2),
-      priceCurrency: "BDT",
-      availability:
-        product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      // schema.org can express per-region shipping rates (shippingDestination
-      // + DefinedRegion), but that needs real geographic data we don't have —
-      // "inside vs. outside city" isn't a defined region. Using the inside-city
-      // fee here as the representative rate keeps this valid without
-      // fabricating one.
-      shippingDetails: {
-        "@type": "OfferShippingDetails",
-        shippingRate: {
-          "@type": "MonetaryAmount",
-          value: product.deliveryFeeInsideCity.toFixed(2),
-          currency: "BDT",
-        },
-      },
-    },
     ...(reviewSummary.average !== null
       ? {
           aggregateRating: {
@@ -155,7 +164,12 @@ export default async function ProductDetailPage({
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <ProductGallery images={product.images} name={product.name} />
+            <ProductGallery
+              images={product.images}
+              name={product.name}
+              productId={product._id}
+              initialImage={initialVariant?.image}
+            />
 
             <div className="flex flex-col gap-4">
               <div>
@@ -166,10 +180,9 @@ export default async function ProductDetailPage({
                   {product.category}
                 </Link>
                 <h1 className="text-2xl font-semibold">{product.name}</h1>
-                <p className="mt-2 text-xl font-semibold">{formatCurrency(product.price)}</p>
               </div>
 
-              <ProductBuyBox product={product} promo={productPromo} />
+              <ProductBuyBox product={product} promo={productPromo} initialVariantId={initialVariant?._id} />
 
               <div>
                 <h2 className="mb-1 text-sm font-semibold">
@@ -187,4 +200,58 @@ export default async function ProductDetailPage({
       </div>
     </main>
   );
+}
+
+// Option names Google's variant rich results understand directly (they
+// become `variesBy` plus a property on each variant); any other option —
+// Weight, Flavor — is still described on each variant, as a PropertyValue.
+const SCHEMA_VARIANT_PROPERTIES: Record<string, string> = {
+  size: "size",
+  color: "color",
+  colour: "color",
+  material: "material",
+  pattern: "pattern",
+};
+
+// schema.org's ProductGroup/hasVariant shape — what Google reads for a
+// product sold in several sizes/colors, one Product + Offer per variant.
+function productGroupJsonLd(
+  product: Product,
+  offerFor: (price: number, stock: number, url?: string) => Record<string, unknown>
+) {
+  const productUrl = `${SITE_URL}/shop/${product._id}`;
+  const variesBy = [
+    ...new Set(
+      (product.options ?? [])
+        .map((o) => SCHEMA_VARIANT_PROPERTIES[o.name.toLowerCase()])
+        .filter(Boolean)
+        .map((prop) => `https://schema.org/${prop}`)
+    ),
+  ];
+
+  return {
+    "@type": "ProductGroup",
+    productGroupID: product._id,
+    url: productUrl,
+    ...(variesBy.length > 0 ? { variesBy } : {}),
+    hasVariant: (product.variants ?? []).map((variant) => {
+      const known: Record<string, string> = {};
+      const other: { "@type": "PropertyValue"; name: string; value: string }[] = [];
+      for (const { name, value } of variant.selections) {
+        const prop = SCHEMA_VARIANT_PROPERTIES[name.toLowerCase()];
+        if (prop) known[prop] = value;
+        else other.push({ "@type": "PropertyValue", name, value });
+      }
+      const url = `${productUrl}?variant=${variant._id}`;
+      return {
+        "@type": "Product",
+        name: `${product.name} – ${variantLabel(variant.selections)}`,
+        ...(variant.sku ? { sku: variant.sku } : {}),
+        ...(variant.image ? { image: toUploadUrl(variant.image) } : {}),
+        ...known,
+        ...(other.length > 0 ? { additionalProperty: other } : {}),
+        offers: offerFor(variant.price, variant.stock, url),
+      };
+    }),
+  };
 }

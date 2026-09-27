@@ -28,6 +28,7 @@ import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
 import { formatPromoDiscount } from "@/lib/promo";
 import { isInsideStoreCity } from "@/lib/delivery";
+import { hasVariants, formatPriceRange } from "@/lib/variants";
 import { AppliedPromo, Order, OrderStatus, Product, ProductSummary } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
 
@@ -186,8 +187,15 @@ function SavedItems() {
   // rather than leaving the cart/wishlist in a half-moved, inconsistent state.
   const onMoveAllToCart = async () => {
     setIsMoving(true);
+    let needsOptions = 0;
     try {
       for (const product of products) {
+        // A product sold in sizes/colors can't be added without picking one —
+        // it stays saved, and the shopper is pointed at it below.
+        if (hasVariants(product)) {
+          needsOptions++;
+          continue;
+        }
         addItem({
           productId: product._id,
           name: product.name,
@@ -198,8 +206,17 @@ function SavedItems() {
         });
         await toggleWishlist(product._id);
       }
-      setProducts([]);
-      toast.success(t("dashboard.movedEverythingToCart", "Moved everything to your cart"));
+      if (needsOptions > 0) {
+        setProducts((prev) => prev.filter(hasVariants));
+        toast(
+          t("dashboard.someNeedOptions", "{count} saved items need a size or other option — open them to choose", {
+            count: needsOptions,
+          })
+        );
+      } else {
+        setProducts([]);
+        toast.success(t("dashboard.movedEverythingToCart", "Moved everything to your cart"));
+      }
     } catch {
       toast.error(t("dashboard.someItemsCouldntMove", "Some items couldn't be moved — the rest were added"));
     } finally {
@@ -236,7 +253,7 @@ function SavedItems() {
                 )}
               </div>
               <p className="mt-1 truncate text-xs">{product.name}</p>
-              <p className="text-xs font-medium">{formatCurrency(product.price)}</p>
+              <p className="text-xs font-medium">{formatPriceRange(product)}</p>
             </Link>
             <button
               onClick={() => onRemove(product._id)}
@@ -269,6 +286,8 @@ export function DashboardOverview({ storeCity }: { storeCity: string }) {
       addItem(
         {
           productId: item.product._id,
+          variantId: item.variant,
+          variantLabel: item.variantLabel,
           name: item.product.name,
           price: item.price,
           image: item.product.images[0] ? toUploadUrl(item.product.images[0]) : undefined,

@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useUIStore } from "@/controllers/useUIStore";
-import { useCartStore } from "@/controllers/useCartStore";
+import { useCartStore, cartLineKey } from "@/controllers/useCartStore";
 import * as promoService from "@/services/promoService";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "@/controllers/useTranslations";
@@ -91,7 +91,7 @@ export function CartModal() {
       ) : (
         <div className="flex flex-col gap-4 max-h-[65vh] overflow-y-auto pr-1">
           {items.map((item) => (
-            <div key={item.productId} className="flex items-center gap-3">
+            <div key={cartLineKey(item)} className="flex items-center gap-3">
               <div className="w-16 h-16 relative rounded bg-background overflow-hidden shrink-0">
                 {item.image && (
                   <Image src={item.image} alt={item.name} fill className="object-cover" />
@@ -99,10 +99,11 @@ export function CartModal() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{item.name}</p>
+                {item.variantLabel && <p className="text-xs text-muted">{item.variantLabel}</p>}
                 <p className="text-sm text-muted">{formatCurrency(item.price)}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <button
-                    onClick={() => setQuantity(item.productId, item.quantity - 1)}
+                    onClick={() => setQuantity(cartLineKey(item), item.quantity - 1)}
                     className="p-1 border border-border rounded hover:bg-background"
                     aria-label={t("product.decreaseQuantity", "Decrease quantity")}
                   >
@@ -110,7 +111,7 @@ export function CartModal() {
                   </button>
                   <span className="w-6 text-center text-sm">{item.quantity}</span>
                   <button
-                    onClick={() => setQuantity(item.productId, item.quantity + 1)}
+                    onClick={() => setQuantity(cartLineKey(item), item.quantity + 1)}
                     className="p-1 border border-border rounded hover:bg-background"
                     aria-label={t("product.increaseQuantity", "Increase quantity")}
                   >
@@ -119,7 +120,7 @@ export function CartModal() {
                 </div>
               </div>
               <button
-                onClick={() => removeItem(item.productId)}
+                onClick={() => removeItem(cartLineKey(item))}
                 aria-label={t("cart.removeItem", "Remove item")}
                 className="text-muted hover:text-red-600"
               >

@@ -172,6 +172,12 @@ export interface OrderItem {
   } | null;
   quantity: number;
   price: number;
+  // Present for a product with variants — a snapshot taken at purchase, so
+  // it still reads "Black / L" even if that variant was later changed.
+  variant?: string;
+  variantLabel?: string;
+  selections?: VariantSelection[];
+  sku?: string;
 }
 
 // A lean product shape — what "reviewable products" and similar
@@ -274,19 +280,33 @@ export interface DecodedToken {
 
 export interface CartItem {
   productId: string;
+  // For a product with variants — two sizes of the same hoodie are two
+  // separate cart lines (see controllers/useCartStore.ts's cartLineKey).
+  variantId?: string;
+  variantLabel?: string;
   name: string;
   price: number;
   image?: string;
   quantity: number;
   // Captured at add-to-cart time, same as price/name/image — checkout sums
-  // one flat fee per distinct product line (the tier depends on the
-  // shipping zila chosen at checkout, not stored here).
+  // one flat fee per distinct product (the tier depends on the shipping
+  // zila chosen at checkout, not stored here).
   deliveryFeeInsideCity: number;
   deliveryFeeOutsideCity: number;
 }
 
+// One cart line as sent to the API — never a price; the server looks that
+// up itself. variantId is required for a product with variants.
+export interface OrderLineInput {
+  productId: string;
+  variantId?: string;
+  quantity: number;
+}
+
 export interface SharedCartItem {
   productId: string;
+  variantId?: string;
+  variantLabel?: string;
   name: string;
   image?: string;
   price: number;

@@ -1,8 +1,8 @@
 import { api } from "@/lib/api";
-import { SharedCart } from "@/models";
+import { OrderLineInput, SharedCart } from "@/models";
 
 export const createSharedCart = async (
-  items: { productId: string; quantity: number }[]
+  items: OrderLineInput[]
 ): Promise<string> => {
   const { data } = await api.post<{ id: string }>("/shared-carts", { items });
   return data.id;

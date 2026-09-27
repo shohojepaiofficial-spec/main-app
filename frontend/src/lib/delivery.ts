@@ -9,9 +9,11 @@ import { CartItem } from "@/models";
 // file isn't a second hardcoded copy of it.
 export const isInsideStoreCity = (zila: string, storeCity: string) => zila === storeCity;
 
-// One flat fee per distinct product line, not per unit or per order — each
+// One flat fee per distinct product, not per unit, line or order — each
 // product carries its own delivery fee (shown on its own product page), so
-// a cart with three different products pays three delivery fees.
+// a cart with three different products pays three delivery fees, but two
+// sizes of the same hoodie (two cart lines, one product) pay one. Must match
+// server/src/controllers/orderController.ts's computeOrderTotals.
 export const calculateDeliveryTotal = (
   items: CartItem[],
   zila: string | undefined,
@@ -19,8 +21,12 @@ export const calculateDeliveryTotal = (
 ): number => {
   if (!zila) return 0;
   const inside = isInsideStoreCity(zila, storeCity);
-  return items.reduce(
-    (sum, item) => sum + (inside ? item.deliveryFeeInsideCity : item.deliveryFeeOutsideCity),
-    0
-  );
+  const seen = new Set<string>();
+  let total = 0;
+  for (const item of items) {
+    if (seen.has(item.productId)) continue;
+    seen.add(item.productId);
+    total += inside ? item.deliveryFeeInsideCity : item.deliveryFeeOutsideCity;
+  }
+  return total;
 };

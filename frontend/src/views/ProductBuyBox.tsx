@@ -11,9 +11,25 @@ import { formatPromoDiscount } from "@/lib/promo";
 import { WishlistButton } from "@/views/WishlistButton";
 import { AppliedPromo, Product } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
+import { useVariantPicker } from "@/controllers/useVariantPicker";
+import { formatPriceRange, variantLabel } from "@/lib/variants";
+import { VariantOptionPicker } from "@/views/VariantOptionPicker";
 
-export function ProductBuyBox({ product, promo }: { product: Product; promo?: AppliedPromo }) {
-  const [quantity, setQuantity] = useState(1);
+export function ProductBuyBox({
+  product,
+  promo,
+  initialVariantId,
+}: {
+  product: Product;
+  promo?: AppliedPromo;
+  // From the page's ?variant= — a shared link to one specific variant.
+  initialVariantId?: string;
+}) {
+  const [requestedQuantity, setQuantity] = useState(1);
+  // Only turns on after a failed "Add to cart" with options still unpicked,
+  // so the picker isn't covered in red before the shopper has done anything.
+  const [showMissing, setShowMissing] = useState(false);
+  const picker = useVariantPicker(product, initialVariantId);
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
   const appliedPromo = useCartStore((s) => s.promo);
@@ -21,32 +37,59 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
   const isPromoApplied = !!promo && appliedPromo?.code === promo.code;
   const { t } = useTranslations();
 
-  const inStock = product.stock > 0;
-  const maxQuantity = Math.min(product.stock, 10);
+  // Until every option is picked there's no single stock number to show —
+  // the product counts as buyable as long as any variant has stock, and the
+  // buttons stay enabled so clicking them can point at what's missing.
+  const needsPick = picker.hasVariants && !picker.variant;
+  const inStock = needsPick ? product.stock > 0 && !picker.isUnavailableCombination : picker.stock > 0;
+  const maxQuantity = Math.max(1, Math.min(needsPick ? 10 : picker.stock, 10));
+  // Switching to a variant with less stock can't leave the quantity above it.
+  const quantity = Math.min(requestedQuantity, maxQuantity);
 
-  const cartItem = {
-    productId: product._id,
-    name: product.name,
-    price: product.price,
-    image: product.images[0] ? toUploadUrl(product.images[0]) : undefined,
-    deliveryFeeInsideCity: product.deliveryFeeInsideCity,
-    deliveryFeeOutsideCity: product.deliveryFeeOutsideCity,
+  // Returns false (and flags what's missing) when an option isn't picked yet.
+  const addPickedToCart = () => {
+    if (needsPick) {
+      setShowMissing(true);
+      return false;
+    }
+    addItem(
+      {
+        productId: product._id,
+        variantId: picker.variant?._id,
+        variantLabel: picker.variant ? variantLabel(picker.variant.selections) : undefined,
+        name: product.name,
+        price: picker.price,
+        image: picker.image ? toUploadUrl(picker.image) : undefined,
+        deliveryFeeInsideCity: product.deliveryFeeInsideCity,
+        deliveryFeeOutsideCity: product.deliveryFeeOutsideCity,
+      },
+      quantity
+    );
+    return true;
   };
 
   const addToCart = () => {
-    addItem(cartItem, quantity);
+    if (!addPickedToCart()) return;
     toast.success(t("product.addedToCart", "Added {quantity} to cart", { quantity }));
   };
 
   // "Buy Now" is the direct-order fast path — straight to checkout with
   // just this item, skipping the cart drawer.
   const buyNow = () => {
-    addItem(cartItem, quantity);
+    if (!addPickedToCart()) return;
     router.push("/checkout");
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {/* The price lives here rather than in the page itself so it can follow
+          the picked variant — before a pick it's the range across variants. */}
+      <p className="text-xl font-semibold">
+        {picker.variant ? formatCurrency(picker.price) : formatPriceRange(product)}
+      </p>
+
+      {picker.hasVariants && <VariantOptionPicker picker={picker} showMissing={showMissing && needsPick} />}
+
       {promo && (
         <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
           <span className="flex items-center gap-1.5 font-medium text-primary">
@@ -93,10 +136,14 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
       </div>
 
       <div>
-        {inStock ? (
+        {picker.isUnavailableCombination ? (
+          <p className="text-sm font-medium text-red-600">
+            {t("product.combinationUnavailable", "This combination isn't available — try another option")}
+          </p>
+        ) : needsPick && inStock ? null : inStock ? (
           <p className="text-sm font-medium text-green-700">
-            {product.stock <= 5
-              ? t("product.inStockLimited", "In stock — only {count} left", { count: product.stock })
+            {picker.stock <= 5
+              ? t("product.inStockLimited", "In stock — only {count} left", { count: picker.stock })
               : t("product.inStock", "In stock")}
           </p>
         ) : (
@@ -109,7 +156,7 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
           <span className="text-sm text-muted">{t("product.quantity", "Quantity")}</span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
               className="rounded border border-border p-1.5 hover:bg-background"
               aria-label={t("product.decreaseQuantity", "Decrease quantity")}
             >
@@ -117,7 +164,7 @@ export function ProductBuyBox({ product, promo }: { product: Product; promo?: Ap
             </button>
             <span className="w-6 text-center text-sm">{quantity}</span>
             <button
-              onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
+              onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
               className="rounded border border-border p-1.5 hover:bg-background"
               aria-label={t("product.increaseQuantity", "Increase quantity")}
             >

@@ -3,6 +3,7 @@ import {
   DeliveryQuote,
   Order,
   OrderStats,
+  OrderLineInput,
   OrderStatus,
   PathaoLocation,
   PaymentMethod,
@@ -16,7 +17,7 @@ export const getMyOrders = async (): Promise<Order[]> => {
 };
 
 export interface CreateOrderInput {
-  items: { productId: string; quantity: number }[];
+  items: OrderLineInput[];
   shippingAddress: ShippingDetails;
   promoCode?: string;
   sharedCartId?: string;
@@ -34,7 +35,7 @@ export const createOrder = async (input: CreateOrderInput): Promise<Order> => {
 // Pathao price when the zila/upazila match a serviceable location, or the
 // flat per-product fee otherwise. See server's orderController#getDeliveryQuote.
 export interface DeliveryQuoteInput {
-  items: { productId: string; quantity: number }[];
+  items: OrderLineInput[];
   zila: string;
   upazila: string;
 }
@@ -87,7 +88,7 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
 // restricted to Cash on Delivery, since the admin may be recording a
 // payment that already happened outside the site.
 export interface AdminCreateOrderInput {
-  items: { productId: string; quantity: number }[];
+  items: OrderLineInput[];
   shippingAddress: ShippingDetails;
   promoCode?: string;
   paymentMethod: PaymentMethod;

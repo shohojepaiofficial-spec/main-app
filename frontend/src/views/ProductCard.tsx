@@ -4,6 +4,7 @@ import { Tag } from "lucide-react";
 import { AppliedPromo, Product } from "@/models";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
+import { formatPriceRange } from "@/lib/variants";
 import { formatPromoDiscount } from "@/lib/promo";
 import { WishlistButton } from "@/views/WishlistButton";
 import { T } from "@/components/ui/T";
@@ -41,7 +42,7 @@ export function ProductCard({ product, promo }: { product: Product; promo?: Appl
       <div className="p-3">
         <p className="mb-1 text-xs text-muted">{product.category}</p>
         <p className="truncate text-sm font-medium">{product.name}</p>
-        <p className="mt-1 text-sm font-semibold">{formatCurrency(product.price)}</p>
+        <p className="mt-1 text-sm font-semibold">{formatPriceRange(product)}</p>
         <p className="mt-0.5 text-xs text-muted">
           {lowestDeliveryFee > 0 ? (
             <T k="product.deliveryFrom" vars={{ fee: formatCurrency(lowestDeliveryFee) }}>

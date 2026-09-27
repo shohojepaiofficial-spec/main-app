@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
 import { Share2, Copy, CheckCircle2, Package, ShoppingBag } from "lucide-react";
-import { useCartStore } from "@/controllers/useCartStore";
+import { useCartStore, cartLineKey, toOrderLineInputs } from "@/controllers/useCartStore";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useAuthStore } from "@/controllers/useAuthStore";
 import * as orderService from "@/services/orderService";
@@ -55,7 +55,7 @@ function AskSomeoneElseToPay() {
     setIsCreating(true);
     try {
       const id = await sharedCartService.createSharedCart(
-        items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
+        toOrderLineInputs(items)
       );
       setShareUrl(`${SITE_URL}/pay/${id}`);
     } catch (err) {
@@ -213,6 +213,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
         items: items.map((i) => ({
           item_id: i.productId,
           item_name: i.name,
+          ...(i.variantLabel ? { item_variant: i.variantLabel } : {}),
           price: i.price,
           quantity: i.quantity,
         })),
@@ -330,7 +331,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
       setIsQuoteLoading(true);
       orderService
         .getDeliveryQuote({
-          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          items: toOrderLineInputs(items),
           zila,
           upazila,
         })
@@ -363,7 +364,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
     const { paymentMethod: method, ...shippingAddress } = values;
     try {
       const order = await orderService.createOrder({
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: toOrderLineInputs(items),
         shippingAddress,
         promoCode: promo?.code,
         paymentMethod: method,
@@ -403,6 +404,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
           items: items.map((i) => ({
             item_id: i.productId,
             item_name: i.name,
+            ...(i.variantLabel ? { item_variant: i.variantLabel } : {}),
             price: i.price,
             quantity: i.quantity,
           })),
@@ -593,7 +595,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
             <h2 className="mb-3 text-sm font-semibold">{t("checkout.orderSummary", "Order summary")}</h2>
             <div className="flex flex-col gap-3">
               {items.map((item) => (
-                <div key={item.productId} className="flex items-center gap-3">
+                <div key={cartLineKey(item)} className="flex items-center gap-3">
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-background">
                     {item.image && (
                       <Image src={item.image} alt={item.name} fill className="object-cover" />
@@ -601,6 +603,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm">{item.name}</p>
+                    {item.variantLabel && <p className="text-xs text-muted">{item.variantLabel}</p>}
                     <p className="text-xs text-muted">
                       {t("checkout.qty", "Qty {n}", { n: item.quantity })}
                     </p>

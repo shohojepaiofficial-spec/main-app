@@ -185,6 +185,22 @@ export const translationSeed: TranslationSeedEntry[] = [
     en: "In stock — only {count} left",
     bn: "স্টকে আছে — মাত্র {count}টি বাকি",
   },
+  { key: "product.chooseOption", en: "Choose one", bn: "একটি বেছে নিন" },
+  {
+    key: "product.pleaseChooseOption",
+    en: "Please choose a {option}",
+    bn: "অনুগ্রহ করে একটি {option} বেছে নিন",
+  },
+  {
+    key: "product.optionSoldOut",
+    en: "{option} {value} — sold out",
+    bn: "{option} {value} — স্টক শেষ",
+  },
+  {
+    key: "product.combinationUnavailable",
+    en: "This combination isn't available — try another option",
+    bn: "এই কম্বিনেশনটি পাওয়া যাচ্ছে না — অন্য অপশন বেছে নিন",
+  },
   { key: "product.quantity", en: "Quantity", bn: "পরিমাণ" },
   { key: "product.decreaseQuantity", en: "Decrease quantity", bn: "পরিমাণ কমান" },
   { key: "product.increaseQuantity", en: "Increase quantity", bn: "পরিমাণ বাড়ান" },
@@ -497,6 +513,11 @@ export const translationSeed: TranslationSeedEntry[] = [
     key: "dashboard.movedEverythingToCart",
     en: "Moved everything to your cart",
     bn: "সবকিছু আপনার কার্টে সরানো হয়েছে",
+  },
+  {
+    key: "dashboard.someNeedOptions",
+    en: "{count} saved items need a size or other option — open them to choose",
+    bn: "{count}টি সংরক্ষিত আইটেমের সাইজ বা অন্য অপশন বেছে নিতে হবে — বেছে নিতে সেগুলো খুলুন",
   },
   {
     key: "dashboard.someItemsCouldntMove",

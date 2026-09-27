@@ -35,6 +35,8 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
       addItem(
         {
           productId: item.productId,
+          variantId: item.variantId,
+          variantLabel: item.variantLabel,
           name: item.name,
           price: item.price,
           image: item.image ? toUploadUrl(item.image) : undefined,
@@ -86,7 +88,7 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
           <div className="rounded-md border border-border bg-surface p-4">
             <div className="flex flex-col gap-3">
               {sharedCart.items.map((item) => (
-                <div key={item.productId} className="flex items-center gap-3">
+                <div key={`${item.productId}:${item.variantId ?? ""}`} className="flex items-center gap-3">
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-background">
                     {item.image && (
                       <Image src={toUploadUrl(item.image)} alt={item.name} fill className="object-cover" />
@@ -94,6 +96,7 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm">{item.name}</p>
+                    {item.variantLabel && <p className="text-xs text-muted">{item.variantLabel}</p>}
                     <p className="text-xs text-muted">{t("checkout.qty", "Qty {n}", { n: item.quantity })}</p>
                   </div>
                   <p className="shrink-0 text-sm font-medium">
