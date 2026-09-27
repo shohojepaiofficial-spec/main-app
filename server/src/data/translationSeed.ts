@@ -186,19 +186,6 @@ export const translationSeed: TranslationSeedEntry[] = [
     bn: "স্টকে আছে — মাত্র {count}টি বাকি",
   },
   { key: "product.storeResponse", en: "Response from {store}", bn: "{store}-এর উত্তর" },
-
-  // --- Homepage stats row ---
-  { key: "stats.heading", en: "Shop by the numbers", bn: "সংখ্যায় আমাদের দোকান" },
-  { key: "stats.products", en: "Products to explore", bn: "পণ্য দেখুন" },
-  { key: "stats.categories", en: "Categories", bn: "ক্যাটাগরি" },
-  {
-    key: "stats.rating",
-    en: "Average rating from {count} reviews",
-    bn: "{count}টি রিভিউ থেকে গড় রেটিং",
-  },
-  { key: "stats.delivered", en: "Orders delivered", bn: "অর্ডার ডেলিভারি হয়েছে" },
-  { key: "stats.districts", en: "Districts delivered to", bn: "জেলায় ডেলিভারি হয়েছে" },
-
   { key: "product.chooseOption", en: "Choose one", bn: "একটি বেছে নিন" },
   {
     key: "product.pleaseChooseOption",
