@@ -126,6 +126,16 @@ export interface ProductVariant {
   weightKg?: number;
 }
 
+// Public counts for the homepage's stats section (GET /api/stats) — never money.
+export interface StoreStats {
+  productCount: number;
+  categoryCount: number;
+  reviewCount: number;
+  averageRating: number | null;
+  deliveredOrderCount: number;
+  districtCount: number;
+}
+
 export interface Paginated<T> {
   items: T[];
   total: number;

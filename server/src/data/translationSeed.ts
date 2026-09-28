@@ -186,6 +186,20 @@ export const translationSeed: TranslationSeedEntry[] = [
     bn: "স্টকে আছে — মাত্র {count}টি বাকি",
   },
   { key: "product.storeResponse", en: "Response from {store}", bn: "{store}-এর উত্তর" },
+
+  // --- Homepage stats section ---
+  { key: "stats.heading", en: "Our Store in Numbers", bn: "সংখ্যায় আমাদের দোকান" },
+  {
+    key: "stats.subheading",
+    en: "Real, live numbers from our shop — they grow as we do.",
+    bn: "আমাদের দোকানের আসল, লাইভ সংখ্যা — আমরা যত বাড়ি, এগুলোও তত বাড়ে।",
+  },
+  { key: "stats.products", en: "Products", bn: "পণ্য" },
+  { key: "stats.categories", en: "Categories", bn: "ক্যাটাগরি" },
+  { key: "stats.rating", en: "Avg. rating ({count} reviews)", bn: "গড় রেটিং ({count}টি রিভিউ)" },
+  { key: "stats.delivered", en: "Orders delivered", bn: "অর্ডার ডেলিভারি হয়েছে" },
+  { key: "stats.districts", en: "Districts reached", bn: "জেলায় পৌঁছেছি" },
+
   { key: "product.chooseOption", en: "Choose one", bn: "একটি বেছে নিন" },
   {
     key: "product.pleaseChooseOption",

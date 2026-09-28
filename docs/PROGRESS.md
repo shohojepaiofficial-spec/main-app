@@ -923,3 +923,10 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - Verified: server `tsc` + 53 tests, frontend `tsc`, ESLint clean on touched files; locally, `GET /api/reviews` rejects anonymous requests (401), the public review list and product page still load, and `/admin/reviews` renders. Posting a real reply was not exercised (local dev shares the production database).
 - Follow-up idea: email the customer when the store replies to their review.
 - Run `npm run sync-translations` for the new `product.storeResponse` string.
+
+## 2026-09-28 (later) — Homepage "Our Store in Numbers" section
+- Between TrustBadges and the FAQ: a rounded panel with a heading, subheading and one column per stat — line icon, big number, accent bar, uppercase label — each linking somewhere relevant (products → /shop, categories → /categories, rating → /shop, orders delivered and districts reached → /shipping). `views/StoreStatsSection.tsx`.
+- Data: public `GET /api/stats` (`storeStatsController.ts`, counts only, never money, cached 5 minutes in memory), fetched server-side on the homepage via `services/statsService.ts` (soft-fails to hiding the section) so the numbers are in the initial HTML.
+- `lib/storeStats.ts` decides what shows: each stat has a minimum (10 products, 3 categories, 5 reviews with a 4.0+ average, 20 delivered orders, 5 districts), numbers round *down* ("47" → "40+", ratings truncated), and the whole section hides unless at least two qualify. Today only products (10) and categories (8) show; the rest appear on their own as the store grows.
+- Verified: frontend tests (32, 5 new), `tsc` on both apps, ESLint on touched files; homepage renders the section locally with real numbers, no console errors.
+- Run `npm run sync-translations` for the new `stats.*` strings (Bangla falls back to English until then).

@@ -18,6 +18,7 @@ import adRoutes from "./routes/adRoutes";
 import campaignRoutes from "./routes/campaignRoutes";
 import translationRoutes from "./routes/translationRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
+import statsRoutes from "./routes/statsRoutes";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
 
@@ -89,6 +90,7 @@ app.use("/api/ads", adRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/translations", translationRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/stats", statsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
