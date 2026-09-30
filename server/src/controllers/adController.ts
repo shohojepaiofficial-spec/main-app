@@ -9,11 +9,10 @@ import {
   postToFacebook,
   postToInstagram,
 } from "../integrations/meta";
-import { isXConfigured, postToX } from "../integrations/x";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { isNonEmptyString } from "../utils/validate";
 
-const ALL_PLATFORMS: AdPlatform[] = ["facebook", "instagram", "x"];
+const ALL_PLATFORMS: AdPlatform[] = ["facebook", "instagram"];
 
 // Meta's servers fetch the image URL directly, so it has to be a real
 // public https address, not localhost — see server/.env.example. (The
@@ -160,14 +159,10 @@ export const publishAd = async (req: AuthRequest, res: Response) => {
         if (platform === "facebook") {
           if (!isFacebookConfigured()) throw { notConnected: true };
           externalPostId = await postToFacebook(ad.caption, imageUrl, ad.link);
-        } else if (platform === "instagram") {
+        } else {
           if (!isInstagramConfigured()) throw { notConnected: true };
           if (!imageUrl) throw new Error("Instagram posts require an image");
           externalPostId = await postToInstagram(ad.caption, imageUrl, ad.link);
-        } else {
-          if (!isXConfigured()) throw { notConnected: true };
-          const text = ad.link ? `${ad.caption}\n\n${ad.link}` : ad.caption;
-          externalPostId = await postToX(text);
         }
         status = "posted";
       } catch (err) {

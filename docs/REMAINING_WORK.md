@@ -103,11 +103,12 @@ than a one-time check.
 
 ### Priority 4 — Smaller, lower-priority polish
 
-**4.5 — Social media ads have platform-specific gaps.** Not done — this
-one's genuinely blocked, not skipped by choice: X (Twitter) needs a paid API
-tier to actually post; Instagram needs a real public HTTPS domain to even
-test (see 1.2); the "4th platform" was mentioned once early on but never
-specified, so there's nothing concrete to build.
+**4.5 — Social media ads: Facebook + Instagram only.** X was removed
+2026-09-30 (paid API tier; focus is Facebook/Instagram). The "4th platform"
+was never specified, so there's nothing to build. One saved test ad
+(`6ab6b04ed7da1a6fc6e8c291`, "sdfas sdf safd") still lists `x` in its
+`platforms`/`results` — delete it in `/admin/ads`, or it can't be re-posted
+(the model no longer accepts `x`).
 
 **4.10 — Catalog has leftover test products with garbage delivery fees.**
 Found while debugging a ৳54,576 delivery fee at checkout (2026-09-22) — not

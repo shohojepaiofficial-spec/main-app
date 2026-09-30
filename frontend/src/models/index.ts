@@ -472,12 +472,12 @@ export interface AnalyticsOverview {
 // list, doesn't change how publishing works. See views/AdminAdFormModal.tsx.
 export type AdSourceType = "product" | "promotion" | "custom";
 
-export type AdPlatform = "facebook" | "instagram" | "x";
+export type AdPlatform = "facebook" | "instagram";
 
 // "not_connected" = that platform's API keys aren't set on the server yet —
 // distinct from "failed" (keys are there, the API call itself was rejected)
 // so the list can tell "you haven't set this up" apart from "something's
-// wrong". See server's utils/... integrations/meta.ts and integrations/x.ts.
+// wrong". See server's utils/... integrations/meta.ts.
 export type AdPlatformStatus = "pending" | "posted" | "failed" | "not_connected";
 
 export interface AdPlatformResult {

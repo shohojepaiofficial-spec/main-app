@@ -4,10 +4,10 @@ import { Schema, model, Document, Types } from "mongoose";
 // as a badge in the admin list), doesn't gate anything.
 export type AdSourceType = "product" | "promotion" | "custom";
 
-export type AdPlatform = "facebook" | "instagram" | "x";
+export type AdPlatform = "facebook" | "instagram";
 
 // "not_connected" = this platform's API keys aren't set in the server's
-// env yet (see integrations/meta.ts, integrations/x.ts) — distinct from
+// env yet (see integrations/meta.ts) — distinct from
 // "failed" (keys are there, the API call itself rejected it) so the admin
 // list can tell "you haven't set this up" apart from "something's wrong".
 export type AdPlatformStatus = "pending" | "posted" | "failed" | "not_connected";
@@ -42,7 +42,7 @@ export interface IAd extends Document {
 
 const resultSchema = new Schema<IAdPlatformResult>(
   {
-    platform: { type: String, enum: ["facebook", "instagram", "x"], required: true },
+    platform: { type: String, enum: ["facebook", "instagram"], required: true },
     status: {
       type: String,
       enum: ["pending", "posted", "failed", "not_connected"],
@@ -65,7 +65,7 @@ const adSchema = new Schema<IAd>(
     image: { type: String },
     ownsImage: { type: Boolean, default: false },
     link: { type: String, trim: true },
-    platforms: { type: [String], enum: ["facebook", "instagram", "x"], default: [] },
+    platforms: { type: [String], enum: ["facebook", "instagram"], default: [] },
     results: { type: [resultSchema], default: [] },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },

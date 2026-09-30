@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Phone, ShoppingCart, Menu, X } from "lucide-react";
-import { FaFacebookF, FaInstagram, FaXTwitter, FaYoutube } from "react-icons/fa6";
+import { FaFacebookF, FaInstagram, FaYoutube } from "react-icons/fa6";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useUIStore } from "@/controllers/useUIStore";
 import { useCartStore } from "@/controllers/useCartStore";
@@ -29,7 +29,6 @@ const NAV_LINKS = [
 const SOCIAL_LINKS = [
   { href: "https://www.facebook.com/profile.php?id=61594292297060", label: "Facebook", Icon: FaFacebookF },
   { href: "https://instagram.com", label: "Instagram", Icon: FaInstagram },
-  { href: "https://twitter.com", label: "Twitter", Icon: FaXTwitter },
   { href: "https://youtube.com", label: "YouTube", Icon: FaYoutube },
 ];
 

@@ -22,7 +22,6 @@ const SOURCE_LABEL: Record<Ad["sourceType"], string> = {
 const PLATFORM_LABEL: Record<AdPlatform, string> = {
   facebook: "Facebook",
   instagram: "Instagram",
-  x: "X",
 };
 
 function StatusPill({ status }: { status: AdPlatformStatus }) {

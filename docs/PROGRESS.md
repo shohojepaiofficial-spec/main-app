@@ -958,3 +958,10 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - Report: checkout showed ~54,000 Tk delivery for a cheap product. The delivery logic was fine (0 / "Select a Zila" until a location is chosen; recalculated on every Zila/Upazila change; server recomputes authoritatively). The cause was data: test product "dsfa sdfsdfs af" had fees typed as 455,454 (inside) / 54,544 (outside), and nothing stopped it.
 - `models/Product.ts`: `MAX_DELIVERY_FEE = 5000` Tk as a `max` validator on both fees; `ProductFormModal.tsx` mirrors it (zod + input `max`). `errorHandler.ts` now returns Mongoose `ValidationError` as 400 with its message instead of a 500.
 - Existing out-of-range products are not auto-changed — the admin must edit/delete them (saving will now require a valid fee).
+
+## 2026-09-30 — Removed X (Twitter) from social ads
+- User's call: posting to X needs a paid API tier, and the focus is Facebook and Instagram directly.
+- Deleted `server/src/integrations/x.ts`; `"x"` dropped from `AdPlatform` (server model enums + frontend type), the publish branch in `adController.ts`, the "X (Twitter)" checkbox in `AdminAdFormModal.tsx`, the label in `AdminAdsView.tsx`, and the `X_*` keys in `server/.env.example`. Also removed the navbar/footer X icon, which only ever linked to the placeholder `https://twitter.com`.
+- Kept on purpose: `twitter:` card metadata (SEO — also used by other link previewers), the customer "share cart" X option, and the "X (Twitter)" referrer label in analytics (visitors can still arrive from X).
+- One existing test ad still has `x` in `platforms`/`results`; the database cleanup was not run (needs the user's go-ahead on the shared production DB) — see REMAINING_WORK 4.5.
+- Verified: server `tsc` + 53 tests, frontend `tsc` + 36 tests, ESLint on touched views.

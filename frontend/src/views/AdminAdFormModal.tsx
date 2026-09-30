@@ -29,7 +29,6 @@ const SOURCE_OPTIONS: { value: AdSourceType; label: string }[] = [
 const PLATFORM_OPTIONS: { value: AdPlatform; label: string; note?: string }[] = [
   { value: "facebook", label: "Facebook" },
   { value: "instagram", label: "Instagram", note: "Requires an image" },
-  { value: "x", label: "X (Twitter)" },
 ];
 
 // Shared by onSelectProduct (picking a product inside the form) and the
