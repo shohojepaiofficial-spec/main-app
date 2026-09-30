@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import multer from "multer";
+import mongoose from "mongoose";
 import { reportError } from "../utils/errorMonitoring";
 import { MAX_UPLOAD_FILES, MAX_UPLOAD_MB } from "../utils/upload";
 
@@ -34,10 +35,14 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ) => {
+  // A schema validator (min/max/required) rejecting the admin's input is a
+  // bad request, not a server fault — show its message instead of a 500.
   const { status, message } =
     err instanceof multer.MulterError
       ? fromMulterError(err)
-      : { status: err.status ?? 500, message: err.message || "Internal server error" };
+      : err instanceof mongoose.Error.ValidationError
+        ? { status: 400, message: Object.values(err.errors)[0]?.message ?? err.message }
+        : { status: err.status ?? 500, message: err.message || "Internal server error" };
 
   if (status >= 500) reportError(err, { method: req.method, url: req.originalUrl });
   res.status(status).json({ message });

@@ -14,14 +14,24 @@ import { Product } from "@/models";
 import { useVariantEditor } from "@/controllers/useVariantEditor";
 import { ProductVariantsEditor } from "./ProductVariantsEditor";
 
+// Mirrors server/src/models/Product.ts's MAX_DELIVERY_FEE — catches a typo'd
+// fee (an extra digit) before it inflates every checkout with this product.
+const MAX_DELIVERY_FEE = 5000;
+
 const productSchema = z.object({
   name: z.string().min(2, "Name is too short"),
   description: z.string().min(10, "Description is too short"),
   price: z.coerce.number().min(0, "Price can't be negative"),
   stock: z.coerce.number().int("Stock must be a whole number").min(0, "Stock can't be negative"),
   category: z.string().min(2, "Category is required"),
-  deliveryFeeInsideCity: z.coerce.number().min(0, "Delivery fee can't be negative"),
-  deliveryFeeOutsideCity: z.coerce.number().min(0, "Delivery fee can't be negative"),
+  deliveryFeeInsideCity: z.coerce
+    .number()
+    .min(0, "Delivery fee can't be negative")
+    .max(MAX_DELIVERY_FEE, `Delivery fee can't be more than ${MAX_DELIVERY_FEE} Tk`),
+  deliveryFeeOutsideCity: z.coerce
+    .number()
+    .min(0, "Delivery fee can't be negative")
+    .max(MAX_DELIVERY_FEE, `Delivery fee can't be more than ${MAX_DELIVERY_FEE} Tk`),
   isFeatured: z.boolean(),
   weightKg: z.coerce.number().min(0.1, "Weight must be at least 0.1kg"),
 });
@@ -204,6 +214,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
               type="number"
               step="0.01"
               min="0"
+              max={MAX_DELIVERY_FEE}
               placeholder="Inside city"
               className="w-full border border-border rounded px-3 py-2 bg-background"
             />
@@ -218,6 +229,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
               type="number"
               step="0.01"
               min="0"
+              max={MAX_DELIVERY_FEE}
               placeholder="Outside city"
               className="w-full border border-border rounded px-3 py-2 bg-background"
             />

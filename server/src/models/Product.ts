@@ -92,6 +92,16 @@ const variantSchema = new Schema<IProductVariant>({
   weightKg: { type: Number, min: 0.1 },
 });
 
+// Sanity ceiling on one product's flat delivery fee (BDT). Real couriers
+// charge far less than this anywhere in Bangladesh, so a higher value is a
+// typo (an extra digit) that would silently inflate every checkout that
+// includes the product. Mirrored in frontend/src/views/ProductFormModal.tsx.
+export const MAX_DELIVERY_FEE = 5000;
+const deliveryFeeMax: [number, string] = [
+  MAX_DELIVERY_FEE,
+  `Delivery fee can't be more than ${MAX_DELIVERY_FEE} Tk`,
+];
+
 const productSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, trim: true },
@@ -100,8 +110,8 @@ const productSchema = new Schema<IProduct>(
     stock: { type: Number, required: true, min: 0, default: 0 },
     category: { type: String, required: true, trim: true },
     images: { type: [String], default: [] },
-    deliveryFeeInsideCity: { type: Number, required: true, min: 0, default: 0 },
-    deliveryFeeOutsideCity: { type: Number, required: true, min: 0, default: 0 },
+    deliveryFeeInsideCity: { type: Number, required: true, min: 0, max: deliveryFeeMax, default: 0 },
+    deliveryFeeOutsideCity: { type: Number, required: true, min: 0, max: deliveryFeeMax, default: 0 },
     isFeatured: { type: Boolean, default: false },
     weightKg: { type: Number, required: true, min: 0.1, default: 0.5 },
     options: { type: [optionSchema], default: [] },
