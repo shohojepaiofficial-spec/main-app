@@ -5,6 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import { IMAGE_ACCEPT, imageUploadError } from "@/lib/imageUpload";
 import { Modal } from "@/components/ui/Modal";
 import { toUploadUrl } from "@/lib/api";
 import * as bannerService from "@/services/bannerService";
@@ -273,8 +274,17 @@ function BannerForm({ editingBanner, promoCodes, onSaved, onClose }: BannerFormP
         </div>
         <input
           type="file"
-          accept="image/*"
-          onChange={(e) => setImage(e.target.files?.[0] ?? null)}
+          accept={IMAGE_ACCEPT}
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null;
+            const error = file && imageUploadError(file);
+            if (error) {
+              toast.error(error);
+              e.target.value = "";
+              return;
+            }
+            setImage(file);
+          }}
           className="mt-2 text-sm"
         />
         <p className="text-xs text-muted mt-1">

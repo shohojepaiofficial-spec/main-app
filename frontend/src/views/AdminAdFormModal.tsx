@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { IMAGE_ACCEPT, imageUploadError } from "@/lib/imageUpload";
 import { Search } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import * as productService from "@/services/productService";
@@ -359,8 +360,17 @@ function AdForm({ initialProduct, onClose, onCreated }: AdFormProps) {
           )}
           <input
             type="file"
-            accept="image/*"
-            onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            accept={IMAGE_ACCEPT}
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null;
+              const error = file && imageUploadError(file);
+              if (error) {
+                toast.error(error);
+                e.target.value = "";
+                return;
+              }
+              setImageFile(file);
+            }}
             className="mt-1 text-sm"
           />
         </div>

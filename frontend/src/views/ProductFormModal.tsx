@@ -5,6 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import { IMAGE_ACCEPT, MAX_IMAGE_MB, splitValidImages } from "@/lib/imageUpload";
 import { X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { toUploadUrl } from "@/lib/api";
@@ -112,7 +113,8 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
     // setNewImages updater (React defers that callback until after this
     // event handler returns) used to see an already-emptied FileList and
     // silently drop every selected file.
-    const selected = Array.from(files);
+    const { valid: selected, errors } = splitValidImages(Array.from(files));
+    errors.forEach((error) => toast.error(error));
     setNewImages((prev) => [...prev, ...selected].slice(0, MAX_IMAGES - existingImages.length));
   };
 
@@ -315,7 +317,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
         </div>
         <input
           type="file"
-          accept="image/*"
+          accept={IMAGE_ACCEPT}
           multiple
           disabled={totalImages >= MAX_IMAGES}
           onChange={(e) => {
@@ -324,7 +326,9 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
           }}
           className="mt-2 text-sm disabled:opacity-50"
         />
-        <p className="text-xs text-muted mt-1">Up to {MAX_IMAGES} images total.</p>
+        <p className="text-xs text-muted mt-1">
+          Up to {MAX_IMAGES} images total · JPG, PNG, WebP or GIF · {MAX_IMAGE_MB}MB max each.
+        </p>
       </div>
 
       <ProductVariantsEditor editor={variantEditor} category={category} imageChoices={imageChoices} />

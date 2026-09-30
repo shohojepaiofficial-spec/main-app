@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import { IMAGE_ACCEPT, imageUploadError } from "@/lib/imageUpload";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useAuthStore } from "@/controllers/useAuthStore";
 import * as authService from "@/services/authService";
@@ -92,8 +93,17 @@ function ProfileSection() {
         <div>
           <input
             type="file"
-            accept="image/*"
-            onChange={(e) => setImage(e.target.files?.[0] ?? null)}
+            accept={IMAGE_ACCEPT}
+            onChange={(e) => {
+            const file = e.target.files?.[0] ?? null;
+            const error = file && imageUploadError(file);
+            if (error) {
+              toast.error(error);
+              e.target.value = "";
+              return;
+            }
+            setImage(file);
+          }}
             className="text-sm"
           />
           <p className="mt-1 text-xs text-muted">{t("settings.squareImagesWorkBest", "Square images work best.")}</p>

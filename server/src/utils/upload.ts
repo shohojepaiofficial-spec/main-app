@@ -13,24 +13,42 @@ const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
 // itself needing to know which one it'll be.
 const storage = multer.memoryStorage();
 
+// Per image. Plenty for a sharp product photo (Cloudinary resizes/compresses
+// on delivery anyway), while a raw 20MB+ camera file is refused. Mirrored in
+// frontend/src/lib/imageUpload.ts, which checks before uploading — keep the
+// two in sync.
+export const MAX_UPLOAD_MB = 5;
+export const MAX_UPLOAD_FILES = 5;
+
+const ALLOWED_EXTENSIONS = new Set([".jpeg", ".jpg", ".png", ".webp", ".gif"]);
+const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
 const fileFilter = (
   _req: Express.Request,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
-  const allowed = /jpeg|jpg|png|webp|gif/;
-  const isAllowed = allowed.test(path.extname(file.originalname).toLowerCase());
+  // Both the name and the browser-reported type have to agree it's an
+  // image — checking only the extension let any file through as long as it
+  // was renamed to end in ".jpg".
+  const isAllowed =
+    ALLOWED_EXTENSIONS.has(path.extname(file.originalname).toLowerCase()) &&
+    ALLOWED_MIME_TYPES.has(file.mimetype);
   if (isAllowed) {
     cb(null, true);
   } else {
-    cb(new Error("Only image files (jpeg, jpg, png, webp, gif) are allowed"));
+    // A 400, not a 500: the request was wrong, the server wasn't (see
+    // middleware/errorHandler.ts).
+    cb(
+      Object.assign(new Error("Only JPG, PNG, WebP or GIF images are allowed."), { status: 400 })
+    );
   }
 };
 
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: MAX_UPLOAD_FILES },
 });
 
 // The one place every controller goes through to turn an uploaded file into
