@@ -32,7 +32,7 @@ export function Footer() {
     <footer className="bg-foreground text-background/80 mt-16">
       <div className="mx-auto max-w-7xl px-4 lg:px-8 py-10 grid grid-cols-2 gap-8 sm:grid-cols-4">
         <div className="col-span-2 sm:col-span-1">
-          <Logo wordmarkClassName="text-background" />
+          <Logo wordmarkClassName="text-background" onDarkBackground />
           <p className="mt-2 text-sm">
             <T k="footer.blurb">Quality products, fast shipping, and a storefront you can trust.</T>
           </p>

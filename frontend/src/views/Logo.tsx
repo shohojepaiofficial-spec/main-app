@@ -28,23 +28,42 @@ export function Logo({
   className = "",
   wordmarkClassName = "text-foreground",
   showWordmark = true,
+  onDarkBackground = false,
 }: {
   className?: string;
   wordmarkClassName?: string;
   showWordmark?: boolean;
+  /**
+   * The icon's cart and box are solid black, so on a dark band (the footer)
+   * they vanish into it. Rather than recoloring the brand mark, this sets it
+   * on a small white tile — the usual way a dark logo sits on a dark surface —
+   * so every part keeps its real color. Fixed white, not a theme token: the
+   * tile has to stay light whatever theme is on.
+   */
+  onDarkBackground?: boolean;
 }) {
   const [lead, accent] = splitWordmark(SITE_NAME);
 
+  const icon = (
+    <Image
+      src="/logo-icon.png"
+      alt=""
+      width={ICON_WIDTH}
+      height={ICON_HEIGHT}
+      priority
+      className="shrink-0 object-contain"
+    />
+  );
+
   return (
     <Link href="/" className={`flex shrink-0 items-center gap-2 ${className}`}>
-      <Image
-        src="/logo-icon.png"
-        alt=""
-        width={ICON_WIDTH}
-        height={ICON_HEIGHT}
-        priority
-        className="shrink-0 object-contain"
-      />
+      {onDarkBackground ? (
+        <span className="flex shrink-0 items-center justify-center rounded-lg bg-white px-1.5 py-1 shadow-sm ring-1 ring-black/5">
+          {icon}
+        </span>
+      ) : (
+        icon
+      )}
       {showWordmark && (
         <span className={`text-xl font-bold tracking-tight ${wordmarkClassName}`}>
           {lead && `${lead} `}
