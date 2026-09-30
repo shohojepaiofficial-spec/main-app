@@ -6,7 +6,7 @@ collapsed to one line each below (full detail, including how each was
 verified, lives in `docs/PROGRESS.md`'s dated entries) so this file stays
 focused on what's actually still open.
 
-Last updated: 2026-09-26.
+Last updated: 2026-09-30.
 
 ---
 
@@ -48,6 +48,24 @@ done.
   `integrations/pathao.ts` if Pathao's actual shapes differ from what's
   documented, same caveat as before.
 
+**2.12 — Product variants have never been used end-to-end.** Built
+2026-09-27 (sizes/colors/weights, per-variant price and stock), but local
+dev shares the production database, so no product with variants was ever
+created and no variant order placed. First real use should be a smoke test:
+create a product with 2 options → open it in the storefront → add two
+different variants to the cart → place a COD order → check Manage Orders
+and the packing slip → cancel it and confirm the variant stock came back.
+
+**2.13 — Recent features still owe one real click-through in a browser.**
+Each was verified by type checks, tests and API calls, but not clicked
+through live (no admin browser session was available):
+- Manage Products / Manage Users filter bars and Users pagination (2026-09-26).
+- The two-step verification setup and login flow (2026-09-26) — best done
+  as part of turning it on (3.9).
+- Posting, editing and removing a store reply on `/admin/reviews` (2026-09-28).
+- Side drawers asking "Discard your changes?" instead of closing mid-edit
+  (2026-09-28): type into an admin form, then try the backdrop, Esc and ✕.
+
 ### Priority 3 — Security & reliability hardening
 
 **3.7 — MongoDB Atlas connection string looks like the free/shared tier**
@@ -78,6 +96,11 @@ ecommerce breach; see that date's `docs/PROGRESS.md` entries for the
 NoSQL-injection and other findings that *were* fixable from inside the
 codebase.
 
+**3.12 — `npm audit` on `server/` shows 2 high-severity findings**, both
+via `pm2`'s `js-yaml` dependency (the process manager, never touches user
+input). Low real risk; worth making `npm audit` a periodic habit rather
+than a one-time check.
+
 ### Priority 4 — Smaller, lower-priority polish
 
 **4.5 — Social media ads have platform-specific gaps.** Not done — this
@@ -92,9 +115,37 @@ a code bug, just placeholder products (e.g. "dsfa sdfsdfs af", keyboard-mash
 names) with keyboard-mash `deliveryFeeInsideCity`/`OutsideCity` values
 (455454, 54544, etc.) left over from earlier testing, correctly summed by
 the flat-fee fallback. Delete or fix these via `/admin/products` before
-relying on real checkout totals. Same products' `weightKg` is also unset
+relying on real checkout totals. Since 2026-09-29 new saves are capped at
+৳5,000 per fee (`MAX_DELIVERY_FEE`), so these can't be re-saved until
+fixed, and new typos are rejected — but existing rows weren't touched. Same products' `weightKg` is also unset
 (defaults to 0.5kg in code) — worth setting real weights too once 2.8's
 Pathao quote is actually live, since that's what sizes it.
+
+**4.12 — The two-step verification screens have no Bangla text.** Their 9
+`auth.twoFactor*`/`settings.twoFactor*` strings were never added to
+`server/src/data/translationSeed.ts`, so `npm run sync-translations` can't
+pick them up and they always show in English. Small, since only
+admins/co-admins ever see them. (Everything else in the seed was synced to
+the database on 2026-09-28, except the new drawer `modal.*` strings, which
+need one more `npm run sync-translations` now that it's committed.)
+
+**4.13 — Low-stock numbers are still per product, not per variant.** The
+dashboard's "running low" and the stock filter use the product's total, so
+one sold-out size of an otherwise well-stocked hoodie isn't flagged there
+(Manage Products' row does show "N variants sold out"). Relatedly,
+ad/campaign captions ("now ৳X") quote the product's lowest variant price.
+
+**4.14 — Small ideas raised along the way, none requested yet:**
+- Email the customer when the store replies to their review.
+- "Remember this device for 30 days" for two-step verification — right now
+  every admin login asks for a code.
+- Database indexes for the new product/user filter fields — not needed at
+  today's few dozen rows; revisit with `explain()` if either grows into the
+  thousands.
+- The homepage "Our Store in Numbers" section currently shows only products
+  and categories; rating, orders delivered and districts appear on their
+  own once they pass their minimums (5 reviews at 4.0+, 20 delivered
+  orders, 5 districts).
 
 ---
 
@@ -138,3 +189,16 @@ the full design and how it was verified live.
   - **Status as of 2026-09-22: configured, not yet confirmed live** — user says "done for this part" but hasn't yet confirmed (a) Tag Sequencing is set so the base pixel always fires before an event tag, and (b) a live Preview-mode walkthrough actually showed all four events firing, before hitting Submit → Publish. Worth a follow-up check.
   - `FACEBOOK_PAGE_ACCESS_TOKEN`/`INSTAGRAM_BUSINESS_ACCOUNT_ID` still blank — the separate `/admin/ads` posting feature needs those (a Facebook Developer app + long-lived Page token), not needed for the pixel/GTM work above.
 - ✅ **2.10** — `Organization`/`WebSite` JSON-LD added to the homepage (2026-09-23), same script-tag pattern as `FAQSection`'s existing JSON-LD. Deliberately omitted `sameAs` (Navbar.tsx/Footer.tsx's `SOCIAL_LINKS` are still placeholder URLs like `https://facebook.com`, not the store's real profiles — fabricating `sameAs` would be worse than omitting it) and `potentialAction`/SearchAction (no working search endpoint exists to point one at). Both are easy follow-ups once real social URLs/search exist. Manual submission half: domain verified in Google Search Console via DNS TXT record, sitemap submitted to both Search Console and Bing Webmaster Tools (set up via "Import from Google") — both now confirmed **"Success"** with 18 URLs discovered, Google Discover also surfacing the same 18 pages (2026-09-23).
+
+Added on request since 2026-09-26, not from the original list — full detail in `docs/PROGRESS.md`'s entries of those dates:
+
+- ✅ **Admin tables** — server-side filters on Manage Products (stock, delivery type, date range) and Manage Users (search, role, permission, date range), plus pagination Users never had; category dropdown stays in sync after edits (2026-09-26).
+- ✅ **"Create ad" shortcut** from a product row straight into a pre-filled Social media ad (2026-09-26).
+- ✅ **Ad links on image posts** — fixed a bug where Facebook/Instagram posts with an image silently dropped the ad's link (2026-09-26).
+- ✅ **Security sweep** — two-step verification for admins/co-admins, a full route-guard audit, a real NoSQL operator-injection bug fixed across every auth endpoint, JSON-LD script breakout and contact-email HTML injection fixed, JWT algorithm pinned (2026-09-26). What's still open from it: 3.9, 3.10, 3.12.
+- ✅ **Product options & variants** — sizes/colors/weights with per-variant price, stock, SKU and photo, from the admin form through the storefront, cart, checkout and orders (2026-09-27). Still owes a smoke test: 2.12.
+- ✅ **Store replies to reviews** — one public reply per review, managed from a new `/admin/reviews` page, shown on the product page (2026-09-28).
+- ✅ **Real favicon** — replaced the leftover create-next-app `favicon.ico` with the store logo (2026-09-28).
+- ✅ **Homepage "Our Store in Numbers"** — live, honest counts above the FAQ, each hidden until it's worth showing; Bangla synced (2026-09-28).
+- ✅ **Side drawers no longer close mid-edit** — drag-release on the backdrop no longer closes them, and backdrop/Esc/✕ ask before discarding typed work (2026-09-28). Owes a click-through (2.13).
+- ✅ **3.11** — Rate limits on public analytics tracking (per IP), review posting (per account), and every image-upload route (per account, checked before any file is read into memory) (2026-09-28).

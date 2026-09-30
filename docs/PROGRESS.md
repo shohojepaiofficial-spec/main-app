@@ -930,3 +930,31 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - `lib/storeStats.ts` decides what shows: each stat has a minimum (10 products, 3 categories, 5 reviews with a 4.0+ average, 20 delivered orders, 5 districts), numbers round *down* ("47" → "40+", ratings truncated), and the whole section hides unless at least two qualify. Today only products (10) and categories (8) show; the rest appear on their own as the store grows.
 - Verified: frontend tests (32, 5 new), `tsc` on both apps, ESLint on touched files; homepage renders the section locally with real numbers, no console errors.
 - Run `npm run sync-translations` for the new `stats.*` strings (Bangla falls back to English until then).
+
+## 2026-09-28 (later) — Drawers no longer close mid-edit
+- Problem: the shared side drawer (`components/ui/Modal.tsx`, used by every admin form, login, etc.) closed on any backdrop click or Escape and threw away what was typed. Worst case: selecting text in an input and releasing the mouse past the panel's edge counted as a backdrop click.
+- Fix, in `Modal` so every drawer gets it: a backdrop click only counts if the press both started and ended on the backdrop; Escape is ignored if an inner widget already handled it; and once anything inside has been typed/changed, backdrop / Escape / ✕ show an inline "Discard your changes?" prompt (Keep editing / Discard) instead of closing, plus the browser's leave-page warning. A form's own Cancel and successful Save still close directly.
+- Opt-out `guardUnsavedChanges={false}` for drawers with nothing to lose: the cart (quantities live in the store) and the orders page's pay-method picker.
+- Verified: frontend `tsc`, ESLint on touched files. Not yet clicked through in a browser (extension was disconnected).
+- Run `npm run sync-translations` for the new `modal.*` strings.
+
+## 2026-09-28 (later) — Rate limits on analytics, reviews and image uploads (item 3.11)
+- New limiters in `server/src/middleware/rateLimit.ts`, next to the existing auth/contact ones:
+  - `analyticsLimiter` — `POST /api/analytics/track`, 120/minute per IP (public, guests too; the frontend tracker already ignores failures, so a real visitor never notices).
+  - `reviewLimiter` — `POST /api/products/:id/reviews`, 10/hour per account.
+  - `adminUploadLimiter` — product create/update, banner create/update, ad create: 60 per 15 minutes per account.
+  - `profileUploadLimiter` — `PATCH /api/auth/profile`, 20/hour per account (the profile form is always multipart, so this counts every profile save, not only photo changes).
+- Review/upload limiters key on the logged-in account, not the IP, so shoppers sharing one office/carrier IP don't throttle each other; falls back to `ipKeyGenerator` (IPv6-safe) if ever mounted without auth.
+- Upload limiters sit *before* multer on every route, so a throttled request is refused before up to 5 × 5MB of files are buffered into memory.
+- Verified live against the local server without writing anything to the (shared production) database: 120 invalid tracking events → 400, then 429 with `RateLimit-*` headers; 10 empty review posts from one throwaway-token account → 400, 11th → 429 with the friendly message, while a second account still got through; 20 profile updates for a nonexistent user → 404, 21st → 429. Server `tsc` + 53 tests pass.
+
+## 2026-09-29 — Image upload limits: clear errors, checked before uploading
+- The 5MB-per-image / 5-images limit already existed on the server (multer), but hitting it came back as a **500 "server error"** (multer's errors carry no status) and paged Sentry as a crash; a renamed non-image passed because only the file extension was checked; and the browser never checked anything, so a 12MB phone photo uploaded in full before failing.
+- Server: `utils/upload.ts` now requires both an image extension *and* an image MIME type (JPG/PNG/WebP/GIF) and caps files per request; `middleware/errorHandler.ts` turns multer errors into 413 "Each image must be 5MB or smaller." / 400 "You can upload up to 5 images at a time.", and only reports 5xx errors to Sentry (a client mistake isn't a crash).
+- Frontend: new `lib/imageUpload.ts` (same rules, keep in sync with the server) used by every image picker — product, banner, ad, profile photo. Too-big / wrong-type files are refused on selection with a toast naming the file and its size; the file dialog only offers accepted types (no HEIC/SVG); the product form's hint states the rules.
+- Verified: frontend `tsc` + 36 tests (4 new), server `tsc` + 53 tests, ESLint on touched files; live against the local server with a nonexistent-user token (nothing stored): 6MB JPEG → 413 with the message, text file renamed `.jpg` → 400, small valid JPEG → reaches the controller.
+
+## 2026-09-29 (later) — Delivery fee sanity cap
+- Report: checkout showed ~54,000 Tk delivery for a cheap product. The delivery logic was fine (0 / "Select a Zila" until a location is chosen; recalculated on every Zila/Upazila change; server recomputes authoritatively). The cause was data: test product "dsfa sdfsdfs af" had fees typed as 455,454 (inside) / 54,544 (outside), and nothing stopped it.
+- `models/Product.ts`: `MAX_DELIVERY_FEE = 5000` Tk as a `max` validator on both fees; `ProductFormModal.tsx` mirrors it (zod + input `max`). `errorHandler.ts` now returns Mongoose `ValidationError` as 400 with its message instead of a 500.
+- Existing out-of-range products are not auto-changed — the admin must edit/delete them (saving will now require a valid fee).
