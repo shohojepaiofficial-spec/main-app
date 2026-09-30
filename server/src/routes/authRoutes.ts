@@ -22,7 +22,7 @@ import {
 } from "../controllers/twoFactorController";
 import { requireInternalSecret } from "../middleware/internalAuth";
 import { protect } from "../middleware/auth";
-import { authLimiter } from "../middleware/rateLimit";
+import { authLimiter, profileUploadLimiter } from "../middleware/rateLimit";
 import { upload } from "../utils/upload";
 
 const router = Router();
@@ -30,7 +30,7 @@ const router = Router();
 router.post("/register", authLimiter, register);
 router.post("/login", authLimiter, login);
 router.get("/me", protect, getMe);
-router.patch("/profile", protect, upload.single("image"), updateProfile);
+router.patch("/profile", protect, profileUploadLimiter, upload.single("image"), updateProfile);
 router.patch("/password", protect, changePassword);
 router.patch("/delivery-location", protect, updateDeliveryLocation);
 router.patch("/marketing-opt-in", protect, updateMarketingOptIn);

@@ -6,10 +6,11 @@ import {
   resetAnalyticsEvents,
 } from "../controllers/analyticsController";
 import { protect, optionalAuth, authorize, adminOnly } from "../middleware/auth";
+import { analyticsLimiter } from "../middleware/rateLimit";
 
 const router = Router();
 
-router.post("/track", optionalAuth, trackEvent);
+router.post("/track", analyticsLimiter, optionalAuth, trackEvent);
 router.get("/overview", protect, authorize("analytics:manage"), getAnalyticsOverview);
 // adminOnly, not authorize("analytics:manage") — deliberately not delegable
 // to coadmins. Viewing traffic numbers and permanently deleting them are
