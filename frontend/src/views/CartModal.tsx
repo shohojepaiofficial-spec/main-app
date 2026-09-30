@@ -85,7 +85,14 @@ export function CartModal() {
   const { t } = useTranslations();
 
   return (
-    <Modal isOpen={isOpen} onClose={closeCartModal} title={t("cart.yourCart", "Your cart")} widthClassName="max-w-md">
+    <Modal
+      isOpen={isOpen}
+      onClose={closeCartModal}
+      title={t("cart.yourCart", "Your cart")}
+      widthClassName="max-w-md"
+      // Quantities are saved to the cart store as they change — nothing to lose.
+      guardUnsavedChanges={false}
+    >
       {items.length === 0 ? (
         <p className="text-muted text-sm py-8 text-center">{t("cart.empty", "Your cart is empty.")}</p>
       ) : (

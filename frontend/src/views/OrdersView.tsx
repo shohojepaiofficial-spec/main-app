@@ -219,6 +219,8 @@ export function OrdersView() {
         onClose={() => setPayOrderId(null)}
         title={t("orders.payBeforeReceiving", "Pay before receiving")}
         widthClassName="max-w-md"
+        // Just a payment-method picker — no typed work to protect.
+        guardUnsavedChanges={false}
       >
         <p className="mb-4 text-sm text-muted">
           {t(
