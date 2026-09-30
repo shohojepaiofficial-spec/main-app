@@ -126,8 +126,7 @@ Pathao quote is actually live, since that's what sizes it.
 `server/src/data/translationSeed.ts`, so `npm run sync-translations` can't
 pick them up and they always show in English. Small, since only
 admins/co-admins ever see them. (Everything else in the seed was synced to
-the database on 2026-09-28, except the new drawer `modal.*` strings, which
-need one more `npm run sync-translations` now that it's committed.)
+the database; the drawer `modal.*` strings were added on 2026-09-30.)
 
 **4.13 — Low-stock numbers are still per product, not per variant.** The
 dashboard's "running low" and the stock filter use the product's total, so
