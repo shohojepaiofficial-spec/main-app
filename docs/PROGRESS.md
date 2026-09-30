@@ -971,3 +971,10 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - `models/User.ts`: `{createdAt: -1}`, `{role: 1, createdAt: -1}`, `{permissions: 1, createdAt: -1}`; email search already uses the unique email index.
 - Category/name aren't indexed — they're case-insensitive regex matches, which a plain index can't serve. Mongoose builds the indexes on server start (default `autoIndex`), so they appear on the next Railway deploy; cheap at today's size.
 - Verified: server `tsc` + 53 tests.
+
+## 2026-09-30 (later) — Pathao live on the real merchant account; checkout location matching fixed
+- User switched local `server/.env` to their real Pathao merchant credentials. First login failed because the password contains a `#`, which `.env` treats as a comment start (dotenv silently truncated it) — wrapped the value in single quotes. Login, store list (Store ID `471237` "Shohoje Pai" confirmed — it was the store, not a separate merchant ID), city/zone lists and price quotes then all worked live.
+- Measured `matchPathaoLocation` against Pathao's complete list (64 cities, 1,138 zones): only 53/64 districts and 288/494 upazilas matched, so most checkouts silently fell back to the flat fee. New `integrations/pathaoLocationMatch.ts` (pure, 10 unit tests with real Pathao names): district aliases for renamed districts, plus looser upazila rules — spelling skeleton for transliteration variants, Sadar → Sadar zone, substring, unambiguous one-letter slip. Now 64/64 and 472/494; the 22 left (mostly Rangamati) keep the flat fee.
+- Real bug found while measuring: Pathao returns an **empty list** (not an error) when requests come too fast, and `getCachedZones` cached it for 6h — one throttled lookup could put a whole district on the flat fee for hours. Empty lists are no longer cached.
+- Verified: server `tsc` + 63 tests; live quotes through the real code: Sylhet Sadar 60, Beanibazar 60, Chattogram/Panchlaish 120, Comilla Sadar 120, Barisal/Bakerganj 120, Dhaka/Savar 110 Tk; Rangamati/Barkal → flat fee as expected. No booking was created.
+- Production (Railway) doesn't have the `PATHAO_*` values yet — see REMAINING_WORK 2.8.

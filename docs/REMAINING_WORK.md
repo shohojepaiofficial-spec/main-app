@@ -26,27 +26,20 @@ works end-to-end, but `SMS_API_URL`/`SMS_API_KEY` aren't set, so every SMS
 attempt fails. Needs an account with a Bangladeshi bulk-SMS gateway
 (BulkSMSBD, MimSMS, SSL Wireless, etc.).
 
-**2.8 — Pathao integration needs a Store ID + a live test.** The code is
-built (`server/src/integrations/pathao.ts`, gated the same way `bkash.ts`
-is) but, unlike bKash, has never actually talked to Pathao's API — this now
-gates two features, not just one: "Book with Pathao" in each order's Courier
-& delivery panel, and the live delivery-fee quote at checkout (added
-2026-09-22, see `docs/PROGRESS.md`). Both stay on their existing fallback
-(manual courier entry; the flat per-product delivery fee) until this is
-done.
-- As of 2026-09-22, `server/.env` has `PATHAO_BASE_URL`/`CLIENT_ID`/
-  `CLIENT_SECRET`/`USERNAME`/`PASSWORD` filled in with Pathao's published
-  sandbox test credentials (`test@pathao.com`/`lovePathao` — publicly known,
-  not secret, same idea as bKash's public sandbox app). **Only
-  `PATHAO_STORE_ID` is still blank** — `isPathaoConfigured()` requires it, so
-  Pathao is still treated as "not configured" until it's set.
-- Get it from Pathao's Store API/dashboard once logged into the sandbox with
-  those credentials — it's tied to a merchant's own store, not part of the
-  shared test credentials, so it can't be filled in from a tutorial.
-- Once set, run a real smoke test (city list, then one real booking and one
-  delivery-fee quote) — expect to adjust the response parsing in
-  `integrations/pathao.ts` if Pathao's actual shapes differ from what's
-  documented, same caveat as before.
+**2.8 — Pathao: live quotes verified; production env + first booking left.**
+On 2026-09-30 the local `server/.env` was switched to the real merchant
+account (live `https://api-hermes.pathao.com`, Store ID `471237` = "Shohoje
+Pai", Lamabazar) and checked live: login, store list, city/zone lists and
+price quotes all work (Sylhet 60, Dhaka 110, most other districts 120 Tk
+for 0.5kg). Left:
+- **Add the same six `PATHAO_*` values in Railway** — production still has
+  none, so the live site keeps using the flat fee until then. In Railway,
+  paste the password *without* quotes (the quotes in `.env` are only there
+  because it contains a `#`, which `.env` would otherwise treat as a comment).
+- **First real booking** via "Book with Pathao" on a real order — never
+  exercised yet (it creates a real pickup, so do it on a genuine order).
+- 22 of 494 upazilas (mostly Rangamati) have no matching Pathao zone and
+  keep the flat fee.
 
 **2.12 — Product variants have never been used end-to-end.** Built
 2026-09-27 (sizes/colors/weights, per-variant price and stock), but local

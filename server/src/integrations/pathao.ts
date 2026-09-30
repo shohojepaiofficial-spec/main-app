@@ -11,6 +11,8 @@
 // SDKs), gated the same way bKash was before it existed, but treat the
 // first real call as a test: if Pathao's actual response shape differs,
 // only the parsing in this file needs to change, not any caller.
+import { findPathaoCity, findPathaoZone } from "./pathaoLocationMatch";
+
 const ISSUE_TOKEN_PATH = "/aladdin/api/v1/issue-token";
 const ORDERS_PATH = "/aladdin/api/v1/orders";
 const CITY_LIST_PATH = "/aladdin/api/v1/city-list";
@@ -156,10 +158,13 @@ const LOCATION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 let cachedCities: { cities: PathaoLocation[]; expiresAt: number } | null = null;
 const cachedZonesByCity = new Map<number, { zones: PathaoLocation[]; expiresAt: number }>();
 
+// An empty list is never cached: Pathao answers bursts of requests with an
+// empty list rather than an error (seen live 2026-09-30), and caching that
+// would silently put a whole district on the flat fee for 6 hours.
 async function getCachedCities(): Promise<PathaoLocation[]> {
   if (cachedCities && cachedCities.expiresAt > Date.now()) return cachedCities.cities;
   const cities = await getPathaoCities();
-  cachedCities = { cities, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS };
+  if (cities.length > 0) cachedCities = { cities, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS };
   return cities;
 }
 
@@ -167,17 +172,10 @@ async function getCachedZones(cityId: number): Promise<PathaoLocation[]> {
   const cached = cachedZonesByCity.get(cityId);
   if (cached && cached.expiresAt > Date.now()) return cached.zones;
   const zones = await getPathaoZones(cityId);
-  cachedZonesByCity.set(cityId, { zones, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS });
+  if (zones.length > 0) {
+    cachedZonesByCity.set(cityId, { zones, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS });
+  }
   return zones;
-}
-
-function normalizeLocationName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/\bdistrict\b/g, "")
-    .replace(/\bsadar\b/g, "")
-    .replace(/[^a-z0-9]/g, "");
 }
 
 export interface PathaoLocationMatch {
@@ -185,8 +183,9 @@ export interface PathaoLocationMatch {
   zoneId: number;
 }
 
-// Best-effort name match from our free-text zila/upazila (see
-// bangladeshGeo.ts on the frontend) to Pathao's own city/zone IDs — Pathao's
+// Best-effort name match from our zila/upazila (see bangladeshGeo.ts on the
+// frontend, and pathaoLocationMatch.ts for the rules) to Pathao's own
+// city/zone IDs — Pathao's
 // APIs only accept its own location IDs, and there's no official mapping
 // between the two datasets. This is deliberately more lenient than the admin
 // booking flow (which always requires the admin to pick Pathao's own
@@ -198,21 +197,12 @@ export async function matchPathaoLocation(
   zila: string,
   upazila: string
 ): Promise<PathaoLocationMatch | null> {
-  const normZila = normalizeLocationName(zila);
-  const normUpazila = normalizeLocationName(upazila);
-  if (!normZila || !normUpazila) return null;
+  if (!zila.trim() || !upazila.trim()) return null;
 
-  const cities = await getCachedCities();
-  const city = cities.find((c) => normalizeLocationName(c.name) === normZila);
+  const city = findPathaoCity(await getCachedCities(), zila);
   if (!city) return null;
 
-  const zones = await getCachedZones(city.id);
-  const zone =
-    zones.find((z) => normalizeLocationName(z.name) === normUpazila) ??
-    zones.find((z) => {
-      const normZoneName = normalizeLocationName(z.name);
-      return normZoneName.includes(normUpazila) || normUpazila.includes(normZoneName);
-    });
+  const zone = findPathaoZone(await getCachedZones(city.id), upazila);
   if (!zone) return null;
 
   return { cityId: city.id, zoneId: zone.id };
