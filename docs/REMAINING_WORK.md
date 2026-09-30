@@ -139,10 +139,7 @@ ad/campaign captions ("now ৳X") quote the product's lowest variant price.
 - Email the customer when the store replies to their review.
 - "Remember this device for 30 days" for two-step verification — right now
   every admin login asks for a code.
-- Database indexes for the new product/user filter fields — not needed at
-  today's few dozen rows; revisit with `explain()` if either grows into the
-  thousands.
-- The homepage "Our Store in Numbers" section currently shows only products
+- FYI, no work needed: the homepage "Our Store in Numbers" section currently shows only products
   and categories; rating, orders delivered and districts appear on their
   own once they pass their minimums (5 reviews at 4.0+, 20 delivered
   orders, 5 districts).

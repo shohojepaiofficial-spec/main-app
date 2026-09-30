@@ -124,6 +124,14 @@ userSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, 10);
 });
 
+// Indexes for Manage Users' filters in userController.ts (built by Mongoose
+// on server start): newest-first is the default sort and the date-range
+// filter, and role/permission filters keep that sort. Email search already
+// has the unique email index.
+userSchema.index({ createdAt: -1 });
+userSchema.index({ role: 1, createdAt: -1 });
+userSchema.index({ permissions: 1, createdAt: -1 });
+
 userSchema.methods.comparePassword = function (candidate: string) {
   if (!this.password) return Promise.resolve(false);
   return bcrypt.compare(candidate, this.password);

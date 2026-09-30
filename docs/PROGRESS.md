@@ -965,3 +965,9 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - Kept on purpose: `twitter:` card metadata (SEO — also used by other link previewers), the customer "share cart" X option, and the "X (Twitter)" referrer label in analytics (visitors can still arrive from X).
 - One existing test ad still has `x` in `platforms`/`results`; the database cleanup was not run (needs the user's go-ahead on the shared production DB) — see REMAINING_WORK 4.5.
 - Verified: server `tsc` + 53 tests, frontend `tsc` + 36 tests, ESLint on touched views.
+
+## 2026-09-30 (later) — Indexes for the product/user filters
+- `models/Product.ts`: `{createdAt: -1}` (default sort + date range), `{stock: 1}` (stock filter + dashboard low-stock list), `{isFeatured: 1, createdAt: -1}` (homepage featured).
+- `models/User.ts`: `{createdAt: -1}`, `{role: 1, createdAt: -1}`, `{permissions: 1, createdAt: -1}`; email search already uses the unique email index.
+- Category/name aren't indexed — they're case-insensitive regex matches, which a plain index can't serve. Mongoose builds the indexes on server start (default `autoIndex`), so they appear on the next Railway deploy; cheap at today's size.
+- Verified: server `tsc` + 53 tests.

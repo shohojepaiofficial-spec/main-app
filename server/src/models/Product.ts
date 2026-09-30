@@ -120,4 +120,14 @@ const productSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
+// Indexes for the shop/admin listing filters in productController.ts's
+// getProducts (built by Mongoose on server start). Newest-first is the
+// default sort and the date-range filter; stock backs both the stock filter
+// and the dashboard's low-stock list; featured feeds the homepage. Category
+// and name aren't indexed: they're matched case-insensitively by regex,
+// which a plain index can't serve.
+productSchema.index({ createdAt: -1 });
+productSchema.index({ stock: 1 });
+productSchema.index({ isFeatured: 1, createdAt: -1 });
+
 export const Product = model<IProduct>("Product", productSchema);
