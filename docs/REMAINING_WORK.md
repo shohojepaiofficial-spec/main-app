@@ -32,10 +32,11 @@ account (live `https://api-hermes.pathao.com`, Store ID `471237` = "Shohoje
 Pai", Lamabazar) and checked live: login, store list, city/zone lists and
 price quotes all work (Sylhet 60, Dhaka 110, most other districts 120 Tk
 for 0.5kg). Left:
-- **Add the same six `PATHAO_*` values in Railway** — production still has
-  none, so the live site keeps using the flat fee until then. In Railway,
-  paste the password *without* quotes (the quotes in `.env` are only there
-  because it contains a `#`, which `.env` would otherwise treat as a comment).
+- ~~Add the six `PATHAO_*` values in Railway~~ — done by the user
+  2026-09-30. Still to confirm on the live site: checkout shows a Pathao
+  quote (e.g. Dhaka 110 Tk) instead of the flat fee. If it doesn't, check
+  that Railway's password has *no* quotes around it (the quotes in `.env`
+  are only there because it contains a `#`).
 - **First real booking** via "Book with Pathao" on a real order — never
   exercised yet (it creates a real pickup, so do it on a genuine order).
 - 22 of 494 upazilas (mostly Rangamati) have no matching Pathao zone and
@@ -58,6 +59,10 @@ through live (no admin browser session was available):
 - Posting, editing and removing a store reply on `/admin/reviews` (2026-09-28).
 - Side drawers asking "Discard your changes?" instead of closing mid-edit
   (2026-09-28): type into an admin form, then try the backdrop, Esc and ✕.
+- Login modal inside the Facebook/Instagram app (2026-10-02): share a
+  site link in Messenger, open it, open Sign in — Google button should be
+  replaced by the "open in browser" notice; "Open in Chrome" should work
+  on Android.
 
 ### Priority 3 — Security & reliability hardening
 

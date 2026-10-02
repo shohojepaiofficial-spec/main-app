@@ -428,6 +428,12 @@ export const translationSeed: TranslationSeedEntry[] = [
 
   // --- Auth modal / pages ---
   { key: "auth.continueWithGoogle", en: "Continue with Google", bn: "গুগল দিয়ে চালিয়ে যান" },
+  { key: "auth.inAppGoogleBlocked", en: "Google sign-in doesn't work inside this app's browser. Use email above, or open this page in your browser to continue with Google.", bn: "এই অ্যাপের ভেতরের ব্রাউজারে গুগল দিয়ে লগইন কাজ করে না। উপরে ইমেইল দিয়ে লগইন করুন, অথবা গুগল দিয়ে চালিয়ে যেতে পেজটি আপনার ব্রাউজারে খুলুন।" },
+  { key: "auth.inAppOpenInChrome", en: "Open in Chrome", bn: "Chrome-এ খুলুন" },
+  { key: "auth.inAppIosHint", en: "Tap ••• (top right), then \"Open in browser\".", bn: "উপরে ডানদিকে ••• চাপুন, তারপর \"Open in browser\" বেছে নিন।" },
+  { key: "auth.inAppCopyLink", en: "Copy link", bn: "লিংক কপি করুন" },
+  { key: "auth.inAppLinkCopied", en: "Link copied. Paste it into Chrome or Safari.", bn: "লিংক কপি হয়েছে। Chrome বা Safari-তে পেস্ট করুন।" },
+  { key: "auth.inAppCopyFailed", en: "Couldn't copy the link. Use the app's menu to open it in your browser.", bn: "লিংক কপি করা যায়নি। অ্যাপের মেনু থেকে পেজটি ব্রাউজারে খুলুন।" },
   { key: "auth.loggedIn", en: "Logged in", bn: "লগইন সম্পন্ন" },
   { key: "auth.loginFailed", en: "Login failed", bn: "লগইন ব্যর্থ হয়েছে" },
   { key: "auth.email", en: "Email", bn: "ইমেইল" },

@@ -16,6 +16,7 @@ import {
   verifyTwoFactorLogin,
 } from "@/services/authService";
 import { useTranslations } from "@/controllers/useTranslations";
+import { useInAppBrowser } from "@/controllers/useInAppBrowser";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -50,6 +51,43 @@ function OAuthButtons() {
   // always dropping the user back on the homepage.
   const pathname = usePathname();
   const { t } = useTranslations();
+  const { inAppBrowser, canOpenInChrome, openInChrome, copyPageLink } = useInAppBrowser();
+
+  // Google blocks sign-in inside Facebook/Messenger/Instagram's built-in
+  // browser, so offer the ways that actually work instead of a button that
+  // ends on Google's "disallowed_useragent" error page.
+  if (inAppBrowser) {
+    return (
+      <div className="flex flex-col gap-2 mt-4 rounded-md border border-border p-3 text-sm">
+        <p className="text-muted">
+          {t(
+            "auth.inAppGoogleBlocked",
+            "Google sign-in doesn't work inside this app's browser. Use email above, or open this page in your browser to continue with Google."
+          )}
+        </p>
+        {canOpenInChrome ? (
+          <button
+            type="button"
+            onClick={openInChrome}
+            className="border border-border rounded-md py-2 font-normal hover:bg-background"
+          >
+            {t("auth.inAppOpenInChrome", "Open in Chrome")}
+          </button>
+        ) : (
+          <p className="text-muted">
+            {t("auth.inAppIosHint", "Tap ••• (top right), then \"Open in browser\".")}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={copyPageLink}
+          className="text-xs text-muted underline hover:text-foreground"
+        >
+          {t("auth.inAppCopyLink", "Copy link")}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2 mt-4">

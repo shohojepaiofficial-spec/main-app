@@ -978,3 +978,11 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - Real bug found while measuring: Pathao returns an **empty list** (not an error) when requests come too fast, and `getCachedZones` cached it for 6h — one throttled lookup could put a whole district on the flat fee for hours. Empty lists are no longer cached.
 - Verified: server `tsc` + 63 tests; live quotes through the real code: Sylhet Sadar 60, Beanibazar 60, Chattogram/Panchlaish 120, Comilla Sadar 120, Barisal/Bakerganj 120, Dhaka/Savar 110 Tk; Rangamati/Barkal → flat fee as expected. No booking was created.
 - Production (Railway) doesn't have the `PATHAO_*` values yet — see REMAINING_WORK 2.8.
+
+## 2026-10-02 — Google sign-in inside Facebook/Instagram's in-app browser
+- Launch traffic will mostly come from Facebook/Instagram posts, which open links in the app's built-in browser — where Google refuses OAuth (`Error 403: disallowed_useragent`). The login modal's "Continue with Google" button led straight to that error.
+- New `lib/inAppBrowser.ts` (pure, 7 unit tests with real FB/Messenger/Instagram/WebView user agents) detects the in-app browser and builds an Android intent URL that hands the page to Chrome. `controllers/useInAppBrowser.ts` reads the user agent via `useSyncExternalStore` (server snapshot = real browser, so no hydration mismatch). In an in-app browser, `AuthModal`'s Google button is replaced by a short notice: use email above, or "Open in Chrome" (Android) / "tap ••• → Open in browser" (iOS, which has no intent equivalent), plus "Copy link".
+- Note: opening in Chrome starts a fresh browser session, so a cart filled inside the FB browser doesn't carry over — which is why the notice points to email sign-in first.
+- 6 new `auth.inApp*` strings added to the translation seed and synced (6 created).
+- Verified: frontend `tsc`, lint on changed files, 43 frontend tests. Not yet tried on a real phone inside the Facebook app — part of Saturday's launch testing.
+- Launch plan agreed: soft launch Monday 2026-10-05 with three products (added Monday), COD + Pathao, email/Google login; Facebook/Instagram pages set up over the weekend.
