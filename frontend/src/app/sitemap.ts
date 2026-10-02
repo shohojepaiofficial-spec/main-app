@@ -2,6 +2,11 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
 import { getProducts } from "@/services/productService";
 
+// Otherwise built once per deploy (see app/(public)/layout.tsx) and listing
+// deleted products while missing new ones. Crawlers don't need it fresher
+// than hourly.
+export const revalidate = 3600;
+
 const PUBLIC_ROUTES = [
   "",
   "/shop",

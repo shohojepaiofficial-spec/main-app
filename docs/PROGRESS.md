@@ -986,3 +986,7 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - 6 new `auth.inApp*` strings added to the translation seed and synced (6 created).
 - Verified: frontend `tsc`, lint on changed files, 43 frontend tests. Not yet tried on a real phone inside the Facebook app — part of Saturday's launch testing.
 - Launch plan agreed: soft launch Monday 2026-10-05 with three products (added Monday), COD + Pathao, email/Google login; Facebook/Instagram pages set up over the weekend.
+
+## 2026-10-02 (later) — Homepage kept showing deleted products
+- User deleted every product; local dev showed none but the live homepage still listed them. Same database — the cause was Next prerendering: `/`, `/categories`, the other public info pages and `/sitemap.xml` have no request-time API and fetch through axios (invisible to Next's cache tracking), so `next build` rendered them once per deploy. Homepage products, banners, store stats and the sitewide promo bar (fetched in `app/(public)/layout.tsx`) were frozen at deploy time — a promo created after a deploy would never have shown on the homepage. `/shop` and product pages were unaffected (dynamic, they read `searchParams`).
+- Fix: `export const revalidate = 60` in `app/(public)/layout.tsx` (applies to every public page) and `3600` in `app/sitemap.ts`. Pages stay static and fast, regenerated at most once a minute. `next build` route table now shows `/`, `/about`, `/categories`, ... with 1m revalidate, sitemap 1h.

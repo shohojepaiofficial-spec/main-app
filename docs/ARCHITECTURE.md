@@ -58,6 +58,8 @@ The fix, applied to both and required for any future `persist`-backed store: pas
 
 For a page that just needs to *display* data (a product list, a hero banner), call the `services/` function directly from an `async` Server Component page and pass the result down as props to a `views/` component. Don't fetch it again in a `controllers/` hook with `useEffect` — that causes an empty-then-populated flash and is worse for SEO/first paint. Reach for a `controllers/` hook + client-side fetch only when the data is genuinely client-only (depends on a cookie/localStorage, needs to refetch on a client-side interaction, etc.) — e.g. cart and auth state. `useHeroSlider` follows this: the page fetches slides server-side and passes them in; the hook only owns the (inherently client-side) autoplay/index state.
 
+**Freshness:** `services/` uses axios, which Next can't track, so a page with no request-time API (`searchParams`, `cookies()`, ...) gets prerendered **once at build time** and shows deploy-day data forever. `app/(public)/layout.tsx` sets `export const revalidate = 60` (covers every public page — the lowest value in a route wins) and `app/sitemap.ts` sets `3600`. A new data-showing route outside `(public)` needs its own `revalidate`. Check with `next build`: data pages should show a Revalidate value or `ƒ`, never a bare `○`.
+
 ### Route groups
 
 - `app/(public)/` — storefront pages, wrapped in `layout.tsx` with the `Navbar`, `AuthModal`, and `CartModal`.
