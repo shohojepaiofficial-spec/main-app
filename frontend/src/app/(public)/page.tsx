@@ -10,7 +10,7 @@ import { getStoreCity } from "@/services/configService";
 import { getStoreStats } from "@/services/statsService";
 import { visibleStats } from "@/lib/storeStats";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
-import { CONTACT_PHONE_TEL, CONTACT_EMAIL } from "@/lib/contact";
+import { CONTACT_PHONE_TEL, CONTACT_EMAIL, SOCIAL_PROFILE_URLS } from "@/lib/contact";
 import { toJsonLdScript } from "@/lib/jsonLd";
 
 // Organization + WebSite JSON-LD (site identity, for a knowledge-panel /
@@ -31,11 +31,8 @@ const organizationJsonLd = {
     contactType: "customer service",
     areaServed: "BD",
   },
-  // Only Facebook is a real profile so far; Instagram/Twitter/YouTube in
-  // Navbar.tsx/Footer.tsx's SOCIAL_LINKS are still placeholders
-  // (https://instagram.com, etc.) — sameAs must link to genuine
-  // authoritative profiles, so those stay out until they're real too.
-  sameAs: ["https://www.facebook.com/profile.php?id=61594292297060"],
+  // Only genuine profiles belong here — see SOCIAL_PROFILE_URLS in lib/contact.ts.
+  sameAs: SOCIAL_PROFILE_URLS,
 };
 
 const websiteJsonLd = {

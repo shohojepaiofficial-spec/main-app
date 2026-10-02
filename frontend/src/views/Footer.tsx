@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { Phone, Mail, MapPin } from "lucide-react";
-import { FaFacebookF, FaInstagram, FaYoutube } from "react-icons/fa6";
-import { CONTACT_ADDRESS, CONTACT_EMAIL, CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/contact";
+import { FaFacebookF, FaInstagram } from "react-icons/fa6";
+import {
+  CONTACT_ADDRESS,
+  CONTACT_EMAIL,
+  CONTACT_PHONE_DISPLAY,
+  CONTACT_PHONE_TEL,
+  FACEBOOK_URL,
+  INSTAGRAM_URL,
+} from "@/lib/contact";
 import { Logo } from "@/views/Logo";
 import { SITE_NAME } from "@/lib/seo";
 import { T } from "@/components/ui/T";
@@ -21,9 +28,8 @@ const COMPANY_LINKS = [
 ];
 
 const SOCIAL_LINKS = [
-  { href: "https://www.facebook.com/profile.php?id=61594292297060", label: "Facebook", Icon: FaFacebookF },
-  { href: "https://instagram.com", label: "Instagram", Icon: FaInstagram },
-  { href: "https://youtube.com", label: "YouTube", Icon: FaYoutube },
+  { href: FACEBOOK_URL, label: "Facebook", Icon: FaFacebookF },
+  { href: INSTAGRAM_URL, label: "Instagram", Icon: FaInstagram },
 ];
 
 export function Footer() {
