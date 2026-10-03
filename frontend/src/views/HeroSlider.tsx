@@ -25,11 +25,12 @@ const MUTED = "#9aa0ac";
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const { activeIndex, next, prev, goTo, pause, resume } = useHeroSlider(slides);
 
-  // min-h floors it on narrow phones — aspect-ratio alone let the card get
-  // short enough that the text column's flex children (which don't shrink
-  // below their own content's min size by default) overflowed past the
-  // card and up into the fixed navbar above it.
-  const aspectClass = "aspect-[1200/460] min-h-[280px]";
+  // Phones get their own taller, stacked composition (photo full-bleed behind
+  // a bottom fade, text full width at the bottom) — the desktop banner's
+  // side-by-side split squeezed the copy into a ~180px column there. min-h
+  // floors it from sm up: aspect-ratio alone let the card get short enough
+  // that the text column's flex children overflowed up into the navbar.
+  const aspectClass = "aspect-[4/5] max-h-[440px] sm:aspect-[1200/460] sm:max-h-none sm:min-h-[280px]";
 
   if (slides.length === 0) {
     return (
@@ -85,11 +86,9 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
 
               {/* Angled photo panel — a diagonal cut (clip-path) instead
                   of a straight seam, replacing the reference's decorative
-                  CSS sunset illustration with the banner's real photo. */}
-              <div
-                className="absolute inset-y-0 right-0 z-10 w-[44%] overflow-hidden"
-                style={{ clipPath: "polygon(9% 0, 100% 0, 100% 100%, 0% 100%)" }}
-              >
+                  CSS sunset illustration with the banner's real photo. On
+                  phones it fills the whole card instead, under a fade. */}
+              <div className="absolute inset-0 z-10 overflow-hidden sm:left-auto sm:w-[44%] sm:[clip-path:polygon(9%_0,100%_0,100%_100%,0%_100%)]">
                 <Image
                   src={slide.image}
                   alt={slide.title}
@@ -99,12 +98,22 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 />
               </div>
 
+              {/* Phones only: darkens the full-bleed photo toward the bottom,
+                  where the text sits, so it stays readable. */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 z-20 sm:hidden"
+                style={{
+                  background: `linear-gradient(to top, ${INK} 0%, color-mix(in srgb, ${INK}, transparent 25%) 45%, color-mix(in srgb, ${INK}, transparent 75%) 100%)`,
+                }}
+              />
+
               {/* A continuous ambient pulse (not hover-triggered) behind a
                   smaller solid icon circle — the logo's one spot on this
                   banner, replacing the reference's generic bag icon. */}
               <div
                 aria-hidden="true"
-                className="absolute z-30 aspect-square w-[15%] rounded-full opacity-35"
+                className="absolute z-30 hidden aspect-square w-[15%] rounded-full opacity-35 sm:block"
                 style={{
                   left: "56%",
                   top: "50%",
@@ -113,7 +122,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 }}
               />
               <div
-                className="absolute z-40 flex aspect-square w-[11%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-lg"
+                className="absolute z-40 hidden aspect-square w-[11%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-lg sm:flex"
                 style={{ left: "56%", top: "50%", background: grad }}
               >
                 <Image
@@ -125,7 +134,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 />
               </div>
 
-              <div className="relative z-30 flex h-full w-[56%] flex-col justify-between py-[5.5%] pr-[6%] pb-[5%] pl-[7%]">
+              <div className="relative z-30 flex h-full w-full flex-col justify-end gap-5 px-5 pt-14 pb-5 sm:w-[56%] sm:justify-between sm:gap-0 sm:py-[5.5%] sm:pr-[6%] sm:pb-[5%] sm:pl-[7%]">
                 {/* In focus at rest; softens on hover as the photo/buttons
                     take over as the focus instead. */}
                 <div className="transition-opacity duration-300 group-hover:opacity-70">
@@ -142,7 +151,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                     {slide.title}
                   </h1>
                   <p
-                    className="mt-3.5 max-w-[30em] text-[clamp(11px,1.05vw,14px)] leading-relaxed"
+                    className="mt-2.5 line-clamp-3 max-w-[30em] text-[13px] leading-relaxed sm:mt-3.5 sm:line-clamp-none sm:text-[clamp(11px,1.05vw,14px)]"
                     style={{ color: MUTED }}
                   >
                     {slide.subtitle}
@@ -153,27 +162,25 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   {slide.promo && (
                     <div className="mb-4 flex flex-wrap items-center gap-4">
                       <span
-                        className="inline-flex items-center rounded-full px-5 py-2.5 text-[clamp(11px,1.05vw,14px)] font-bold shadow-[0_10px_24px_rgba(255,130,60,0.35)]"
+                        className="inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-bold sm:px-5 sm:py-2.5 sm:text-[clamp(11px,1.05vw,14px)] sm:shadow-[0_10px_24px_rgba(255,130,60,0.35)]"
                         style={{ background: grad, color: "#1a0f08" }}
                       >
                         {formatPromoDiscount(slide.promo)} with code {slide.promo.code}
                       </span>
                     </div>
                   )}
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-3 sm:gap-3.5">
                     <span className="hidden h-[30px] w-[2px] bg-white/25 sm:block" />
                     <Link
                       href={withPromoParam(slide.primaryCta.href, slide.promo?.code)}
-                      className="rounded-full border-[1.5px] border-white/30 px-6 py-2.5 text-[clamp(11px,1.05vw,14px)] font-semibold"
-                      style={{ color: CREAM }}
+                      className="rounded-full bg-[#f7f3ee] px-5 py-2.5 text-sm font-semibold text-[#12141a] sm:border-[1.5px] sm:border-white/30 sm:bg-transparent sm:px-6 sm:text-[clamp(11px,1.05vw,14px)] sm:text-[#f7f3ee]"
                     >
                       {slide.primaryCta.label}
                     </Link>
                     {slide.secondaryCta && (
                       <Link
                         href={withPromoParam(slide.secondaryCta.href, slide.promo?.code)}
-                        className="text-[clamp(11px,1.05vw,14px)] font-semibold underline underline-offset-4"
-                        style={{ color: CREAM }}
+                        className="text-sm font-medium text-[#f7f3ee]/85 sm:text-[clamp(11px,1.05vw,14px)] sm:font-semibold sm:text-[#f7f3ee] sm:underline sm:underline-offset-4"
                       >
                         {slide.secondaryCta.label}
                       </Link>
@@ -181,7 +188,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 border-t border-white/[0.12] pt-4 transition-opacity duration-300 group-hover:opacity-70">
+                <div className="hidden items-center gap-3 border-t border-white/[0.12] pt-4 transition-opacity sm:flex duration-300 group-hover:opacity-70">
                   <span className="h-[22px] w-[22px] shrink-0 rounded-full" style={{ background: grad }} />
                   <span className="text-[clamp(10px,0.95vw,13px)]" style={{ color: MUTED }}>
                     Simple shopping, happier days.
@@ -194,7 +201,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
 
         {slides.length > 1 && (
           <>
-            <div className="absolute right-[6%] bottom-[9%] z-40 flex gap-2.5">
+            <div className="absolute top-4 right-4 z-40 flex gap-2 sm:top-auto sm:right-[6%] sm:bottom-[9%] sm:gap-2.5">
               <button
                 onClick={prev}
                 aria-label="Previous slide"
@@ -211,7 +218,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               </button>
             </div>
 
-            <div className="absolute right-[5%] bottom-[5%] z-40 flex items-center gap-1.5">
+            <div className="absolute top-[30px] left-5 z-40 flex items-center gap-1.5 sm:top-auto sm:right-[5%] sm:bottom-[5%] sm:left-auto">
               {slides.map((s, dotIndex) => (
                 <button
                   key={s.id}

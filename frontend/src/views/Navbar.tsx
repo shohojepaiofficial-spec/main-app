@@ -118,6 +118,15 @@ export function Navbar({ sitewidePromo }: { sitewidePromo?: AppliedPromo | null 
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isMobileMenuOpen]);
+
   // Publish the navbar's real rendered height as a CSS variable so page
   // content (which starts right after the navbar, not underneath it — the
   // header floats via `fixed` and reserves no layout space on its own) knows
@@ -172,6 +181,8 @@ export function Navbar({ sitewidePromo }: { sitewidePromo?: AppliedPromo | null 
             <button
               className="md:hidden p-2 text-foreground"
               aria-label="Toggle menu"
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-nav"
               onClick={() => setIsMobileMenuOpen((v) => !v)}
             >
               {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -180,24 +191,35 @@ export function Navbar({ sitewidePromo }: { sitewidePromo?: AppliedPromo | null 
         </nav>
       </div>
 
-      {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-surface px-4 py-3 flex flex-col gap-3">
-          {NAV_LINKS.map((link) => {
-            const isActive = isNavLinkActive(pathname, link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                aria-current={isActive ? "page" : undefined}
-                className={isActive ? "text-sm font-medium text-primary" : "text-sm font-normal text-foreground"}
-              >
-                {t(link.key, link.label)}
-              </Link>
-            );
-          })}
+      {/* Always mounted so it can slide open/closed (grid-rows 0fr <-> 1fr
+          animates to the panel's real height); `inert` keeps the closed
+          panel's links out of the tab order. */}
+      <div
+        id="mobile-nav"
+        inert={!isMobileMenuOpen}
+        className={`md:hidden grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+          isMobileMenuOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-border bg-surface px-4 py-3 flex flex-col gap-3">
+            {NAV_LINKS.map((link) => {
+              const isActive = isNavLinkActive(pathname, link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={isActive ? "text-sm font-medium text-primary" : "text-sm font-normal text-foreground"}
+                >
+                  {t(link.key, link.label)}
+                </Link>
+              );
+            })}
+          </div>
         </div>
-      )}
+      </div>
     </header>
   );
 }
