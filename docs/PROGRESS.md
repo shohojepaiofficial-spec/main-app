@@ -1014,3 +1014,9 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - New `integrations/bkash.ts#isBkashLive()`: configured, and in production not pointing at a sandbox URL (local dev keeps the sandbox usable). `liveOnlinePaymentMethods()` moved out of `orderController.ts` into `utils/paymentMethods.ts` and uses it; `GET /api/config` now also returns `paymentMethods`.
 - Frontend: `configService.getCheckoutConfig()`; `checkout/page.tsx` passes the list to `CheckoutView`, which only shows those methods. The page has `revalidate = 60` so turning bKash on in Railway shows up without a frontend deploy.
 - Verified: `NODE_ENV=production` with the sandbox credentials → `["cod"]`; local dev → `["cod","bkash"]`. Server tests 63/63, both type-checks clean.
+
+## 2026-10-05 (later still) — Meta pixel counts in-site page changes
+- Found the published GTM container (v4) only sent a Meta PageView on full page loads; Next.js client-side navigation sent none, although the site already pushes `page_view` on every route change.
+- GTM v5 (edited and published by the user, guided step by step — Claude Code's permission system doesn't let Claude edit the shared GTM account): base tag now `fbq('init')` only, "Once per page"; new `Meta PageView` tag on a `page_view` Custom Event trigger, with the base as setup tag.
+- Code: `lib/gtm.ts#pushToDataLayer` now pushes `{ ecommerce: null }` before any ecommerce event (Google's documented pattern), so fields from one event don't merge into the next.
+- Verified on shohojepai.com: one PageView each for `/`, `/shop` (client nav), `/about` (client nav); one pixel init. The four commerce events still need a live check once a real product exists.
