@@ -28,5 +28,10 @@ declare global {
 export function pushToDataLayer(data: Record<string, unknown>) {
   if (!isGtmConfigured() || typeof window === "undefined") return;
   window.dataLayer = window.dataLayer || [];
+  // GTM deep-merges each push into one data model, so without this a field
+  // only the previous event had (e.g. view_item's item_category) would
+  // carry over into the next ecommerce event. Clearing first is Google's
+  // documented pattern for GA4 ecommerce pushes.
+  if ("ecommerce" in data) window.dataLayer.push({ ecommerce: null });
   window.dataLayer.push(data);
 }
