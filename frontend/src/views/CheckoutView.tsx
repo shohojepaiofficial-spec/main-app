@@ -19,9 +19,9 @@ import { calculateDeliveryTotal, isInsideStoreCity } from "@/lib/delivery";
 import { SITE_URL, SITE_NAME } from "@/lib/seo";
 import { BANGLADESH_ZILAS } from "@/lib/bangladeshGeo";
 import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
-import { PaymentMethodPicker } from "@/views/PaymentMethodPicker";
+import { PAYMENT_METHODS, PaymentMethodPicker } from "@/views/PaymentMethodPicker";
 import { ShareLinkModal } from "@/views/ShareLinkModal";
-import { DeliveryQuote, Order } from "@/models";
+import { DeliveryQuote, Order, PaymentMethod } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
 import { pushToDataLayer } from "@/lib/gtm";
 
@@ -192,7 +192,15 @@ function hasSavedDeliveryLocation(user: ReturnType<typeof useAuthController>["us
   );
 }
 
-export function CheckoutView({ storeCity }: { storeCity: string }) {
+export function CheckoutView({
+  storeCity,
+  paymentMethods,
+}: {
+  storeCity: string;
+  // What the server will accept right now (GET /api/config) — bKash is left
+  // out until real merchant credentials are live, so it isn't shown at all.
+  paymentMethods: PaymentMethod[];
+}) {
   const { user } = useAuthController();
   const { t } = useTranslations();
   const { items, promo, totalPrice, discountAmount, clear } = useCartStore();
@@ -587,6 +595,7 @@ export function CheckoutView({ storeCity }: { storeCity: string }) {
           <PaymentMethodPicker
             value={paymentMethod}
             onChange={(method) => setValue("paymentMethod", method)}
+            methods={PAYMENT_METHODS.filter((method) => paymentMethods.includes(method.id))}
           />
         </form>
 

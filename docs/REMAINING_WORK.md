@@ -6,7 +6,7 @@ collapsed to one line each below (full detail, including how each was
 verified, lives in `docs/PROGRESS.md`'s dated entries) so this file stays
 focused on what's actually still open.
 
-Last updated: 2026-09-30.
+Last updated: 2026-10-05.
 
 ---
 
@@ -36,7 +36,9 @@ for 0.5kg). Left:
   2026-09-30. Still to confirm on the live site: checkout shows a Pathao
   quote (e.g. Dhaka 110 Tk) instead of the flat fee. If it doesn't, check
   that Railway's password has *no* quotes around it (the quotes in `.env`
-  are only there because it contains a `#`).
+  are only there because it contains a `#`). **2026-10-05:** Railway's
+  password was missing its trailing `#` (logs: "The user credentials were
+  incorrect"); user fixed it. Live quote still to confirm.
 - **First real booking** via "Book with Pathao" on a real order — never
   exercised yet (it creates a real pickup, so do it on a genuine order).
 - 22 of 494 upazilas (mostly Rangamati) have no matching Pathao zone and
@@ -63,6 +65,18 @@ through live (no admin browser session was available):
   site link in Messenger, open it, open Sign in — Google button should be
   replaced by the "open in browser" notice; "Open in Chrome" should work
   on Android.
+
+**2.14 — bKash hidden until real merchant credentials exist.** Fixed
+2026-10-05: in production bKash is offered (and accepted) only when
+`BKASH_*` is set to a non-sandbox URL; checkout reads the list from
+`GET /api/config`. User has applied for a bKash merchant account — once
+approved, put the live `BKASH_*` values in Railway and bKash reappears at
+checkout within a minute, no code change.
+
+**2.15 — Google OAuth consent screen may still be in "Testing".** If so,
+only listed test users can sign in with Google. Publish it in Google Cloud
+Console before launch. Raised again 2026-10-05 after reports of Google
+sign-in "sometimes" failing in production.
 
 ### Priority 3 — Security & reliability hardening
 

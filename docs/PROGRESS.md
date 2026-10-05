@@ -1008,3 +1008,9 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 
 ### Known follow-ups (new)
 - If Google sign-in still fails in production after this, the new toast confirms it is the `oauth-sync` step. Check Railway logs for `oauth-sync failed`. Also check that the OAuth consent screen is still in "Testing" (only listed test users can sign in), see the 2026-09-18 entry.
+
+## 2026-10-05 (later) — bKash hidden at checkout until it's live
+- Checkout always offered bKash, but launch is COD-only and bKash is only on its sandbox (user has applied for a merchant account). In production a sandbox payment would have marked a real order "paid" with test money.
+- New `integrations/bkash.ts#isBkashLive()`: configured, and in production not pointing at a sandbox URL (local dev keeps the sandbox usable). `liveOnlinePaymentMethods()` moved out of `orderController.ts` into `utils/paymentMethods.ts` and uses it; `GET /api/config` now also returns `paymentMethods`.
+- Frontend: `configService.getCheckoutConfig()`; `checkout/page.tsx` passes the list to `CheckoutView`, which only shows those methods. The page has `revalidate = 60` so turning bKash on in Railway shows up without a frontend deploy.
+- Verified: `NODE_ENV=production` with the sandbox credentials → `["cod"]`; local dev → `["cod","bkash"]`. Server tests 63/63, both type-checks clean.

@@ -11,8 +11,8 @@ import { STORE_CITY } from "../utils/store";
 import { isNonEmptyString } from "../utils/validate";
 import { resolvePurchasable } from "../utils/productVariants";
 import { AuthRequest } from "../middleware/auth";
+import { liveOnlinePaymentMethods } from "../utils/paymentMethods";
 import {
-  isBkashConfigured,
   createBkashPayment,
   executeBkashPayment,
   queryBkashPayment,
@@ -68,17 +68,6 @@ interface ShippingInput {
 }
 
 const ORDER_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"] as const;
-
-// "cod" always works; "bkash" only once BKASH_* env vars are actually set
-// (see integrations/bkash.ts) — createOrder 400s on it otherwise, same as
-// every other method did before a real gateway existed. adminCreateOrder (a
-// manual/phone order the shop owner enters themselves) isn't restricted to
-// this list, since the admin may be recording a payment that already
-// happened outside the site (e.g. a bKash transfer to the shop's personal
-// number) rather than triggering a live charge.
-function liveOnlinePaymentMethods(): PaymentMethod[] {
-  return isBkashConfigured() ? ["cod", "bkash"] : ["cod"];
-}
 
 // Tries a live Pathao price quote for this address; falls back to the flat
 // fee (already computed by the caller) on anything short of a confident

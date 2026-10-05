@@ -36,6 +36,16 @@ export function isBkashConfigured(): boolean {
   return readConfig() !== null;
 }
 
+// Whether customers may actually pay with bKash. In production that needs
+// real merchant credentials: bKash's sandbox moves test money only, so a
+// sandbox payment would still mark a real order "paid". Local development
+// keeps the sandbox usable for testing the flow.
+export function isBkashLive(): boolean {
+  const config = readConfig();
+  if (!config) return false;
+  return process.env.NODE_ENV !== "production" || !config.baseUrl.includes("sandbox");
+}
+
 // A fresh Grant Token per process, cached until close to its (usually
 // 1-hour) expiry. Deliberately never calls bKash's Refresh Token API — it's
 // rate-limited to twice an hour, while re-granting isn't, so re-granting on

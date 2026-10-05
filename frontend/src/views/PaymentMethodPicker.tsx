@@ -12,11 +12,10 @@ export interface PaymentMethodInfo {
   available: boolean;
 }
 
-// Both are wired up to something real — see server's orderController
-// (liveOnlinePaymentMethods) and integrations/bkash.ts. This list doesn't
-// know whether the server's BKASH_* env vars are actually set, though — if
-// they're not, createOrder 400s on a "bkash" selection and CheckoutView
-// surfaces that as a toast, same as any other checkout error.
+// Both are wired up to something real — see server's
+// utils/paymentMethods.ts and integrations/bkash.ts. This list is every
+// method that exists; checkout filters it down to what GET /api/config says
+// the server accepts right now (bKash only with live credentials).
 //
 // `label`/`description` here are the English fallback/reference only — the
 // component below re-translates them by `id` at render time (see

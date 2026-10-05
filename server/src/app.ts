@@ -21,6 +21,7 @@ import reviewRoutes from "./routes/reviewRoutes";
 import statsRoutes from "./routes/statsRoutes";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
+import { liveOnlinePaymentMethods } from "./utils/paymentMethods";
 
 const app = express();
 
@@ -72,8 +73,9 @@ app.get("/api/health", (_req, res) => {
 // fetches it from here instead of hardcoding its own copy, so the two never
 // drift out of sync. Public: it's not sensitive, and pages that need it
 // (checkout, dashboard, shipping/terms copy) aren't all behind login.
+// `paymentMethods` is what checkout may offer — see utils/paymentMethods.
 app.get("/api/config", (_req, res) => {
-  res.json({ storeCity: STORE_CITY });
+  res.json({ storeCity: STORE_CITY, paymentMethods: liveOnlinePaymentMethods() });
 });
 
 app.use("/api/auth", authRoutes);
