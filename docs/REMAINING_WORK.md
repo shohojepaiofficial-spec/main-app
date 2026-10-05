@@ -55,7 +55,6 @@ product deleted. Nothing left.
 **2.13 — Click-throughs left** (done 2026-10-05: product/user filter bars,
 "Discard your changes?" on Esc, backdrop and ✕):
 - Users pagination — only 6 users, so a second page never appears yet.
-- Two-step verification setup and login — as part of turning it on (3.9).
 - Posting, editing and removing a store reply on `/admin/reviews` — needs
   a real product with a review first.
 - Login modal inside the Facebook/Instagram app (2026-10-02): share a
@@ -87,13 +86,9 @@ sales event or if the catalog/order volume grows.
 **3.8 — No backup strategy documented** beyond whatever Atlas does by
 default on its own tier.
 
-**3.9 — Two-step verification (2FA) is built but not turned on yet.**
-TOTP-based, admin/co-admin only, in Settings → "Two-step verification" (see
-`docs/ARCHITECTURE.md`'s "Two-step verification" section and
-`docs/PROGRESS.md`'s 2026-09-26 entry for the full design). Nothing left to
-build — just needs the admin to actually install an authenticator app
-(Google Authenticator, Authy, etc.), scan the QR code, and save the 10
-backup codes somewhere safe.
+**3.9 — Two-step verification (2FA): turned on for the admin account
+(2026-10-05, user confirmed).** Any future co-admin should turn it on too
+(Settings → "Two-step verification"). Keep the 10 backup codes offline.
 
 **3.10 — Infrastructure-account security hasn't been checked**, separate
 from anything in this codebase: (a) MongoDB Atlas Network Access — is it
