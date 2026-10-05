@@ -38,29 +38,26 @@ for 0.5kg). Left:
   that Railway's password has *no* quotes around it (the quotes in `.env`
   are only there because it contains a `#`). **2026-10-05:** Railway's
   password was missing its trailing `#` (logs: "The user credentials were
-  incorrect"); user fixed it. Live quote still to confirm.
+  incorrect"); user fixed it. Live quote confirmed working on the live
+  checkout the same day (Gaibandha, 1kg: "Pathao live rate ৳145").
 - **First real booking** via "Book with Pathao" on a real order — never
   exercised yet (it creates a real pickup, so do it on a genuine order).
 - 22 of 494 upazilas (mostly Rangamati) have no matching Pathao zone and
   keep the flat fee.
 
-**2.12 — Product variants have never been used end-to-end.** Built
-2026-09-27 (sizes/colors/weights, per-variant price and stock), but local
-dev shares the production database, so no product with variants was ever
-created and no variant order placed. First real use should be a smoke test:
-create a product with 2 options → open it in the storefront → add two
-different variants to the cart → place a COD order → check Manage Orders
-and the packing slip → cancel it and confirm the variant stock came back.
+**2.12 — Product variants: passed end-to-end on the live site (2026-10-05).**
+Size (M/L) × Color (Black/White) product → shop shows "৳500 – ৳550" →
+picking options updates price and stock → two variants as separate cart
+lines → COD order #47E751 (Pathao live rate ৳145) → Manage Orders and the
+packing slip list both variants → variant stock 5→4 → cancel → back to 5 →
+product deleted. Nothing left.
 
-**2.13 — Recent features still owe one real click-through in a browser.**
-Each was verified by type checks, tests and API calls, but not clicked
-through live (no admin browser session was available):
-- Manage Products / Manage Users filter bars and Users pagination (2026-09-26).
-- The two-step verification setup and login flow (2026-09-26) — best done
-  as part of turning it on (3.9).
-- Posting, editing and removing a store reply on `/admin/reviews` (2026-09-28).
-- Side drawers asking "Discard your changes?" instead of closing mid-edit
-  (2026-09-28): type into an admin form, then try the backdrop, Esc and ✕.
+**2.13 — Click-throughs left** (done 2026-10-05: product/user filter bars,
+"Discard your changes?" on Esc, backdrop and ✕):
+- Users pagination — only 6 users, so a second page never appears yet.
+- Two-step verification setup and login — as part of turning it on (3.9).
+- Posting, editing and removing a store reply on `/admin/reviews` — needs
+  a real product with a review first.
 - Login modal inside the Facebook/Instagram app (2026-10-02): share a
   site link in Messenger, open it, open Sign in — Google button should be
   replaced by the "open in browser" notice; "Open in Chrome" should work
