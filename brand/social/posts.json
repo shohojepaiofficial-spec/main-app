@@ -1,0 +1,9 @@
+{
+  "launchDate": "৫ অক্টোবর",
+  "offer": { "code": "LAUNCH10", "discount": "১০% ছাড়", "until": "সীমিত সময়ের জন্য" },
+  "products": [
+    { "name": "পণ্যের নাম ১", "price": "৳ ০০০", "photo": "" },
+    { "name": "পণ্যের নাম ২", "price": "৳ ০০০", "photo": "" },
+    { "name": "পণ্যের নাম ৩", "price": "৳ ০০০", "photo": "" }
+  ]
+}

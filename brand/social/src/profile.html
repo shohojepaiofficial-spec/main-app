@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:1080px;height:1080px;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center;background:var(--bg)}
+img{width:700px}
+</style></head><body><img id="logo"><script>
+const p=new URLSearchParams(location.search);
+document.body.style.setProperty('--bg',p.get('bg'));
+document.getElementById('logo').src=p.get('logo');
+</script></body></html>
