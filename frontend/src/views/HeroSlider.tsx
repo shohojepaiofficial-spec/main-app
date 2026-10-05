@@ -49,6 +49,9 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
       >
         {slides.map((slide, i) => {
           const active = i === activeIndex;
+          // Every slide is in the DOM at once, so only the first gets the
+          // page's single <h1>; the rest are <h2> with identical styling.
+          const Heading = i === 0 ? "h1" : "h2";
           // The dynamic half of the two-color system: a two-stop gradient
           // built from this banner's own accentColor (pure -> lightened),
           // standing in for the reference's fixed coral-to-amber --grad.
@@ -144,12 +147,12 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                   >
                     {slide.eyebrow}
                   </span>
-                  <h1
+                  <Heading
                     className="mt-1.5 max-w-[9.5em] text-[clamp(26px,3.4vw,44px)] leading-[1.08] font-extrabold"
                     style={{ color: CREAM }}
                   >
                     {slide.title}
-                  </h1>
+                  </Heading>
                   <p
                     className="mt-2.5 line-clamp-3 max-w-[30em] text-[13px] leading-relaxed sm:mt-3.5 sm:line-clamp-none sm:text-[clamp(11px,1.05vw,14px)]"
                     style={{ color: MUTED }}
