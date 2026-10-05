@@ -3,6 +3,7 @@ import { Phone, Mail, MapPin } from "lucide-react";
 import { FaFacebookF, FaInstagram } from "react-icons/fa6";
 import {
   CONTACT_ADDRESS,
+  CONTACT_ADDRESS_KEY,
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL,
@@ -106,7 +107,9 @@ export function Footer() {
             </li>
             <li className="flex items-center gap-2">
               <MapPin size={14} className="shrink-0" />
-              <span>{CONTACT_ADDRESS}</span>
+              <span>
+                <T k={CONTACT_ADDRESS_KEY}>{CONTACT_ADDRESS}</T>
+              </span>
             </li>
           </ul>
         </div>

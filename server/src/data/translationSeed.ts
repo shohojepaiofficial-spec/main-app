@@ -40,6 +40,13 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "footer.returns", en: "Returns & Exchanges", bn: "রিটার্ন ও এক্সচেঞ্জ" },
   { key: "footer.allRightsReserved", en: "All rights reserved.", bn: "সর্বস্বত্ব সংরক্ষিত।" },
 
+  // --- Shop address (Footer + Contact page; frontend/src/lib/contact.ts) ---
+  {
+    key: "contact.address",
+    en: "Rongdhonu Manipuri Saree Ghor, Lamabazar, opposite Madan Mohan College gate, Sylhet",
+    bn: "রংধনু মনিপুরী শাড়ি ঘর, লামাবাজার, মদন মোহন কলেজ গেইট এর অপজিটে, সিলেট",
+  },
+
   // --- Language switcher ---
   { key: "language.english", en: "English", bn: "ইংরেজি" },
   { key: "language.bangla", en: "বাংলা", bn: "বাংলা" },

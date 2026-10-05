@@ -621,7 +621,7 @@ User re-tested through the actual app (not just the isolated script) — submitt
 ## 2026-09-20 (Real contact info: item 1.4)
 `frontend/src/lib/contact.ts` (the single source every contact-info display reads from — Navbar, Footer, `WhatsAppButton`, `/contact`) had placeholder phone/address; `CONTACT_EMAIL` there and `server/.env`'s `CONTACT_EMAIL` were already real (`hello@shohojepai.com`, set during the SMTP/domain work), so only phone and address needed filling in.
 
-- `CONTACT_PHONE_DISPLAY` -> `+880 1700-502013`, `CONTACT_PHONE_TEL` -> `+8801700502013` (the `tel:` link format), `WHATSAPP_NUMBER` -> `8801700502013` (digits only, no `+`, what `wa.me` links expect), `CONTACT_ADDRESS` -> `55/56 Niloy, Chouhatta, Sylhet`.
+- `CONTACT_PHONE_DISPLAY` -> `+880 1700-502013`, `CONTACT_PHONE_TEL` -> `+8801700502013` (the `tel:` link format), `WHATSAPP_NUMBER` -> `8801700502013` (digits only, no `+`, what `wa.me` links expect), `CONTACT_ADDRESS` -> `55/56 Niloy, Chouhatta, Sylhet` (later moved to `Rongdhonu Manipuri Saree Ghor, Lamabazar, opposite Madan Mohan College gate, Sylhet`, with its Bangla copy under the `contact.address` translation key so the Footer and Contact page switch with the language toggle; the admin-only order print slip stays English).
 - Grepped the repo for the old placeholder strings (`000-0000`, `123 Market St`, the placeholder digit-only number) to confirm nothing else hardcoded them outside this one file — clean.
 - Updated `docs/REMAINING_WORK.md`: 1.4 moved from "Still open" to "Already finished".
 

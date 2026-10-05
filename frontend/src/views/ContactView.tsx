@@ -9,11 +9,13 @@ import { FaWhatsapp } from "react-icons/fa6";
 import * as contactService from "@/services/contactService";
 import {
   CONTACT_ADDRESS,
+  CONTACT_ADDRESS_KEY,
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL,
   WHATSAPP_NUMBER,
 } from "@/lib/contact";
+import { T } from "@/components/ui/T";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -151,7 +153,9 @@ export function ContactView() {
             <MapPin size={18} className="shrink-0 text-primary" />
             <div>
               <p className="text-sm font-medium">Address</p>
-              <p className="text-sm text-muted">{CONTACT_ADDRESS}</p>
+              <p className="text-sm text-muted">
+                <T k={CONTACT_ADDRESS_KEY}>{CONTACT_ADDRESS}</T>
+              </p>
             </div>
           </div>
         </div>

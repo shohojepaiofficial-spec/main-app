@@ -4,7 +4,11 @@
 export const CONTACT_PHONE_DISPLAY = "+880 1700-502013";
 export const CONTACT_PHONE_TEL = "+8801700502013";
 export const CONTACT_EMAIL = "hello@shohojepai.com";
-export const CONTACT_ADDRESS = "55/56 Niloy, Chouhatta, Sylhet";
+// English copy — the storefront shows the Bangla version via the
+// "contact.address" translation key (server/src/data/translationSeed.ts).
+export const CONTACT_ADDRESS =
+  "Rongdhonu Manipuri Saree Ghor, Lamabazar, opposite Madan Mohan College gate, Sylhet";
+export const CONTACT_ADDRESS_KEY = "contact.address";
 // Digits only, with country code, no "+" — what wa.me links expect.
 export const WHATSAPP_NUMBER = "8801700502013";
 
