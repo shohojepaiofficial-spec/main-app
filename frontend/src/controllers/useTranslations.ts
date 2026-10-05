@@ -34,3 +34,12 @@ export function useTranslations() {
 
   return { t, locale };
 }
+
+// Same lookup as `t` (minus `vars`), for code that runs outside render —
+// effects and async callbacks — where the hook's `t`, a new function every
+// render, can't go in a dependency array without re-running the effect on
+// every render. Reads the stores' live state at call time instead.
+export function translateNow(key: string, fallback: string): string {
+  if (useUIStore.getState().locale !== "bn") return fallback;
+  return useTranslationStore.getState().dictionary?.[key] ?? fallback;
+}

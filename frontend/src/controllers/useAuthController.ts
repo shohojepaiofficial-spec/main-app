@@ -1,5 +1,7 @@
 import { signOut as nextAuthSignOut } from "next-auth/react";
+import toast from "react-hot-toast";
 import { useAuthStore } from "@/controllers/useAuthStore";
+import { translateNow } from "@/controllers/useTranslations";
 import { Permission } from "@/models";
 
 // `useAuthStore` is the single source of truth for "who's logged in" — both
@@ -13,6 +15,7 @@ export function useAuthController() {
   const logout = async () => {
     await nextAuthSignOut({ redirect: false }).catch(() => {});
     clearStore();
+    toast.success(translateNow("auth.loggedOut", "Logged out"));
   };
 
   // Admins implicitly hold every permission; coadmins only what's in their

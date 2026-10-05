@@ -29,7 +29,9 @@ import { useTranslations } from "@/controllers/useTranslations";
 // Every logged-in account gets these — their own orders/settings, not the
 // admin-wide management screens below. `key` translates the label (unlike
 // adminLinks below, which have none — the admin panel stays English).
-const ACCOUNT_LINKS = [
+type NavLink = { href: string; label: string; key?: string; Icon: typeof ShieldCheck };
+
+const ACCOUNT_LINKS: NavLink[] = [
   { href: "/dashboard", label: "Dashboard", key: "nav.dashboard", Icon: LayoutDashboard },
   { href: "/orders", label: "Orders", key: "nav.orders", Icon: Package },
   { href: "/settings", label: "Settings", key: "nav.settings", Icon: Settings },
@@ -45,68 +47,55 @@ export function DashboardSidebar() {
 
   // Each admin link is gated by the same permission that gates its API
   // routes (see docs/ARCHITECTURE.md's "Roles & permissions"), so a coadmin
-  // only ever sees the sections they can actually use. "Manage Users" is
-  // admin-only and not permission-based — it's never delegable.
-  const adminLinks = [
-    hasPermission("products:manage") && {
-      href: "/admin/products",
-      label: "Manage Products",
-      Icon: Boxes,
+  // only ever sees the sections they can actually use. "Users" is
+  // admin-only and not permission-based — it's never delegable. Links are
+  // grouped by job so the panel scans by section instead of as one long
+  // list; a group with nothing visible to this user is dropped entirely.
+  const adminGroups: { title: string; links: NavLink[] }[] = [
+    {
+      title: "Sales",
+      links: [
+        hasPermission("orders:manage") && { href: "/admin/orders", label: "Orders", Icon: ClipboardList },
+        hasPermission("analytics:manage") && { href: "/admin/analytics", label: "Analytics", Icon: BarChart3 },
+      ],
     },
-    hasPermission("orders:manage") && {
-      href: "/admin/orders",
-      label: "Manage Orders",
-      Icon: ClipboardList,
+    {
+      title: "Catalog",
+      links: [
+        hasPermission("products:manage") && { href: "/admin/products", label: "Products", Icon: Boxes },
+        hasPermission("reviews:manage") && { href: "/admin/reviews", label: "Reviews", Icon: MessageSquareReply },
+      ],
     },
-    hasPermission("banners:manage") && {
-      href: "/admin/banners",
-      label: "Manage Banners",
-      Icon: GalleryHorizontal,
+    {
+      title: "Marketing",
+      links: [
+        hasPermission("banners:manage") && { href: "/admin/banners", label: "Banners", Icon: GalleryHorizontal },
+        hasPermission("promotions:manage") && { href: "/admin/promotions", label: "Promo Codes", Icon: Tag },
+        hasPermission("ads:manage") && { href: "/admin/ads", label: "Social Media Ads", Icon: Megaphone },
+        hasPermission("marketing:manage") && { href: "/admin/campaigns", label: "Email Campaigns", Icon: Mail },
+      ],
     },
-    hasPermission("promotions:manage") && {
-      href: "/admin/promotions",
-      label: "Promo Codes",
-      Icon: Tag,
+    {
+      title: "Customers",
+      links: [
+        hasPermission("messages:manage") && { href: "/admin/messages", label: "Messages", Icon: Inbox },
+        user?.role === "admin" && { href: "/admin/users", label: "Users", Icon: ShieldCheck },
+      ],
     },
-    hasPermission("analytics:manage") && {
-      href: "/admin/analytics",
-      label: "Analytics",
-      Icon: BarChart3,
+    {
+      title: "Site",
+      links: [
+        hasPermission("translations:manage") && { href: "/admin/translations", label: "Translations", Icon: Languages },
+      ],
     },
-    hasPermission("ads:manage") && {
-      href: "/admin/ads",
-      label: "Social Media Ads",
-      Icon: Megaphone,
-    },
-    hasPermission("marketing:manage") && {
-      href: "/admin/campaigns",
-      label: "Marketing Campaigns",
-      Icon: Mail,
-    },
-    hasPermission("messages:manage") && {
-      href: "/admin/messages",
-      label: "Messages",
-      Icon: Inbox,
-    },
-    hasPermission("reviews:manage") && {
-      href: "/admin/reviews",
-      label: "Reviews",
-      Icon: MessageSquareReply,
-    },
-    hasPermission("translations:manage") && {
-      href: "/admin/translations",
-      label: "Translations",
-      Icon: Languages,
-    },
-    user?.role === "admin" && {
-      href: "/admin/users",
-      label: "Manage Users",
-      Icon: ShieldCheck,
-    },
-  ].filter((link): link is { href: string; label: string; Icon: typeof ShieldCheck } => !!link);
+  ]
+    .map((group) => ({ ...group, links: group.links.filter((link): link is NavLink => !!link) }))
+    .filter((group) => group.links.length > 0);
 
-  const renderLink = ({ href, label, key, Icon }: { href: string; label: string; key?: string; Icon: typeof ShieldCheck }) => {
-    const isActive = pathname === href;
+  const renderLink = ({ href, label, key, Icon }: NavLink) => {
+    // Prefix match keeps a section highlighted on its sub-pages too
+    // (/admin/orders/123); "/dashboard" stays exact so it doesn't claim them.
+    const isActive = href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
     return (
       <Link
         key={href}
@@ -121,26 +110,33 @@ export function DashboardSidebar() {
     );
   };
 
+  const groupHeading = (title: string) => (
+    <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">{title}</p>
+  );
+
   const navLinks = (
-    <nav className="flex flex-col gap-1 p-2">
+    <nav className="flex flex-col gap-0.5 p-2">
+      {adminGroups.length > 0 && groupHeading(t("account.myAccount", "My account"))}
       {ACCOUNT_LINKS.map(renderLink)}
 
-      {adminLinks.length > 0 && (
-        <>
-          <p className="px-3 pt-3 pb-1 text-xs font-medium uppercase text-muted">Admin</p>
-          {adminLinks.map(renderLink)}
-        </>
-      )}
+      {adminGroups.map((group) => (
+        <div key={group.title} className="flex flex-col gap-0.5">
+          {groupHeading(group.title)}
+          {group.links.map(renderLink)}
+        </div>
+      ))}
 
-      <button
-        onClick={() => {
-          setIsMobileOpen(false);
-          logout();
-        }}
-        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-background"
-      >
-        <LogOut size={16} /> {t("nav.logout", "Log out")}
-      </button>
+      <div className="mt-3 border-t border-border pt-2">
+        <button
+          onClick={() => {
+            setIsMobileOpen(false);
+            logout();
+          }}
+          className="flex w-full items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-background"
+        >
+          <LogOut size={16} /> {t("nav.logout", "Log out")}
+        </button>
+      </div>
     </nav>
   );
 

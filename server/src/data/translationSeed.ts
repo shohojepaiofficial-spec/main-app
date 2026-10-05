@@ -436,6 +436,10 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "auth.inAppCopyFailed", en: "Couldn't copy the link. Use the app's menu to open it in your browser.", bn: "লিংক কপি করা যায়নি। অ্যাপের মেনু থেকে পেজটি ব্রাউজারে খুলুন।" },
   { key: "auth.loggedIn", en: "Logged in", bn: "লগইন সম্পন্ন" },
   { key: "auth.loginFailed", en: "Login failed", bn: "লগইন ব্যর্থ হয়েছে" },
+  { key: "auth.loggedOut", en: "Logged out", bn: "লগ আউট হয়েছে" },
+  { key: "auth.pleaseLogInFirst", en: "Please log in first", bn: "আগে লগইন করুন" },
+  { key: "auth.sessionExpired", en: "Your session has expired — please log in again", bn: "আপনার সেশনের মেয়াদ শেষ — আবার লগইন করুন" },
+  { key: "auth.googleSignInFailed", en: "Google sign-in didn't finish. Please try again.", bn: "Google দিয়ে লগইন সম্পন্ন হয়নি। আবার চেষ্টা করুন।" },
   { key: "auth.email", en: "Email", bn: "ইমেইল" },
   { key: "auth.password", en: "Password", bn: "পাসওয়ার্ড" },
   { key: "auth.forgotPassword", en: "Forgot password?", bn: "পাসওয়ার্ড ভুলে গেছেন?" },
@@ -517,6 +521,7 @@ export const translationSeed: TranslationSeedEntry[] = [
   // --- Account sidebar ---
   { key: "account.backToStore", en: "Back to store", bn: "শপে ফিরে যান" },
   { key: "account.menu", en: "Menu", bn: "মেনু" },
+  { key: "account.myAccount", en: "My account", bn: "আমার অ্যাকাউন্ট" },
 
   // --- Wishlist ---
   { key: "wishlist.failedToUpdate", en: "Failed to update wishlist", bn: "উইশলিস্ট আপডেট করা যায়নি" },
