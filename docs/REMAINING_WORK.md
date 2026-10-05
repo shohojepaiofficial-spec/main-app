@@ -73,10 +73,11 @@ through live (no admin browser session was available):
 approved, put the live `BKASH_*` values in Railway and bKash reappears at
 checkout within a minute, no code change.
 
-**2.15 — Google OAuth consent screen may still be in "Testing".** If so,
-only listed test users can sign in with Google. Publish it in Google Cloud
-Console before launch. Raised again 2026-10-05 after reports of Google
-sign-in "sometimes" failing in production.
+**2.15 — Google OAuth consent screen: confirmed "In production"** (User
+type: External) on 2026-10-05, so any Google account can sign in. The
+earlier "Testing" note is out of date. If Google sign-in still fails
+sometimes, check for the "Google sign-in didn't finish" toast (backend
+`oauth-sync` failed → Railway logs) or an in-app browser (FB/IG).
 
 ### Priority 3 — Security & reliability hardening
 
