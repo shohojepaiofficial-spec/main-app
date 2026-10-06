@@ -44,6 +44,14 @@ export function useOAuthBridge() {
       toast.success(translateNow("auth.loggedIn", "Logged in"));
     } else if (session.twoFactorRequired && session.tempToken) {
       if (session.tempToken === currentTempToken) return;
+      // Already logged in means this challenge was just completed in
+      // AuthModal's TwoFactorForm — the session still carries the spent
+      // tempToken, and closing the modal cleared currentTempToken, so without
+      // this the challenge would immediately reopen. Drop the stale session.
+      if (currentToken) {
+        signOut({ redirect: false }).catch(() => {});
+        return;
+      }
       // The Google account itself checked out fine, but this account also
       // has 2FA enabled — surface the same code-entry step LoginForm uses
       // for a local login, rather than completing sign-in silently.

@@ -1020,3 +1020,8 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - GTM v5 (edited and published by the user, guided step by step — Claude Code's permission system doesn't let Claude edit the shared GTM account): base tag now `fbq('init')` only, "Once per page"; new `Meta PageView` tag on a `page_view` Custom Event trigger, with the base as setup tag.
 - Code: `lib/gtm.ts#pushToDataLayer` now pushes `{ ecommerce: null }` before any ecommerce event (Google's documented pattern), so fields from one event don't merge into the next.
 - Verified on shohojepai.com: one PageView each for `/`, `/shop` (client nav), `/about` (client nav); one pixel init. The four commerce events still need a live check once a real product exists.
+
+## 2026-10-06 — Two-step box reopening after a correct code (Google sign-in)
+- Found by the user after turning on two-step for the admin: on a Google sign-in, entering the authenticator code showed "Logged in", but the code box stayed open.
+- Cause: the NextAuth session still held the spent `twoFactorRequired` + `tempToken`. `TwoFactorForm`'s `closeAuthModal()` clears `twoFactorTempToken`, so `useOAuthBridge` saw a challenge it didn't recognise and called `openTwoFactorChallenge` again.
+- Fix (`useOAuthBridge.ts`): if a 2FA challenge is in the session while the store already has a token, the challenge is stale. The bridge signs out of NextAuth (only the leftover challenge session) and doesn't reopen the box. This also covers a reload or tab refocus with that leftover session. Frontend type-check clean; not yet tested live.
