@@ -3,6 +3,7 @@ import { Product } from "../models/Product";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { escapeRegex } from "../utils/regex";
 import { normalizeVariantInput, presetOptionsForCategory, summarizeVariants } from "../utils/productVariants";
+import { normalizePreorderInput, preorderUpdate } from "../utils/preorder";
 
 const DEFAULT_PAGE_SIZE = 12;
 
@@ -127,10 +128,12 @@ export const createProduct = async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const images = await Promise.all(files.map((file) => storeUploadedFile(file)));
 
-  const { options: _options, variants: _variants, ...fields } = req.body;
+  const { options: _options, variants: _variants, preorder: rawPreorder, ...fields } = req.body;
   let variantData;
+  let preorder;
   try {
     variantData = variantFields(req.body, images, images);
+    preorder = rawPreorder === undefined ? undefined : { ...normalizePreorderInput(rawPreorder), reserved: 0 };
   } catch (err) {
     // Nothing references the just-uploaded images yet — don't leave them
     // orphaned in Cloudinary/on disk.
@@ -139,7 +142,7 @@ export const createProduct = async (req: Request, res: Response) => {
     return res.status(status ?? 400).json({ message: message ?? "Invalid options" });
   }
 
-  const product = await Product.create({ ...fields, images, ...variantData });
+  const product = await Product.create({ ...fields, images, ...variantData, ...(preorder ? { preorder } : {}) });
   res.status(201).json(product);
 };
 
@@ -148,7 +151,7 @@ export const updateProduct = async (req: Request, res: Response) => {
   // alongside text fields), so the client sends which existing images to
   // keep as a JSON-stringified array under `existingImages`, separate from
   // the `images` file field multer parses into req.files.
-  const { existingImages, options: _options, variants: _variants, ...fields } = req.body;
+  const { existingImages, options: _options, variants: _variants, preorder: rawPreorder, ...fields } = req.body;
 
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const newImages = await Promise.all(files.map((file) => storeUploadedFile(file)));
@@ -163,7 +166,7 @@ export const updateProduct = async (req: Request, res: Response) => {
   // Read the old image list before it's overwritten — the only way to know
   // which URLs are being dropped, so they can be cleaned up from
   // Cloudinary/disk afterward instead of accumulating forever.
-  const current = await Product.findById(req.params.id).select("images");
+  const current = await Product.findById(req.params.id).select("images preorder");
   if (!current) {
     await Promise.all(newImages.map((img) => deleteUploadedFile(img)));
     return res.status(404).json({ message: "Product not found" });
@@ -172,6 +175,13 @@ export const updateProduct = async (req: Request, res: Response) => {
 
   try {
     Object.assign(update, variantFields(req.body, (update.images as string[]) ?? previousImages, newImages));
+    // Left out entirely by a client that doesn't send pre-order settings,
+    // so the stored ones stay as they are.
+    if (rawPreorder !== undefined) {
+      const { $set, $unset } = preorderUpdate(normalizePreorderInput(rawPreorder), !!current.preorder?.enabled);
+      Object.assign(update, $set);
+      if (Object.keys($unset).length > 0) update.$unset = $unset;
+    }
   } catch (err) {
     await Promise.all(newImages.map((img) => deleteUploadedFile(img)));
     const { status, message } = err as { status?: number; message?: string };

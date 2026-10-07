@@ -14,6 +14,7 @@ import * as orderService from "@/services/orderService";
 import { formatCurrency } from "@/lib/currency";
 import { BANGLADESH_ZILAS } from "@/lib/bangladeshGeo";
 import { variantLabel } from "@/lib/variants";
+import { isOnPreorder, preorderSpotsLeft } from "@/lib/preorder";
 import { Product } from "@/models";
 
 function extractErrorMessage(err: unknown, fallback: string) {
@@ -48,12 +49,30 @@ interface PickableItem {
   variantId?: string;
   name: string;
   price: number;
+  // How many can be ordered — for a pre-order, the spots left on its cap
+  // (stock doesn't apply; the server checks the same way).
   stock: number;
+  isPreorder: boolean;
 }
 
+// A pre-order with no cap still needs a number for the quantity buttons.
+const UNCAPPED_PREORDER_QUANTITY = 999;
+
 function toPickableItems(product: Product): PickableItem[] {
+  const isPreorder = isOnPreorder(product);
+  const available = (stock: number) =>
+    isPreorder ? Math.min(preorderSpotsLeft(product), UNCAPPED_PREORDER_QUANTITY) : stock;
   if (!product.variants?.length) {
-    return [{ key: product._id, productId: product._id, name: product.name, price: product.price, stock: product.stock }];
+    return [
+      {
+        key: product._id,
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        stock: available(product.stock),
+        isPreorder,
+      },
+    ];
   }
   return product.variants.map((variant) => ({
     key: `${product._id}:${variant._id}`,
@@ -61,7 +80,8 @@ function toPickableItems(product: Product): PickableItem[] {
     variantId: variant._id,
     name: `${product.name} — ${variantLabel(variant.selections)}`,
     price: variant.price,
-    stock: variant.stock,
+    stock: available(variant.stock),
+    isPreorder,
   }));
 }
 
@@ -127,7 +147,13 @@ function ProductPicker({ onAdd }: { onAdd: (item: PickableItem) => void }) {
                 <span className="truncate">{item.name}</span>
                 <span className="shrink-0 text-xs text-muted">
                   {formatCurrency(item.price)} &middot;{" "}
-                  {item.stock === 0 ? "Out of stock" : `${item.stock} in stock`}
+                  {item.isPreorder
+                    ? item.stock === 0
+                      ? "Pre-orders full"
+                      : "Pre-order"
+                    : item.stock === 0
+                      ? "Out of stock"
+                      : `${item.stock} in stock`}
                 </span>
               </button>
             ))

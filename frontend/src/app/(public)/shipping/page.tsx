@@ -6,7 +6,8 @@ import { getStoreCity } from "@/services/configService";
 
 export const metadata: Metadata = {
   title: "Shipping & Delivery",
-  description: "Delivery zones, timelines, and fees for orders inside and outside Sylhet.",
+  description:
+    "We deliver across all of Bangladesh. See delivery timelines and how your delivery fee is estimated at checkout.",
 };
 
 export default async function ShippingPage() {
@@ -22,9 +23,8 @@ export default async function ShippingPage() {
         <section>
           <h2 className="mb-1 text-base font-semibold text-foreground">Delivery zones</h2>
           <p>
-            We deliver both inside and outside {STORE_CITY}. Every product page shows the exact
-            delivery fee for each zone — the fee is set per product, so it can vary depending on
-            what you&apos;re ordering.
+            We deliver across all of Bangladesh — every zila and upazila, inside and outside{" "}
+            {STORE_CITY}.
           </p>
         </section>
 
@@ -52,9 +52,9 @@ export default async function ShippingPage() {
         <section>
           <h2 className="mb-1 text-base font-semibold text-foreground">Delivery fees</h2>
           <p>
-            Delivery fees are set manually per product — not calculated by a courier&apos;s live
-            rates — so the fee you see on a product page is exactly what you&apos;ll be charged
-            for that item.
+            Your delivery fee is estimated at checkout from our courier&apos;s live rates for your
+            zila and upazila and the weight of your order. You&apos;ll see the exact amount in the
+            order summary before you place your order, and that&apos;s what you&apos;ll be charged.
           </p>
         </section>
 

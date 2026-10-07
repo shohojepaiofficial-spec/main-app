@@ -15,6 +15,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PaymentMethodPicker, PAYMENT_METHODS } from "@/views/PaymentMethodPicker";
 import { OrderStatus } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
+import { PreorderLineTag } from "@/views/PreorderLineTag";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -104,6 +105,7 @@ export function OrdersView() {
                     {t("dashboard.orderHash", "Order #{id}", { id: order._id.slice(-6).toUpperCase() })}
                   </p>
                   <p className="text-xs text-muted">{format(new Date(order.createdAt), "PPP")}</p>
+                  {order.isPreorder && <PreorderLineTag preorder={{ shipDate: order.expectedShipDate }} />}
                 </div>
                 <div className="flex items-center gap-3">
                   <span
@@ -133,6 +135,9 @@ export function OrdersView() {
                         {item.product?.name ?? t("orders.productNoLongerAvailable", "Product no longer available")}
                       </p>
                       {item.variantLabel && <p className="text-xs text-muted">{item.variantLabel}</p>}
+                      {item.isPreorder && (
+                        <p className="text-xs font-medium text-primary">{t("product.preorderLabel", "Pre-order")}</p>
+                      )}
                       <p className="text-xs text-muted">
                         {t("orders.qtyEach", "Qty {quantity} · {price} each", {
                           quantity: item.quantity,
@@ -164,6 +169,12 @@ export function OrdersView() {
                         : t("cart.discount", "Discount")}
                     </span>
                     <span>-{formatCurrency(order.discount)}</span>
+                  </div>
+                )}
+                {(order.preorderDiscount ?? 0) > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>{t("checkout.preorderDiscount", "Pre-order discount")}</span>
+                    <span>-{formatCurrency(order.preorderDiscount!)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-medium">

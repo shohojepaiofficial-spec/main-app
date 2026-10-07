@@ -65,6 +65,15 @@ export const getSharedCart = async (req: Request, res: Response) => {
         quantity: item.quantity,
         deliveryFeeInsideCity: product.deliveryFeeInsideCity,
         deliveryFeeOutsideCity: product.deliveryFeeOutsideCity,
+        // So the payer's checkout can preview the pre-order discount — the
+        // order itself still recomputes it from the product.
+        preorder: product.preorder?.enabled
+          ? {
+              shipDate: product.preorder.shipDate,
+              codDiscountPercent: product.preorder.codDiscountPercent,
+              onlineDiscountPercent: product.preorder.onlineDiscountPercent,
+            }
+          : undefined,
       };
     })
     .filter((i): i is NonNullable<typeof i> => i !== null);

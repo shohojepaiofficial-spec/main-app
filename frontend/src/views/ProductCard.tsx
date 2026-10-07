@@ -6,6 +6,7 @@ import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
 import { formatPriceRange } from "@/lib/variants";
 import { formatPromoDiscount } from "@/lib/promo";
+import { isOnPreorder } from "@/lib/preorder";
 import { WishlistButton } from "@/views/WishlistButton";
 import { T } from "@/components/ui/T";
 
@@ -32,10 +33,16 @@ export function ProductCard({ product, promo }: { product: Product; promo?: Appl
             <T k="product.noImage">No image</T>
           </div>
         )}
-        {product.stock === 0 && (
-          <span className="absolute top-2 left-2 rounded-full bg-foreground/80 px-2 py-0.5 text-[10px] font-medium uppercase text-background">
-            <T k="product.outOfStock">Out of stock</T>
+        {isOnPreorder(product) ? (
+          <span className="absolute top-2 left-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium uppercase text-primary-foreground">
+            <T k="product.preorderLabel">Pre-order</T>
           </span>
+        ) : (
+          product.stock === 0 && (
+            <span className="absolute top-2 left-2 rounded-full bg-foreground/80 px-2 py-0.5 text-[10px] font-medium uppercase text-background">
+              <T k="product.outOfStock">Out of stock</T>
+            </span>
+          )
         )}
         <WishlistButton productId={product._id} className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 text-foreground shadow-sm hover:text-red-600" />
       </div>

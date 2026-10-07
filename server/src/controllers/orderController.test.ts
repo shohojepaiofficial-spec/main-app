@@ -403,3 +403,131 @@ describe("restoreStock", () => {
     expect(Product.updateOne).toHaveBeenCalledWith({ _id: "p2" }, { $inc: { stock: 1 } });
   });
 });
+
+describe("pre-orders", () => {
+  const preorderProduct = (preorder: Record<string, unknown> = {}) =>
+    fakeProduct({
+      stock: 0,
+      price: 1000,
+      preorder: {
+        enabled: true,
+        reserved: 0,
+        codDiscountPercent: 5,
+        onlineDiscountPercent: 10,
+        ...preorder,
+      },
+    });
+
+  it("accepts a pre-order product with no stock and gives the Cash on Delivery discount", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([preorderProduct()]) as never);
+
+    const result = await computeOrderTotals([{ productId: "p1", quantity: 2 }], STORE_CITY_ZILA, TEST_UPAZILA);
+
+    expect(result.isPreorder).toBe(true);
+    expect(result.orderItems[0].isPreorder).toBe(true);
+    expect(result.preorderDiscount).toBe(100); // 5% of 2000
+    expect(result.totalAmount).toBe(1910); // 2000 + 10 delivery - 100
+  });
+
+  it("gives the bigger online discount when paying with bKash", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([preorderProduct()]) as never);
+
+    const result = await computeOrderTotals(
+      [{ productId: "p1", quantity: 2 }],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA,
+      undefined,
+      undefined,
+      "bkash"
+    );
+
+    expect(result.preorderDiscount).toBe(200); // 10% of 2000
+  });
+
+  it("only discounts the pre-order lines, and stacks with a promo code", async () => {
+    vi.mocked(Product.find).mockReturnValue(
+      queryResult([preorderProduct(), fakeProduct({ id: "p2", name: "Towel", price: 200 })]) as never
+    );
+    vi.mocked(PromoCode.findOne).mockReturnValue(
+      queryResult({ code: "SAVE10", discountType: "percentage", value: 10, scope: "all", isActive: true }) as never
+    );
+
+    const result = await computeOrderTotals(
+      [
+        { productId: "p1", quantity: 1 },
+        { productId: "p2", quantity: 1 },
+      ],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA,
+      "save10"
+    );
+
+    expect(result.orderItems[1].isPreorder).toBeUndefined();
+    expect(result.preorderDiscount).toBe(50); // 5% of 1000, not of the towel
+    expect(result.discount).toBe(120); // promo: 10% of 1200
+    expect(result.totalAmount).toBe(1200 + 20 - 120 - 50);
+  });
+
+  it("rejects more units than the pre-order cap has left, counting every line of the product", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([preorderProduct({ limit: 10, reserved: 8 })]) as never);
+
+    await expect(
+      computeOrderTotals([{ productId: "p1", quantity: 3 }], STORE_CITY_ZILA, TEST_UPAZILA)
+    ).rejects.toMatchObject({ status: 409, message: 'Only 2 pre-order spots left for "Towel"' });
+  });
+
+  it("uses the latest ship date as the order's expected ship date", async () => {
+    vi.mocked(Product.find).mockReturnValue(
+      queryResult([
+        preorderProduct({ shipDate: new Date("2026-11-10") }),
+        { ...preorderProduct({ shipDate: new Date("2026-11-20") }), id: "p2" },
+      ]) as never
+    );
+
+    const result = await computeOrderTotals(
+      [
+        { productId: "p1", quantity: 1 },
+        { productId: "p2", quantity: 1 },
+      ],
+      STORE_CITY_ZILA,
+      TEST_UPAZILA
+    );
+
+    expect(result.expectedShipDate).toEqual(new Date("2026-11-20"));
+  });
+
+  it("reserves a pre-order spot instead of taking stock, conditioned on the cap", async () => {
+    vi.mocked(Product.updateOne).mockResolvedValue({ modifiedCount: 1 } as never);
+    const fakeSession = {} as never;
+
+    await decrementStockAtomically(
+      [{ product: "p1", quantity: 2, name: "Towel", isPreorder: true, preorderLimit: 10 }],
+      fakeSession
+    );
+
+    expect(Product.updateOne).toHaveBeenCalledWith(
+      { _id: "p1", "preorder.enabled": true, "preorder.reserved": { $lte: 8 } },
+      { $inc: { "preorder.reserved": 2 } },
+      { session: fakeSession }
+    );
+  });
+
+  it("fails with 409 when pre-order was switched off or filled up in the meantime", async () => {
+    vi.mocked(Product.updateOne).mockResolvedValue({ modifiedCount: 0 } as never);
+
+    await expect(
+      decrementStockAtomically([{ product: "p1", quantity: 1, name: "Towel", isPreorder: true }], {} as never)
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("gives back the pre-order spot, not stock, on cancellation", async () => {
+    vi.mocked(Product.updateOne).mockResolvedValue({ modifiedCount: 1 } as never);
+
+    await restoreStock({ items: [{ product: "p1", quantity: 2, isPreorder: true }] });
+
+    expect(Product.updateOne).toHaveBeenCalledWith(
+      { _id: "p1", "preorder.reserved": { $gte: 2 } },
+      { $inc: { "preorder.reserved": -2 } }
+    );
+  });
+});

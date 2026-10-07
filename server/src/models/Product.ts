@@ -31,6 +31,27 @@ export interface IProductVariant {
   weightKg?: number;
 }
 
+// Selling a product before it's in hand. While `enabled`, every variant of
+// the product sells as a pre-order: stock isn't checked or decremented (there
+// is none yet), `reserved` counts the units already promised instead, and
+// the customer gets a discount that depends on how they pay — bigger for
+// paying online up front than for Cash on Delivery. See utils/preorder.ts
+// and orderController's computeOrderTotals.
+export interface IProductPreorder {
+  enabled: boolean;
+  // Shown to customers as "ships around <date>". Optional — the admin may
+  // not know it yet.
+  shipDate?: Date;
+  // Most units this pre-order will take across all orders. Absent = no cap.
+  limit?: number;
+  // Units on pre-orders placed (and not cancelled) since pre-order was last
+  // switched on — only ever moved by orderController, never by the admin
+  // form.
+  reserved: number;
+  codDiscountPercent: number;
+  onlineDiscountPercent: number;
+}
+
 export interface IProduct extends Document {
   name: string;
   description: string;
@@ -61,6 +82,7 @@ export interface IProduct extends Document {
   // stock updates, so listing, filtering and stats keep working unchanged.
   options: IProductOption[];
   variants: Types.DocumentArray<IProductVariant>;
+  preorder: IProductPreorder;
   createdAt: Date;
 }
 
@@ -92,6 +114,22 @@ const variantSchema = new Schema<IProductVariant>({
   weightKg: { type: Number, min: 0.1 },
 });
 
+// Discount ceiling (percent) for either pre-order discount — anything higher
+// is almost certainly a typo. Mirrored in frontend/src/views/ProductPreorderFields.tsx.
+export const MAX_PREORDER_DISCOUNT_PERCENT = 90;
+
+const preorderSchema = new Schema<IProductPreorder>(
+  {
+    enabled: { type: Boolean, default: false },
+    shipDate: { type: Date },
+    limit: { type: Number, min: 1 },
+    reserved: { type: Number, min: 0, default: 0 },
+    codDiscountPercent: { type: Number, min: 0, max: MAX_PREORDER_DISCOUNT_PERCENT, default: 0 },
+    onlineDiscountPercent: { type: Number, min: 0, max: MAX_PREORDER_DISCOUNT_PERCENT, default: 0 },
+  },
+  { _id: false }
+);
+
 // Sanity ceiling on one product's flat delivery fee (BDT). Real couriers
 // charge far less than this anywhere in Bangladesh, so a higher value is a
 // typo (an extra digit) that would silently inflate every checkout that
@@ -116,6 +154,7 @@ const productSchema = new Schema<IProduct>(
     weightKg: { type: Number, required: true, min: 0.1, default: 0.5 },
     options: { type: [optionSchema], default: [] },
     variants: { type: [variantSchema], default: [] },
+    preorder: { type: preorderSchema, default: () => ({}) },
   },
   { timestamps: true }
 );

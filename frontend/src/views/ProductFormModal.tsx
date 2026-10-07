@@ -13,6 +13,7 @@ import * as productService from "@/services/productService";
 import { Product } from "@/models";
 import { useVariantEditor } from "@/controllers/useVariantEditor";
 import { ProductVariantsEditor } from "./ProductVariantsEditor";
+import { MAX_PREORDER_DISCOUNT_PERCENT, ProductPreorderFields } from "./ProductPreorderFields";
 
 // Mirrors server/src/models/Product.ts's MAX_DELIVERY_FEE — catches a typo'd
 // fee (an extra digit) before it inflates every checkout with this product.
@@ -34,6 +35,21 @@ const productSchema = z.object({
     .max(MAX_DELIVERY_FEE, `Delivery fee can't be more than ${MAX_DELIVERY_FEE} Tk`),
   isFeatured: z.boolean(),
   weightKg: z.coerce.number().min(0.1, "Weight must be at least 0.1kg"),
+  preorderEnabled: z.boolean(),
+  // "" or a yyyy-mm-dd from the date input.
+  preorderShipDate: z.string(),
+  // "" means no limit.
+  preorderLimit: z
+    .string()
+    .refine((v) => v === "" || (Number.isInteger(Number(v)) && Number(v) >= 1), "Limit must be a whole number of at least 1"),
+  preorderCodDiscount: z.coerce
+    .number()
+    .min(0, "Discount can't be negative")
+    .max(MAX_PREORDER_DISCOUNT_PERCENT, `Discount can't be more than ${MAX_PREORDER_DISCOUNT_PERCENT}%`),
+  preorderOnlineDiscount: z.coerce
+    .number()
+    .min(0, "Discount can't be negative")
+    .max(MAX_PREORDER_DISCOUNT_PERCENT, `Discount can't be more than ${MAX_PREORDER_DISCOUNT_PERCENT}%`),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -79,6 +95,11 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
           deliveryFeeOutsideCity: editingProduct.deliveryFeeOutsideCity,
           isFeatured: editingProduct.isFeatured,
           weightKg: editingProduct.weightKg,
+          preorderEnabled: !!editingProduct.preorder?.enabled,
+          preorderShipDate: editingProduct.preorder?.shipDate?.slice(0, 10) ?? "",
+          preorderLimit: editingProduct.preorder?.limit ? String(editingProduct.preorder.limit) : "",
+          preorderCodDiscount: editingProduct.preorder?.codDiscountPercent ?? 0,
+          preorderOnlineDiscount: editingProduct.preorder?.onlineDiscountPercent ?? 0,
         }
       : {
           name: "",
@@ -90,6 +111,11 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
           deliveryFeeOutsideCity: 0,
           isFeatured: false,
           weightKg: 0.5,
+          preorderEnabled: false,
+          preorderShipDate: "",
+          preorderLimit: "",
+          preorderCodDiscount: 0,
+          preorderOnlineDiscount: 0,
         },
   });
 
@@ -104,6 +130,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
   const totalImages = existingImages.length + newImages.length;
 
   const category = useWatch({ control, name: "category" }) ?? "";
+  const preorderEnabled = useWatch({ control, name: "preorderEnabled" });
   const basePrice = useWatch({ control, name: "price" });
   const variantEditor = useVariantEditor({
     product: editingProduct,
@@ -135,15 +162,31 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
       return;
     }
     const variantPayload = variantEditor.toPayload(existingImages, newImages);
+    const {
+      preorderEnabled: enabled,
+      preorderShipDate,
+      preorderLimit,
+      preorderCodDiscount,
+      preorderOnlineDiscount,
+      ...productValues
+    } = values;
+    const preorder: productService.PreorderInput = {
+      enabled,
+      shipDate: preorderShipDate || undefined,
+      limit: preorderLimit ? Number(preorderLimit) : undefined,
+      codDiscountPercent: preorderCodDiscount,
+      onlineDiscountPercent: preorderOnlineDiscount,
+    };
     try {
       const product = editingProduct
         ? await productService.updateProduct(editingProduct._id, {
-            ...values,
+            ...productValues,
             ...variantPayload,
+            preorder,
             newImages,
             existingImages,
           })
-        : await productService.createProduct({ ...values, ...variantPayload, newImages });
+        : await productService.createProduct({ ...productValues, ...variantPayload, preorder, newImages });
       toast.success(editingProduct ? "Product updated" : "Product created");
       onSaved(product);
       onClose();
@@ -282,6 +325,14 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
         <input type="checkbox" {...register("isFeatured")} />
         Feature on homepage
       </label>
+
+      <ProductPreorderFields
+        register={register}
+        errors={errors}
+        enabled={preorderEnabled}
+        savedEnabled={!!editingProduct?.preorder?.enabled}
+        reserved={editingProduct?.preorder?.reserved ?? 0}
+      />
 
       <div>
         <label className="text-sm font-medium">Images</label>

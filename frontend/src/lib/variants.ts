@@ -49,16 +49,18 @@ export function findVariant(
 
 // Whether any in-stock variant is still reachable with `value` for `optionName`
 // given the customer's other picks — drives greying out a Size that's sold
-// out in the Color they already chose.
+// out in the Color they already chose. A product on pre-order sells every
+// variant regardless of stock, so only "does the combination exist" counts.
 export function isValueAvailable(
-  product: Pick<Product, "variants">,
+  product: Pick<Product, "variants" | "preorder">,
   picked: Record<string, string>,
   optionName: string,
   value: string
 ): boolean {
+  const onPreorder = !!product.preorder?.enabled;
   return (product.variants ?? []).some(
     (v) =>
-      v.stock > 0 &&
+      (onPreorder || v.stock > 0) &&
       v.selections.every((s) =>
         s.name === optionName ? s.value === value : !picked[s.name] || picked[s.name] === s.value
       )

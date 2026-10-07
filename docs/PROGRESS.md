@@ -1025,3 +1025,21 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - Found by the user after turning on two-step for the admin: on a Google sign-in, entering the authenticator code showed "Logged in", but the code box stayed open.
 - Cause: the NextAuth session still held the spent `twoFactorRequired` + `tempToken`. `TwoFactorForm`'s `closeAuthModal()` clears `twoFactorTempToken`, so `useOAuthBridge` saw a challenge it didn't recognise and called `openTwoFactorChallenge` again.
 - Fix (`useOAuthBridge.ts`): if a 2FA challenge is in the session while the store already has a token, the challenge is stale. The bridge signs out of NextAuth (only the leftover challenge session) and doesn't reopen the box. This also covers a reload or tab refocus with that leftover session. Frontend type-check clean. Verified live on shohojepai.com 2026-10-06: after a Google sign-in, entering the code closes the box.
+
+## 2026-10-06 (later) — Pre-orders, and bKash shown as "Coming soon"
+- User asked for pre-orders that work with both Cash on Delivery and bKash, with a discount for COD and a bigger one for paying online, and for bKash to show as "Coming soon" on every checkout.
+- Built as a per-product setting (`Product.preorder`), not a separate route: the existing order route, transaction and cancellation handle pre-order lines. Full design in ARCHITECTURE.md's new "Pre-orders" section.
+- Server: `utils/preorder.ts` (validation, dotted-path update, discount %, spots left); `computeOrderTotals` takes the payment method, checks the pre-order cap instead of stock and computes `preorderDiscount`; `decrementStockAtomically`/`restoreStock` move `preorder.reserved` instead of stock; `Order` gains `preorderDiscount`, `isPreorder`, `expectedShipDate` and per-line `isPreorder`; shared carts carry the pre-order info for the payer's preview.
+- Frontend: admin product form section (`ProductPreorderFields`), Pre-order badge/count in the product list, `PreorderNotice` + "Pre-order now" on the product page, Pre-order badge on cards, PreOrder JSON-LD and "(Pre-order)" title, pre-order tag in cart/checkout/orders/print, pre-order discount line everywhere totals show, admin Pre-orders filter, manual orders can pick pre-order products.
+- Checkout now always lists bKash; until `GET /api/config` says it's live it's greyed out with "Coming soon" instead of hidden.
+- New translation keys under `product.preorder*`, `cart.preorderShipsAround`, `checkout.preorder*` — run `npm run sync-translations` after deploying.
+- Server tests 77/77 (new: pre-order totals, discount per payment method, cap, reserve/restore, input validation); frontend tests 48/48 (new `lib/preorder.test.ts`); both type-checks clean; lint has the same 6 errors `main` already had, none in the new code. **Not yet tried in a browser.**
+
+### Known follow-ups (new)
+- A cart line remembers whether its product was on pre-order when it was added. If the admin switches pre-order on or off while it's in someone's cart, checkout's preview can be off; the server always charges the right amount, and the order confirmation shows it.
+- Pre-order and promo-code discounts stack. If that's too generous, decide which one wins.
+
+## 2026-10-07 — Courier name hidden from customers
+- User asked to remove Pathao's name from the public site: delivery covers all of Bangladesh, so customers don't need to know which courier is used.
+- The only place customers saw it was the "Pathao live rate" tag beside Delivery in the checkout summary (`CheckoutView.tsx`). Removed it. The live quote still sets the fee; the `checkout.pathaoLiveRate` key is now unused. Pathao still appears in admin screens (order courier panel, product weight hint), which customers can't see.
+- Shipping page (`/shipping`): now says we deliver across all of Bangladesh and that the delivery fee is estimated at checkout from the courier's live rates for the customer's zila/upazila and order weight. The old text said fees were set by hand per product, which stopped being true once live quotes went in. The courier isn't named. Meta description updated to match.

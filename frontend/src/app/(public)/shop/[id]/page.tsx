@@ -6,6 +6,7 @@ import { getProductReviews } from "@/services/reviewService";
 import { getActivePromoCodes } from "@/services/promoService";
 import { toUploadUrl } from "@/lib/api";
 import { hasVariants, variantLabel } from "@/lib/variants";
+import { isOnPreorder, preorderSpotsLeft } from "@/lib/preorder";
 import type { Product } from "@/models";
 import { SITE_URL } from "@/lib/seo";
 import { toJsonLdScript } from "@/lib/jsonLd";
@@ -35,14 +36,17 @@ export async function generateMetadata({
   // inherited automatically.
   const image = product.images[0] ? toUploadUrl(product.images[0]) : `${SITE_URL}/og-image.png`;
 
+  // "Pre-order" in the title is what a shopper searching for one types.
+  const title = isOnPreorder(product) ? `${product.name} (Pre-order)` : product.name;
+
   return {
-    title: product.name,
+    title,
     description,
     // ?variant= (a shared link to one size/color) and ?promo= are the same
     // page as far as search engines are concerned — one indexed URL.
     alternates: { canonical: `/shop/${product._id}` },
-    openGraph: { title: product.name, description, images: [image] },
-    twitter: { title: product.name, description, images: [image] },
+    openGraph: { title, description, images: [image] },
+    twitter: { title, description, images: [image] },
   };
 }
 
@@ -108,11 +112,23 @@ export default async function ProductDetailPage({
   // "inside vs. outside city" isn't a defined region. Using the inside-city
   // fee here as the representative rate keeps this valid without
   // fabricating one.
+  //
+  // A product on pre-order is schema.org's PreOrder (with the ship date as
+  // availabilityStarts) whatever its stock says — that's what lets search
+  // results show "Pre-order" instead of "Out of stock".
+  const onPreorder = isOnPreorder(product);
   const offerFor = (price: number, stock: number, url?: string) => ({
     "@type": "Offer",
     price: price.toFixed(2),
     priceCurrency: "BDT",
-    availability: stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    availability: onPreorder
+      ? preorderSpotsLeft(product) > 0
+        ? "https://schema.org/PreOrder"
+        : "https://schema.org/SoldOut"
+      : stock > 0
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+    ...(onPreorder && product.preorder?.shipDate ? { availabilityStarts: product.preorder.shipDate } : {}),
     ...(url ? { url } : {}),
     shippingDetails: {
       "@type": "OfferShippingDetails",

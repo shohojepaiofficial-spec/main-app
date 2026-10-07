@@ -14,6 +14,8 @@ import { useTranslations } from "@/controllers/useTranslations";
 import { useVariantPicker } from "@/controllers/useVariantPicker";
 import { formatPriceRange, variantLabel } from "@/lib/variants";
 import { VariantOptionPicker } from "@/views/VariantOptionPicker";
+import { PreorderNotice } from "@/views/PreorderNotice";
+import { isOnPreorder, preorderSpotsLeft, toCartPreorder } from "@/lib/preorder";
 
 export function ProductBuyBox({
   product,
@@ -40,9 +42,18 @@ export function ProductBuyBox({
   // Until every option is picked there's no single stock number to show —
   // the product counts as buyable as long as any variant has stock, and the
   // buttons stay enabled so clicking them can point at what's missing.
+  // A pre-order ignores stock (there is none yet) and is only limited by
+  // its cap, if it has one.
   const needsPick = picker.hasVariants && !picker.variant;
-  const inStock = needsPick ? product.stock > 0 && !picker.isUnavailableCombination : picker.stock > 0;
-  const maxQuantity = Math.max(1, Math.min(needsPick ? 10 : picker.stock, 10));
+  const onPreorder = isOnPreorder(product);
+  const spotsLeft = preorderSpotsLeft(product);
+  const inStock = onPreorder
+    ? spotsLeft > 0 && !picker.isUnavailableCombination
+    : needsPick
+      ? product.stock > 0 && !picker.isUnavailableCombination
+      : picker.stock > 0;
+  const available = onPreorder ? spotsLeft : needsPick ? 10 : picker.stock;
+  const maxQuantity = Math.max(1, Math.min(available, 10));
   // Switching to a variant with less stock can't leave the quantity above it.
   const quantity = Math.min(requestedQuantity, maxQuantity);
 
@@ -62,6 +73,7 @@ export function ProductBuyBox({
         image: picker.image ? toUploadUrl(picker.image) : undefined,
         deliveryFeeInsideCity: product.deliveryFeeInsideCity,
         deliveryFeeOutsideCity: product.deliveryFeeOutsideCity,
+        preorder: toCartPreorder(product),
       },
       quantity
     );
@@ -70,7 +82,11 @@ export function ProductBuyBox({
 
   const addToCart = () => {
     if (!addPickedToCart()) return;
-    toast.success(t("product.addedToCart", "Added {quantity} to cart", { quantity }));
+    toast.success(
+      onPreorder
+        ? t("product.addedPreorderToCart", "Pre-order for {quantity} added to cart", { quantity })
+        : t("product.addedToCart", "Added {quantity} to cart", { quantity })
+    );
   };
 
   // "Buy Now" is the direct-order fast path — straight to checkout with
@@ -135,8 +151,10 @@ export function ProductBuyBox({
         )}
       </div>
 
+      {onPreorder && <PreorderNotice preorder={product.preorder!} spotsLeft={spotsLeft} />}
+
       <div>
-        {picker.isUnavailableCombination ? (
+        {onPreorder ? null : picker.isUnavailableCombination ? (
           <p className="text-sm font-medium text-red-600">
             {t("product.combinationUnavailable", "This combination isn't available — try another option")}
           </p>
@@ -187,7 +205,7 @@ export function ProductBuyBox({
           disabled={!inStock}
           className="flex-1 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
         >
-          {t("product.buyNow", "Buy Now")}
+          {onPreorder ? t("product.preorderNow", "Pre-order now") : t("product.buyNow", "Buy Now")}
         </button>
         <WishlistButton
           productId={product._id}

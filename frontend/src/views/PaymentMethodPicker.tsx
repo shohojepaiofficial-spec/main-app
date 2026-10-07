@@ -14,8 +14,9 @@ export interface PaymentMethodInfo {
 
 // Both are wired up to something real — see server's
 // utils/paymentMethods.ts and integrations/bkash.ts. This list is every
-// method that exists; checkout filters it down to what GET /api/config says
-// the server accepts right now (bKash only with live credentials).
+// method that exists; checkout marks the ones GET /api/config says the
+// server doesn't accept yet (bKash, until live credentials) as unavailable,
+// which shows them greyed out as "Coming soon" rather than hiding them.
 //
 // `label`/`description` here are the English fallback/reference only — the
 // component below re-translates them by `id` at render time (see

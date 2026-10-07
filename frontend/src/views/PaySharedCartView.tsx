@@ -12,6 +12,7 @@ import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
 import { SharedCart } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
+import { PreorderLineTag } from "@/views/PreorderLineTag";
 
 export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
   const router = useRouter();
@@ -42,6 +43,7 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
           image: item.image ? toUploadUrl(item.image) : undefined,
           deliveryFeeInsideCity: item.deliveryFeeInsideCity,
           deliveryFeeOutsideCity: item.deliveryFeeOutsideCity,
+          preorder: item.preorder,
         },
         item.quantity
       );
@@ -97,6 +99,7 @@ export function PaySharedCartView({ sharedCart }: { sharedCart: SharedCart }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm">{item.name}</p>
                     {item.variantLabel && <p className="text-xs text-muted">{item.variantLabel}</p>}
+                    {item.preorder && <PreorderLineTag preorder={item.preorder} />}
                     <p className="text-xs text-muted">{t("checkout.qty", "Qty {n}", { n: item.quantity })}</p>
                   </div>
                   <p className="shrink-0 text-sm font-medium">

@@ -99,7 +99,23 @@ export interface Product {
   // numbers live on each variant. See server/src/models/Product.ts.
   options?: ProductOption[];
   variants?: ProductVariant[];
+  // Absent on an older API response. See ProductPreorder.
+  preorder?: ProductPreorder;
   createdAt: string;
+}
+
+// Selling before the stock arrives. While `enabled`, every variant sells as
+// a pre-order regardless of stock, and the customer's discount depends on
+// how they pay. See server/src/models/Product.ts's IProductPreorder.
+export interface ProductPreorder {
+  enabled: boolean;
+  shipDate?: string;
+  // Most units it will take; absent = no cap.
+  limit?: number;
+  // Units already promised to pre-orders — moved only by orders.
+  reserved: number;
+  codDiscountPercent: number;
+  onlineDiscountPercent: number;
 }
 
 // One axis a customer picks from — "Size": S/M/L. Order is display order.
@@ -210,6 +226,8 @@ export interface OrderItem {
   variantLabel?: string;
   selections?: VariantSelection[];
   sku?: string;
+  // Bought while the product was on pre-order.
+  isPreorder?: boolean;
 }
 
 // A lean product shape — what "reviewable products" and similar
@@ -239,6 +257,10 @@ export interface Order {
   deliveryFee: number;
   promoCode?: string;
   discount: number;
+  // Absent on orders placed before pre-orders existed.
+  preorderDiscount?: number;
+  isPreorder?: boolean;
+  expectedShipDate?: string;
   totalAmount: number;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
@@ -325,6 +347,16 @@ export interface CartItem {
   // zila chosen at checkout, not stored here).
   deliveryFeeInsideCity: number;
   deliveryFeeOutsideCity: number;
+  // Set when the product was on pre-order at add-to-cart time — same
+  // client-cached trust model as price: only for showing the discount
+  // preview, the server recomputes it from the product.
+  preorder?: CartPreorder;
+}
+
+export interface CartPreorder {
+  shipDate?: string;
+  codDiscountPercent: number;
+  onlineDiscountPercent: number;
 }
 
 // One cart line as sent to the API — never a price; the server looks that
@@ -345,6 +377,7 @@ export interface SharedCartItem {
   quantity: number;
   deliveryFeeInsideCity: number;
   deliveryFeeOutsideCity: number;
+  preorder?: CartPreorder;
 }
 
 export interface SharedCart {

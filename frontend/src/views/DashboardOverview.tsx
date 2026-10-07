@@ -29,6 +29,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatPromoDiscount } from "@/lib/promo";
 import { isInsideStoreCity } from "@/lib/delivery";
 import { hasVariants, formatPriceRange } from "@/lib/variants";
+import { toCartPreorder } from "@/lib/preorder";
 import { AppliedPromo, Order, OrderStatus, Product, ProductSummary } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
 
@@ -203,6 +204,7 @@ function SavedItems() {
           image: product.images[0] ? toUploadUrl(product.images[0]) : undefined,
           deliveryFeeInsideCity: product.deliveryFeeInsideCity,
           deliveryFeeOutsideCity: product.deliveryFeeOutsideCity,
+          preorder: toCartPreorder(product),
         });
         await toggleWishlist(product._id);
       }

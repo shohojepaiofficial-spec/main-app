@@ -13,6 +13,7 @@ import * as orderService from "@/services/orderService";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
 import { toTelLink, toWhatsAppLink } from "@/lib/phone";
+import { formatShipDate } from "@/lib/preorder";
 import { Order, OrderStatus } from "@/models";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -141,6 +142,12 @@ function OrderRow({
                   Courier booked
                 </span>
               )}
+              {order.isPreorder && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase text-primary">
+                  Pre-order
+                  {order.expectedShipDate && ` · ships ${formatShipDate(order.expectedShipDate)}`}
+                </span>
+              )}
             </p>
             <p className="text-xs text-muted">
               {format(new Date(order.createdAt), "PPP")} &middot; {order.shippingAddress.fullName} (
@@ -189,6 +196,7 @@ function OrderRow({
                       {item.sku && <span className="ml-1 font-normal text-muted">· SKU {item.sku}</span>}
                     </p>
                   )}
+                  {item.isPreorder && <p className="text-xs font-medium text-primary">Pre-order</p>}
                   <p className="text-xs text-muted">
                     Qty {item.quantity} &middot; {formatCurrency(item.price)} each
                   </p>
@@ -213,6 +221,12 @@ function OrderRow({
               <div className="flex justify-between text-green-700">
                 <span>Discount{order.promoCode ? ` (${order.promoCode})` : ""}</span>
                 <span>-{formatCurrency(order.discount)}</span>
+              </div>
+            )}
+            {(order.preorderDiscount ?? 0) > 0 && (
+              <div className="flex justify-between text-green-700">
+                <span>Pre-order discount</span>
+                <span>-{formatCurrency(order.preorderDiscount!)}</span>
               </div>
             )}
             <div className="flex justify-between font-medium">
@@ -319,6 +333,7 @@ export function AdminOrdersView() {
   } = useAdminOrders();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "preorder" | "regular">("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
   const [dateFrom, setDateFrom] = useState("");
@@ -332,6 +347,7 @@ export function AdminOrdersView() {
 
     const result = orders.filter((order) => {
       if (statusFilter !== "all" && order.status !== statusFilter) return false;
+      if (typeFilter !== "all" && !!order.isPreorder !== (typeFilter === "preorder")) return false;
       const createdAt = new Date(order.createdAt).getTime();
       if (fromTime !== null && createdAt < fromTime) return false;
       if (toTime !== null && createdAt > toTime) return false;
@@ -359,7 +375,7 @@ export function AdminOrdersView() {
         sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return sorted;
-  }, [orders, statusFilter, search, sort, dateFrom, dateTo]);
+  }, [orders, statusFilter, typeFilter, search, sort, dateFrom, dateTo]);
 
   if (isChecking || !isAllowed) {
     return (
@@ -409,6 +425,15 @@ export function AdminOrdersView() {
               {STATUS_LABEL[s]}
             </option>
           ))}
+        </select>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as "all" | "preorder" | "regular")}
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm"
+        >
+          <option value="all">All orders</option>
+          <option value="preorder">Pre-orders</option>
+          <option value="regular">Regular orders</option>
         </select>
         <select
           value={sort}

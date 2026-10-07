@@ -65,6 +65,18 @@ export interface VariantInput {
   weightKg?: number;
 }
 
+// Pre-order settings as the admin form submits them — see
+// models' ProductPreorder. `reserved` is never sent; only orders move it.
+export interface PreorderInput {
+  enabled: boolean;
+  // yyyy-mm-dd, or absent for "no date yet".
+  shipDate?: string;
+  // Absent = no limit.
+  limit?: number;
+  codDiscountPercent: number;
+  onlineDiscountPercent: number;
+}
+
 export interface ProductInput {
   name: string;
   description: string;
@@ -79,6 +91,7 @@ export interface ProductInput {
   // ones); otherwise the server derives price/stock from the variants.
   options: ProductOption[];
   variants: VariantInput[];
+  preorder: PreorderInput;
   newImages: File[];
 }
 
@@ -95,6 +108,7 @@ export const createProduct = async (input: ProductInput): Promise<Product> => {
   formData.append("weightKg", String(input.weightKg));
   formData.append("options", JSON.stringify(input.options));
   formData.append("variants", JSON.stringify(input.variants));
+  formData.append("preorder", JSON.stringify(input.preorder));
   input.newImages.forEach((file) => formData.append("images", file));
 
   const { data } = await api.post<Product>("/products", formData);
@@ -117,6 +131,7 @@ export const updateProduct = async (
   formData.append("weightKg", String(input.weightKg));
   formData.append("options", JSON.stringify(input.options));
   formData.append("variants", JSON.stringify(input.variants));
+  formData.append("preorder", JSON.stringify(input.preorder));
   formData.append("existingImages", JSON.stringify(input.existingImages));
   input.newImages.forEach((file) => formData.append("images", file));
 

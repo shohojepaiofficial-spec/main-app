@@ -11,6 +11,7 @@ import { useCartStore, cartLineKey } from "@/controllers/useCartStore";
 import * as promoService from "@/services/promoService";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "@/controllers/useTranslations";
+import { PreorderLineTag } from "@/views/PreorderLineTag";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -107,6 +108,7 @@ export function CartModal() {
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{item.name}</p>
                 {item.variantLabel && <p className="text-xs text-muted">{item.variantLabel}</p>}
+                {item.preorder && <PreorderLineTag preorder={item.preorder} />}
                 <p className="text-sm text-muted">{formatCurrency(item.price)}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <button

@@ -270,6 +270,12 @@ export function AdminProductsView() {
                     {hasVariants(product) && (
                       <VariantStockNote soldOut={product.variants!.filter((v) => v.stock === 0).length} />
                     )}
+                    {product.preorder?.enabled && (
+                      <p className="text-xs font-medium text-primary">
+                        Pre-order · {product.preorder.reserved}
+                        {product.preorder.limit ? ` / ${product.preorder.limit}` : ""} taken
+                      </p>
+                    )}
                   </td>
                   <td className="py-3 pr-4 align-top">
                     <div className="flex items-center gap-3">

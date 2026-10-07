@@ -12,6 +12,7 @@ import { isNonEmptyString } from "../utils/validate";
 import { resolvePurchasable } from "../utils/productVariants";
 import { AuthRequest } from "../middleware/auth";
 import { liveOnlinePaymentMethods } from "../utils/paymentMethods";
+import { preorderDiscountPercent, preorderSpotsLeft } from "../utils/preorder";
 import {
   createBkashPayment,
   executeBkashPayment,
@@ -51,6 +52,11 @@ export interface OrderLine {
   variantLabel?: string;
   selections?: { name: string; value: string }[];
   sku?: string;
+  // The product is on pre-order — see Product.preorder.
+  isPreorder?: boolean;
+  // That pre-order's cap at the time totals were computed, for
+  // decrementStockAtomically's conditional update. Not stored on the order.
+  preorderLimit?: number;
 }
 
 // Line name used in stock errors — "Hoodie (Black / L)" rather than just
@@ -109,12 +115,18 @@ async function resolveDeliveryFee(
 // productId + quantity; re-fetches products and re-validates promoCode
 // itself. Throws { status, message } on any validation failure so the
 // caller can just catch and respond.
+//
+// A product on pre-order (Product.preorder.enabled) skips the stock check —
+// there's no stock yet — and is checked against its pre-order cap instead.
+// Its lines get the pre-order discount for `paymentMethod`, on top of any
+// promo code (the two are reported separately).
 export async function computeOrderTotals(
   items: CheckoutItemInput[],
   zila: string,
   upazila: string,
   promoCode?: string,
-  session?: ClientSession
+  session?: ClientSession,
+  paymentMethod: PaymentMethod = "cod"
 ) {
   const isInsideCity = zila.trim() === STORE_CITY;
 
@@ -130,6 +142,11 @@ export async function computeOrderTotals(
   // The flat fee is once per distinct product, not per line — two sizes of
   // the same hoodie ship in one parcel, same as two units of one size.
   const productsWithFee = new Set<string>();
+  let preorderDiscount = 0;
+  let expectedShipDate: Date | undefined;
+  // Pre-order units asked for per product, across all its lines — two
+  // sizes of the same product share one cap.
+  const preorderUnits = new Map<string, number>();
 
   for (const { productId, variantId, quantity } of items) {
     if (!isNonEmptyString(productId) || !Number.isInteger(quantity) || quantity < 1) {
@@ -147,7 +164,27 @@ export async function computeOrderTotals(
       orderLine.selections = line.variant.selections;
       if (line.variant.sku) orderLine.sku = line.variant.sku;
     }
-    if (line.stock < quantity) {
+    const preorder = product.preorder?.enabled ? product.preorder : undefined;
+    if (preorder) {
+      const units = (preorderUnits.get(productId) ?? 0) + quantity;
+      preorderUnits.set(productId, units);
+      const spotsLeft = preorderSpotsLeft(preorder);
+      if (units > spotsLeft) {
+        throw {
+          status: 409,
+          message:
+            spotsLeft === 0
+              ? `Pre-orders for "${product.name}" are full`
+              : `Only ${spotsLeft} pre-order spot${spotsLeft === 1 ? "" : "s"} left for "${product.name}"`,
+        };
+      }
+      orderLine.isPreorder = true;
+      if (preorder.limit !== undefined && preorder.limit !== null) orderLine.preorderLimit = preorder.limit;
+      preorderDiscount += line.price * quantity * (preorderDiscountPercent(preorder, paymentMethod) / 100);
+      if (preorder.shipDate && (!expectedShipDate || preorder.shipDate > expectedShipDate)) {
+        expectedShipDate = preorder.shipDate;
+      }
+    } else if (line.stock < quantity) {
       throw { status: 409, message: `Not enough stock for "${lineName(orderLine)}"` };
     }
     orderItems.push(orderLine);
@@ -196,9 +233,24 @@ export async function computeOrderTotals(
     }
   }
 
-  const totalAmount = Math.max(0, itemsTotal + deliveryFee - discount);
+  // Whole taka, so the receipt never shows a fraction for it — the
+  // storefront's preview (lib/preorder.ts) rounds the same way.
+  preorderDiscount = Math.round(preorderDiscount);
+  const isPreorder = orderItems.some((i) => i.isPreorder);
+  const totalAmount = Math.max(0, itemsTotal + deliveryFee - discount - preorderDiscount);
 
-  return { orderItems, itemsTotal, deliveryFee, deliveryFeeSource, discount, appliedCode, totalAmount };
+  return {
+    orderItems,
+    itemsTotal,
+    deliveryFee,
+    deliveryFeeSource,
+    discount,
+    appliedCode,
+    preorderDiscount,
+    isPreorder,
+    expectedShipDate,
+    totalAmount,
+  };
 }
 
 // Checkout-time preview of the delivery fee, before the order is actually
@@ -268,11 +320,44 @@ export const getDeliveryQuote = async (req: AuthRequest, res: Response) => {
 // For a variant line, the condition is on that variant's own stock, and the
 // product's top-level `stock` (the total across variants — see Product.ts)
 // moves by the same amount in the same write so the two never drift.
+//
+// A pre-order line takes no stock (there is none yet) — it moves the
+// product's preorder.reserved count instead, conditioned on pre-order still
+// being on and, for a capped one, on there still being room. Same race
+// protection as stock: two checkouts for the last spot can't both get it.
 export async function decrementStockAtomically(
-  orderItems: { product: string; quantity: number; name: string; variant?: string; variantLabel?: string }[],
+  orderItems: {
+    product: string;
+    quantity: number;
+    name: string;
+    variant?: string;
+    variantLabel?: string;
+    isPreorder?: boolean;
+    preorderLimit?: number;
+  }[],
   session: ClientSession
 ) {
   for (const item of orderItems) {
+    if (item.isPreorder) {
+      const result = await Product.updateOne(
+        {
+          _id: item.product,
+          "preorder.enabled": true,
+          ...(item.preorderLimit !== undefined
+            ? { "preorder.reserved": { $lte: item.preorderLimit - item.quantity } }
+            : {}),
+        },
+        { $inc: { "preorder.reserved": item.quantity } },
+        { session }
+      );
+      if (result.modifiedCount === 0) {
+        throw {
+          status: 409,
+          message: `Pre-orders for "${item.name}" just filled up or closed — please update your cart and try again.`,
+        };
+      }
+      continue;
+    }
     const result = item.variant
       ? await Product.updateOne(
           { _id: item.product, variants: { $elemMatch: { _id: item.variant, stock: { $gte: item.quantity } } } },
@@ -288,6 +373,23 @@ export async function decrementStockAtomically(
       throw { status: 409, message: `"${lineName(item)}" just sold out — please update your cart and try again.` };
     }
   }
+}
+
+// The Order fields computeOrderTotals decides — shared by createOrder and
+// adminCreateOrder so the two can't store different things.
+function orderFieldsFromTotals(totals: Awaited<ReturnType<typeof computeOrderTotals>>) {
+  return {
+    items: totals.orderItems,
+    itemsTotal: totals.itemsTotal,
+    deliveryFee: totals.deliveryFee,
+    deliveryFeeSource: totals.deliveryFeeSource,
+    promoCode: totals.appliedCode,
+    discount: totals.discount,
+    preorderDiscount: totals.preorderDiscount,
+    isPreorder: totals.isPreorder,
+    expectedShipDate: totals.expectedShipDate,
+    totalAmount: totals.totalAmount,
+  };
 }
 
 function readShippingAddress(input?: ShippingInput) {
@@ -334,22 +436,15 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     await session.withTransaction(async () => {
       address = readShippingAddress(shippingAddress);
-      const { orderItems, itemsTotal, deliveryFee, deliveryFeeSource, discount, appliedCode, totalAmount } =
-        await computeOrderTotals(items, address.zila, address.upazila, promoCode, session);
+      const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method);
 
-      await decrementStockAtomically(orderItems, session);
+      await decrementStockAtomically(totals.orderItems, session);
 
       const [created] = await Order.create(
         [
           {
             user: req.userId,
-            items: orderItems,
-            itemsTotal,
-            deliveryFee,
-            deliveryFeeSource,
-            promoCode: appliedCode,
-            discount,
-            totalAmount,
+            ...orderFieldsFromTotals(totals),
             paymentMethod: method,
             source: "online",
             shippingAddress: address,
@@ -434,21 +529,14 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
   try {
     await session.withTransaction(async () => {
       const address = readShippingAddress(shippingAddress);
-      const { orderItems, itemsTotal, deliveryFee, deliveryFeeSource, discount, appliedCode, totalAmount } =
-        await computeOrderTotals(items, address.zila, address.upazila, promoCode, session);
+      const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method);
 
-      await decrementStockAtomically(orderItems, session);
+      await decrementStockAtomically(totals.orderItems, session);
 
       const [created] = await Order.create(
         [
           {
-            items: orderItems,
-            itemsTotal,
-            deliveryFee,
-            deliveryFeeSource,
-            promoCode: appliedCode,
-            discount,
-            totalAmount,
+            ...orderFieldsFromTotals(totals),
             paymentMethod: method,
             source: "manual" as OrderSource,
             shippingAddress: address,
@@ -610,12 +698,26 @@ export const getAllOrders = async (_req: AuthRequest, res: Response) => {
 // the admin has since deleted that variant there's nothing sensible to put the
 // units back into, so it's skipped — adding them to the product's total alone
 // would make the total disagree with the sum of its variants.
+//
+// A pre-order line took no stock, so it gives back its pre-order spot
+// instead. Conditioned on the count being high enough: pre-order switched
+// off and on again since (a new batch, counted from 0) mustn't go negative.
 export async function restoreStock(order: {
-  items: { product: Types.ObjectId | string; quantity: number; variant?: Types.ObjectId | string }[];
+  items: {
+    product: Types.ObjectId | string;
+    quantity: number;
+    variant?: Types.ObjectId | string;
+    isPreorder?: boolean;
+  }[];
 }) {
   await Promise.all(
     order.items.map((item) =>
-      item.variant
+      item.isPreorder
+        ? Product.updateOne(
+            { _id: item.product, "preorder.reserved": { $gte: item.quantity } },
+            { $inc: { "preorder.reserved": -item.quantity } }
+          )
+        : item.variant
         ? Product.updateOne(
             { _id: item.product, "variants._id": item.variant },
             { $inc: { "variants.$.stock": item.quantity, stock: item.quantity } }

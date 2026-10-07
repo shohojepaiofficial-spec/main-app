@@ -22,6 +22,8 @@ import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
 import { PAYMENT_METHODS, PaymentMethodPicker } from "@/views/PaymentMethodPicker";
 import { ShareLinkModal } from "@/views/ShareLinkModal";
 import { DeliveryQuote, Order, PaymentMethod } from "@/models";
+import { bestPreorderPercents, calculatePreorderDiscount, formatShipDate, latestShipDate } from "@/lib/preorder";
+import { PreorderLineTag } from "@/views/PreorderLineTag";
 import { useTranslations } from "@/controllers/useTranslations";
 import { pushToDataLayer } from "@/lib/gtm";
 
@@ -152,6 +154,15 @@ function OrderPlaced({ order }: { order: Order }) {
               : ".",
         })}
       </p>
+      {order.isPreorder && (
+        <p className="-mt-4 mb-6 text-sm text-muted">
+          {order.expectedShipDate
+            ? t("checkout.preorderPlacedShips", "Your pre-order ships around {date} — we'll be in touch when it's on its way.", {
+                date: formatShipDate(order.expectedShipDate),
+              })
+            : t("checkout.preorderPlaced", "This is a pre-order — we'll be in touch when it's on its way.")}
+        </p>
+      )}
       <div className="flex flex-wrap justify-center gap-3">
         <Link
           href="/orders"
@@ -197,8 +208,9 @@ export function CheckoutView({
   paymentMethods,
 }: {
   storeCity: string;
-  // What the server will accept right now (GET /api/config) — bKash is left
-  // out until real merchant credentials are live, so it isn't shown at all.
+  // What the server will accept right now (GET /api/config). Every method
+  // is still shown — one the server doesn't accept yet (bKash, until real
+  // merchant credentials are live) is greyed out as "Coming soon".
   paymentMethods: PaymentMethod[];
 }) {
   const { user } = useAuthController();
@@ -366,7 +378,13 @@ export function CheckoutView({
   const flatDeliveryFee = calculateDeliveryTotal(items, zila, storeCity);
   const hasLiveQuote = !!liveQuote && liveQuote.zila === zila && liveQuote.upazila === upazila;
   const deliveryFee = hasLiveQuote ? liveQuote!.deliveryFee : flatDeliveryFee;
-  const grandTotal = Math.max(0, itemsTotal + deliveryFee - discount);
+  // Preview only — computeOrderTotals on the server decides the real one,
+  // from the product's current pre-order settings.
+  const preorderDiscount = calculatePreorderDiscount(items, paymentMethod);
+  const hasPreorder = items.some((i) => i.preorder);
+  const preorderShipDate = latestShipDate(items);
+  const preorderPercents = bestPreorderPercents(items);
+  const grandTotal = Math.max(0, itemsTotal + deliveryFee - discount - preorderDiscount);
 
   const onSubmit = async (values: CheckoutValues) => {
     const { paymentMethod: method, ...shippingAddress } = values;
@@ -595,8 +613,29 @@ export function CheckoutView({
           <PaymentMethodPicker
             value={paymentMethod}
             onChange={(method) => setValue("paymentMethod", method)}
-            methods={PAYMENT_METHODS.filter((method) => paymentMethods.includes(method.id))}
+            methods={PAYMENT_METHODS.map((method) => ({ ...method, available: paymentMethods.includes(method.id) }))}
           />
+
+          {hasPreorder && (
+            <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+              <p className="font-medium text-primary">
+                {preorderShipDate
+                  ? t("checkout.preorderShipsAround", "Your cart has a pre-order — the parcel ships around {date}.", {
+                      date: formatShipDate(preorderShipDate),
+                    })
+                  : t("checkout.preorderInCart", "Your cart has a pre-order — the parcel ships once it arrives.")}
+              </p>
+              {(preorderPercents.cod > 0 || preorderPercents.online > 0) && (
+                <p className="mt-1 text-xs text-muted">
+                  {t(
+                    "checkout.preorderDiscounts",
+                    "Pre-order discount: {cod}% with Cash on Delivery, {online}% paying online with bKash (coming soon).",
+                    { cod: preorderPercents.cod, online: preorderPercents.online }
+                  )}
+                </p>
+              )}
+            </div>
+          )}
         </form>
 
         <div className="flex flex-col gap-4">
@@ -613,6 +652,7 @@ export function CheckoutView({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm">{item.name}</p>
                     {item.variantLabel && <p className="text-xs text-muted">{item.variantLabel}</p>}
+                    {item.preorder && <PreorderLineTag preorder={item.preorder} />}
                     <p className="text-xs text-muted">
                       {t("checkout.qty", "Qty {n}", { n: item.quantity })}
                     </p>
@@ -632,11 +672,6 @@ export function CheckoutView({
               <div className="flex justify-between text-muted">
                 <span>
                   {t("checkout.delivery", "Delivery")}
-                  {zila && upazila && hasLiveQuote && liveQuote!.source === "pathao" && (
-                    <span className="ml-1.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                      {t("checkout.pathaoLiveRate", "Pathao live rate")}
-                    </span>
-                  )}
                   {zila && upazila && isQuoteLoading && (
                     <span className="ml-1.5 text-[10px]">
                       {t("checkout.calculatingDelivery", "calculating...")}
@@ -653,6 +688,12 @@ export function CheckoutView({
                       : t("cart.discount", "Discount")}
                   </span>
                   <span>-{formatCurrency(discount)}</span>
+                </div>
+              )}
+              {preorderDiscount > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>{t("checkout.preorderDiscount", "Pre-order discount")}</span>
+                  <span>-{formatCurrency(preorderDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-semibold">

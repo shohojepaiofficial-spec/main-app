@@ -105,6 +105,7 @@ export function OrderPrintView({ orderId }: { orderId: string }) {
             <p className="text-xs font-medium uppercase text-muted">Payment</p>
             <p className="mt-1">{PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}</p>
             <p className="text-xs capitalize text-muted">{order.status}</p>
+            {order.isPreorder && <p className="text-xs font-semibold">Pre-order</p>}
           </div>
         </div>
 
@@ -125,6 +126,7 @@ export function OrderPrintView({ orderId }: { orderId: string }) {
                   {/* What the packer actually needs to pick off the shelf. */}
                   {item.variantLabel && <span className="block text-xs font-semibold">{item.variantLabel}</span>}
                   {item.sku && <span className="block text-xs text-muted">SKU {item.sku}</span>}
+                  {item.isPreorder && <span className="block text-xs">Pre-order</span>}
                 </td>
                 <td className="py-2 text-right">{item.quantity}</td>
                 <td className="py-2 text-right">{formatCurrency(item.price)}</td>
@@ -147,6 +149,12 @@ export function OrderPrintView({ orderId }: { orderId: string }) {
             <div className="flex w-48 justify-between text-green-700">
               <span>Discount{order.promoCode ? ` (${order.promoCode})` : ""}</span>
               <span>-{formatCurrency(order.discount)}</span>
+            </div>
+          )}
+          {(order.preorderDiscount ?? 0) > 0 && (
+            <div className="flex w-48 justify-between text-green-700">
+              <span>Pre-order discount</span>
+              <span>-{formatCurrency(order.preorderDiscount!)}</span>
             </div>
           )}
           <div className="flex w-48 justify-between border-t border-border pt-1 text-base font-semibold">

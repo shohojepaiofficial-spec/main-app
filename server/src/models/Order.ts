@@ -12,6 +12,11 @@ interface IOrderItem {
   variantLabel?: string;
   selections?: { name: string; value: string }[];
   sku?: string;
+  // The product was on pre-order when this was bought — no stock was taken
+  // for it; the product's preorder.reserved counter was moved instead, and
+  // that's what a cancellation gives back (see orderController's
+  // restoreStock).
+  isPreorder?: boolean;
 }
 
 export interface IShippingDetails {
@@ -48,6 +53,14 @@ export interface IOrder extends Document {
   deliveryFeeSource: "pathao" | "flat";
   promoCode?: string;
   discount: number;
+  // The pre-order discount for how this order is paid (see
+  // Product.preorder) — separate from the promo-code `discount` so the
+  // receipt can show both.
+  preorderDiscount: number;
+  // At least one line is a pre-order, so the whole parcel waits for it.
+  isPreorder: boolean;
+  // Latest ship date among the pre-order lines, when the admin set one.
+  expectedShipDate?: Date;
   totalAmount: number;
   status: "pending" | "paid" | "shipped" | "delivered" | "cancelled";
   paymentMethod: PaymentMethod;
@@ -107,6 +120,7 @@ const orderSchema = new Schema<IOrder>(
           default: undefined,
         },
         sku: { type: String },
+        isPreorder: { type: Boolean },
       },
     ],
     itemsTotal: { type: Number, required: true },
@@ -114,6 +128,9 @@ const orderSchema = new Schema<IOrder>(
     deliveryFeeSource: { type: String, enum: ["pathao", "flat"], default: "flat" },
     promoCode: { type: String },
     discount: { type: Number, required: true, default: 0 },
+    preorderDiscount: { type: Number, default: 0 },
+    isPreorder: { type: Boolean, default: false },
+    expectedShipDate: { type: Date },
     totalAmount: { type: Number, required: true },
     status: {
       type: String,
