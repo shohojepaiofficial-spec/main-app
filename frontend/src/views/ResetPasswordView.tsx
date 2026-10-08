@@ -112,7 +112,7 @@ export function ResetPasswordView({ token }: { token: string | null }) {
         setTwoFactorTempToken(data.tempToken);
         return;
       }
-      setAuth(data.token, data.user);
+      setAuth(data.token, data.user, data.refreshToken);
       setIsDone(true);
       toast.success(t("auth.passwordUpdated", "Password updated"));
     } catch (err) {
@@ -125,7 +125,7 @@ export function ResetPasswordView({ token }: { token: string | null }) {
       <TwoFactorStep
         tempToken={twoFactorTempToken}
         onSuccess={(data) => {
-          setAuth(data.token, data.user);
+          setAuth(data.token, data.user, data.refreshToken);
           setIsDone(true);
           toast.success(t("auth.passwordUpdated", "Password updated"));
         }}

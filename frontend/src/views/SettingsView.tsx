@@ -335,7 +335,7 @@ type TwoFactorStep =
 
 function TwoFactorSection() {
   const { user } = useAuthController();
-  const updateUser = useAuthStore((s) => s.updateUser);
+  const setAuth = useAuthStore((s) => s.setAuth);
   const [step, setStep] = useState<TwoFactorStep>({ name: "idle" });
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -386,7 +386,7 @@ function TwoFactorSection() {
     try {
       const replacing = step.name === "settingUp" && step.replacement;
       const data = await (replacing ? authService.confirmTwoFactorReplacement(code.trim()) : authService.confirmTwoFactor(code.trim()));
-      updateUser({ ...user, twoFactorEnabled: true });
+      setAuth(data.token, data.user, data.refreshToken);
       setStep({ name: "backupCodes", codes: data.backupCodes });
       setCode("");
       toast.success(replacing ? t("settings.authenticatorReplaced", "Authenticator replaced") : t("settings.twoFactorEnabled", "Two-step verification enabled"));
@@ -400,8 +400,8 @@ function TwoFactorSection() {
   const confirmDisable = async () => {
     setIsSubmitting(true);
     try {
-      await authService.disableTwoFactor(code.trim());
-      updateUser({ ...user, twoFactorEnabled: false });
+      const data = await authService.disableTwoFactor(code.trim());
+      setAuth(data.token, data.user, data.refreshToken);
       setStep({ name: "idle" });
       setCode("");
       toast.success(t("settings.twoFactorDisabled", "Two-step verification disabled"));
@@ -586,7 +586,8 @@ function PasswordSection() {
   const onSubmit = async (values: PasswordValues) => {
     try {
       await authService.changePassword(values.currentPassword, values.newPassword);
-      toast.success(t("auth.passwordUpdated", "Password updated"));
+      useAuthStore.getState().logout();
+      toast.success(t("auth.passwordUpdatedSignIn", "Password updated. Please sign in again on your devices."));
       reset();
     } catch (err) {
       toast.error(extractErrorMessage(err, t("settings.failedToUpdatePassword", "Failed to update password")));
@@ -648,7 +649,8 @@ function PasswordSection() {
 }
 
 export function SettingsView() {
-  const { user } = useAuthController();
+  const { user, logoutAll } = useAuthController();
+  const [endingSessions, setEndingSessions] = useState(false);
   const { t } = useTranslations();
   if (!user) return null;
 
@@ -663,6 +665,13 @@ export function SettingsView() {
         <ProfileSection />
         <DeliveryLocationSection />
         <MarketingSection />
+        <button
+          disabled={endingSessions}
+          onClick={async () => { setEndingSessions(true); try { await logoutAll(); } finally { setEndingSessions(false); } }}
+          className="self-start rounded-md border border-border px-3 py-2 text-sm disabled:opacity-50"
+        >
+          {t("settings.logoutAll", "Sign out on all devices")}
+        </button>
         {(user.role === "admin" || user.role === "coadmin") && <TwoFactorSection key={user.id} />}
         {user.provider === "google" ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted">

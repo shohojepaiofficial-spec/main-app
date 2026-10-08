@@ -3,6 +3,7 @@ import { DeliveryLocation, MarketingOptIn, User } from "@/models";
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: User;
 }
 
@@ -42,22 +43,22 @@ export const replaceTwoFactor = async (code: string): Promise<TwoFactorSetup> =>
   return data;
 };
 
-export const confirmTwoFactorReplacement = async (code: string): Promise<{ message: string; backupCodes: string[] }> => {
-  const { data } = await api.post<{ message: string; backupCodes: string[] }>("/auth/2fa/replace/confirm", { code });
+export const confirmTwoFactorReplacement = async (code: string): Promise<AuthResponse & { message: string; backupCodes: string[] }> => {
+  const { data } = await api.post<AuthResponse & { message: string; backupCodes: string[] }>("/auth/2fa/replace/confirm", { code });
   return data;
 };
 
 export const confirmTwoFactor = async (
   code: string
-): Promise<{ message: string; backupCodes: string[] }> => {
-  const { data } = await api.post<{ message: string; backupCodes: string[] }>("/auth/2fa/confirm", {
+): Promise<AuthResponse & { message: string; backupCodes: string[] }> => {
+  const { data } = await api.post<AuthResponse & { message: string; backupCodes: string[] }>("/auth/2fa/confirm", {
     code,
   });
   return data;
 };
 
-export const disableTwoFactor = async (code: string): Promise<{ message: string }> => {
-  const { data } = await api.post<{ message: string }>("/auth/2fa/disable", { code });
+export const disableTwoFactor = async (code: string): Promise<AuthResponse & { message: string }> => {
+  const { data } = await api.post<AuthResponse & { message: string }>("/auth/2fa/disable", { code });
   return data;
 };
 

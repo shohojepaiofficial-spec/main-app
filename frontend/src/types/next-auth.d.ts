@@ -9,6 +9,7 @@ declare module "@auth/core/types" {
   interface Session {
     backendAuthError?: "LOCAL_LOGIN_REQUIRED" | "GOOGLE_SIGN_IN_FAILED";
     backendToken?: string;
+    backendRefreshToken?: string;
     backendUser?: AppUser;
     // Set instead of backendToken/backendUser when oauth-sync reports the
     // account has two-step verification enabled — see useOAuthBridge.ts.
@@ -21,6 +22,7 @@ declare module "@auth/core/jwt" {
   interface JWT {
     backendAuthError?: "LOCAL_LOGIN_REQUIRED" | "GOOGLE_SIGN_IN_FAILED";
     backendToken?: string;
+    backendRefreshToken?: string;
     backendUser?: AppUser;
     twoFactorRequired?: boolean;
     tempToken?: string;

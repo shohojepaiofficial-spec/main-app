@@ -1,15 +1,16 @@
 import { create } from "zustand";
-import Cookies from "js-cookie";
-import { jwtDecode } from "jwt-decode";
-import { User, DecodedToken } from "@/models";
+import { User } from "@/models";
+import { ensureSession, readSessionCookies, subscribeSession, tokenIsFresh, writeSessionCookies } from "@/lib/sessionClient";
 
 interface AuthState {
   user: User | null;
   token: string | null;
-  setAuth: (token: string, user: User) => void;
+  refreshToken: string | null;
+  isHydrating: boolean;
+  setAuth: (token: string, user: User, refreshToken: string) => void;
   logout: () => void;
   isAuthenticated: () => boolean;
-  hydrate: () => void;
+  hydrate: () => Promise<void>;
   /** Refreshes the cached user (role/permissions) without touching the token — see useRefreshUser. */
   updateUser: (user: User) => void;
 }
@@ -17,15 +18,15 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
-  setAuth: (token, user) => {
-    Cookies.set("token", token, { expires: 7 });
-    Cookies.set("user", JSON.stringify(user), { expires: 7 });
-    set({ token, user });
+  refreshToken: null,
+  isHydrating: true,
+  setAuth: (token, user, refreshToken) => {
+    writeSessionCookies({ token, user, refreshToken });
+    set({ token, user, refreshToken, isHydrating: false });
   },
   logout: () => {
-    Cookies.remove("token");
-    Cookies.remove("user");
-    set({ token: null, user: null });
+    writeSessionCookies(null);
+    set({ token: null, user: null, refreshToken: null, isHydrating: false });
   },
   isAuthenticated: () => {
     // Deliberately *not* falling back to Cookies.get() here: this store's
@@ -37,28 +38,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Reading only the store keeps both renders in agreement; `hydrate()`
     // then flips it to true right after mount, same as any other client
     // state update.
-    const token = get().token;
-    if (!token) return false;
-    try {
-      const decoded = jwtDecode<DecodedToken>(token);
-      return decoded.exp * 1000 > Date.now();
-    } catch {
-      return false;
-    }
+    const { token, refreshToken } = get();
+    return !!token && (tokenIsFresh(token) || tokenIsFresh(refreshToken));
   },
-  hydrate: () => {
-    const token = Cookies.get("token");
-    const rawUser = Cookies.get("user");
-    if (token && rawUser) {
-      try {
-        set({ token, user: JSON.parse(rawUser) as User });
-      } catch {
-        // ignore malformed cookie
-      }
+  hydrate: async () => {
+    try {
+      await ensureSession();
+      const session = readSessionCookies();
+      set(session ? { ...session, isHydrating: false } : { token: null, user: null, refreshToken: null, isHydrating: false });
+    } catch {
+      // Keep credentials during temporary outages; the next request can retry.
+      const session = readSessionCookies();
+      set(session ? { ...session, isHydrating: false } : { token: null, refreshToken: null, user: null, isHydrating: false });
     }
   },
   updateUser: (user) => {
-    Cookies.set("user", JSON.stringify(user), { expires: 7 });
+    if (!get().token || get().user?.id !== user.id) return;
+    const session = readSessionCookies();
+    if (!session || session.user.id !== user.id || session.token !== get().token) return;
+    writeSessionCookies({ ...session, user });
     set({ user });
   },
+}));
+
+subscribeSession((session) => useAuthStore.setState(session ? { ...session, isHydrating: false } : {
+  token: null, refreshToken: null, user: null, isHydrating: false,
 }));

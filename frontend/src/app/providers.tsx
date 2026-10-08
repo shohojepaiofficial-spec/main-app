@@ -9,6 +9,7 @@ import { useOAuthBridge } from "@/controllers/useOAuthBridge";
 import { useRefreshUser } from "@/controllers/useRefreshUser";
 import { usePageViewTracking } from "@/controllers/usePageViewTracking";
 import { useWishlistSync } from "@/controllers/useWishlistSync";
+import { SESSION_SYNC_KEY } from "@/lib/sessionClient";
 
 // Global, render-nothing hooks that need to run once for the whole app,
 // regardless of which page is showing.
@@ -30,6 +31,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     // deferred until after the first client render agrees with the server.
     useCartStore.persist.rehydrate();
     useUIStore.persist.rehydrate();
+    const syncSession = (event: StorageEvent) => { if (event.key === SESSION_SYNC_KEY) void hydrate(); };
+    window.addEventListener("storage", syncSession);
+    return () => window.removeEventListener("storage", syncSession);
   }, [hydrate]);
 
   return (

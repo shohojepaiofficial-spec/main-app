@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import QRCode from "qrcode";
-import { hashToken, signAccessToken as signToken, verifyTypedToken } from "../utils/authTokens";
+import { hashToken, verifyTypedToken } from "../utils/authTokens";
+import { createSession } from "../utils/sessions";
 import { User, type UserRole } from "../models/User";
 import { AuthRequest } from "../middleware/auth";
 import { isNonEmptyString } from "../utils/validate";
@@ -136,6 +137,7 @@ async function confirmSetup(req: AuthRequest, res: Response, replacement: boolea
     {
       $set: { "twoFactor.enabled": true, "twoFactor.secret": user.twoFactor.pendingSecret, "twoFactor.backupCodeHashes": hashes },
       $unset: clearPending,
+      $inc: { sessionVersion: 1 },
     },
   );
   if (!confirmed.matchedCount) return res.status(409).json({ message: "Setup changed. Please reload and try again." });
@@ -143,7 +145,10 @@ async function confirmSetup(req: AuthRequest, res: Response, replacement: boolea
   // The only time these plain codes ever exist outside the admin's own
   // password manager/notes — only bcrypt hashes are kept from here on.
   res.setHeader("Cache-Control", "no-store");
-  res.json({ message: replacement ? "Authenticator replaced" : "Two-step verification enabled", backupCodes: codes });
+  user.sessionVersion = (user.sessionVersion ?? 0) + 1;
+  user.twoFactor.enabled = true;
+  res.json({ message: replacement ? "Authenticator replaced" : "Two-step verification enabled", backupCodes: codes,
+    ...await createSession(user, req.authenticatedAt), user: shapeUser(user) });
 }
 
 export const confirmTwoFactor = (req: AuthRequest, res: Response) => confirmSetup(req, res, false);
@@ -172,10 +177,13 @@ export const disableTwoFactor = async (req: AuthRequest, res: Response) => {
   const disabled = await User.updateOne({
     _id: user.id, role: staffRoles, "twoFactor.enabled": true, "twoFactor.secret": user.twoFactor.secret,
     ...(proof.backupHash ? { "twoFactor.backupCodeHashes": proof.backupHash } : {}),
-  }, { $set: { twoFactor: { enabled: false } } });
+  }, { $set: { twoFactor: { enabled: false } }, $inc: { sessionVersion: 1 } });
   if (!disabled.matchedCount) return res.status(409).json({ message: "Account settings changed. Please reload and try again." });
 
-  res.json({ message: "Two-step verification disabled" });
+  user.sessionVersion = (user.sessionVersion ?? 0) + 1;
+  user.twoFactor.enabled = false;
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ message: "Two-step verification disabled", ...await createSession(user, req.authenticatedAt), user: shapeUser(user) });
 };
 
 // The second step of login (see authController.ts#login/oauthSync/
@@ -201,6 +209,9 @@ export const verifyTwoFactorLogin = async (req: Request, res: Response) => {
   if (!user || !user.twoFactor.enabled || !user.twoFactor.secret) {
     return res.status(400).json({ message: "Two-step verification isn't enabled on this account" });
   }
+  if (challenge.version !== (user.sessionVersion ?? 0)) {
+    return res.status(401).json({ message: "Account security changed. Please sign in again." });
+  }
 
   const isValidTotp = verifyTwoFactorToken(user.twoFactor.secret, code);
   let remainingBackupHashes: string[] | null = null;
@@ -221,6 +232,6 @@ export const verifyTwoFactorLogin = async (req: Request, res: Response) => {
   }
 
   const authenticatedAt = challenge.authenticatedAt;
-  const token = signToken(user.id, user.role, Number.isSafeInteger(authenticatedAt) ? authenticatedAt : undefined);
-  res.json({ token, user: shapeUser(user) });
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ ...await createSession(user, Number.isSafeInteger(authenticatedAt) ? authenticatedAt : undefined), user: shapeUser(user) });
 };

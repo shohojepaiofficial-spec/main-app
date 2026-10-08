@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import { User } from "../models/User";
 import { sendEmail } from "../utils/sendEmail";
-import { generateRawAndHash, hashToken, signAccessToken as signToken } from "../utils/authTokens";
+import { generateRawAndHash, hashToken } from "../utils/authTokens";
+import bcrypt from "bcryptjs";
+import { createSession, revokeSession, rotateSession, SessionError } from "../utils/sessions";
 import { verifyUnsubscribeToken } from "../utils/campaignTokens";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { signTwoFactorChallenge } from "../utils/twoFactor";
@@ -35,12 +37,12 @@ export const shapeUser = (user: InstanceType<typeof User>) => ({
 // real session (login, oauth-sync, password reset) routes through here
 // instead of signing a token directly, so a 2FA-enabled admin/coadmin gets
 // challenged at all three, not just the one path someone remembered to gate.
-function respondWithSessionOrChallenge(res: Response, user: InstanceType<typeof User>, authenticatedAt?: number) {
+async function respondWithSessionOrChallenge(res: Response, user: InstanceType<typeof User>, authenticatedAt?: number) {
+  res.setHeader("Cache-Control", "no-store");
   if ((user.role === "admin" || user.role === "coadmin") && user.twoFactor?.enabled) {
-    return res.json({ twoFactorRequired: true, tempToken: signTwoFactorChallenge(user.id, authenticatedAt) });
+    return res.json({ twoFactorRequired: true, tempToken: signTwoFactorChallenge(user.id, authenticatedAt, user.sessionVersion ?? 0) });
   }
-  const token = signToken(user.id, user.role, authenticatedAt);
-  return res.json({ token, user: shapeUser(user) });
+  return res.json({ ...await createSession(user, authenticatedAt), user: shapeUser(user) });
 }
 
 // Fire-and-forget, same convention as the existing "welcome" email — a
@@ -84,11 +86,12 @@ export const register = async (req: Request, res: Response) => {
   }
 
   const user = await User.create({ name, email: normalizedEmail, password });
-  const token = signToken(user.id, user.role);
+  const credentials = await createSession(user);
 
   sendVerificationEmail(user).catch((err) => console.error("Verification email failed:", err.message));
 
-  res.status(201).json({ token, user: shapeUser(user) });
+  res.setHeader("Cache-Control", "no-store");
+  res.status(201).json({ ...credentials, user: shapeUser(user) });
 };
 
 export const login = async (req: Request, res: Response) => {
@@ -106,7 +109,7 @@ export const login = async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Invalid email or password" });
   }
 
-  respondWithSessionOrChallenge(res, user, Math.floor(Date.now() / 1000));
+  await respondWithSessionOrChallenge(res, user, Math.floor(Date.now() / 1000));
 };
 
 // Lets an already-logged-in client refresh its cached `user` (role/
@@ -174,10 +177,14 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
   const matches = await user.comparePassword(currentPassword);
   if (!matches) return res.status(401).json({ message: "Current password is incorrect" });
 
-  user.password = newPassword;
-  await user.save();
+  const updated = await User.findOneAndUpdate({ _id: user.id, password: user.password }, {
+    $set: { password: await bcrypt.hash(newPassword, 10) },
+    $inc: { sessionVersion: 1 },
+    $unset: { resetPasswordTokenHash: 1, resetPasswordExpires: 1 },
+  }, { new: true });
+  if (!updated) return res.status(409).json({ message: "Password changed during this request. Please sign in again." });
 
-  res.json({ message: "Password updated" });
+  res.json({ message: "Password updated. Please sign in again on your devices." });
 };
 
 export const updateDeliveryLocation = async (req: AuthRequest, res: Response) => {
@@ -300,7 +307,7 @@ export const oauthSync = async (req: Request, res: Response) => {
     if (changed) await user.save();
   }
 
-  respondWithSessionOrChallenge(res, user, Math.floor(Date.now() / 1000));
+  await respondWithSessionOrChallenge(res, user, Math.floor(Date.now() / 1000));
 };
 
 // Re-sends the verification email for the currently logged-in account —
@@ -406,10 +413,38 @@ export const resetPassword = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "This reset link is invalid or has expired" });
   }
 
-  user.password = password;
-  user.resetPasswordTokenHash = undefined;
-  user.resetPasswordExpires = undefined;
-  await user.save();
+  const updated = await User.findOneAndUpdate({
+    _id: user.id, resetPasswordTokenHash: hashToken(token), resetPasswordExpires: { $gt: new Date() },
+  }, {
+    $set: { password: await bcrypt.hash(password, 10) },
+    $inc: { sessionVersion: 1 },
+    $unset: { resetPasswordTokenHash: 1, resetPasswordExpires: 1 },
+  }, { new: true });
+  if (!updated) return res.status(400).json({ message: "This reset link is invalid or has expired" });
 
-  respondWithSessionOrChallenge(res, user);
+  await respondWithSessionOrChallenge(res, updated);
+};
+
+export const refreshSession = async (req: Request, res: Response) => {
+  if (!isNonEmptyString(req.body?.refreshToken) || req.body.refreshToken.length > 4096) {
+    return res.status(400).json({ message: "A refresh token is required" });
+  }
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    const { user, ...credentials } = await rotateSession(req.body.refreshToken);
+    res.json({ ...credentials, user: shapeUser(user) });
+  } catch (error) {
+    if (error instanceof SessionError) return res.status(401).json({ code: error.code, message: error.message });
+    throw error;
+  }
+};
+
+export const logoutSession = async (req: AuthRequest, res: Response) => {
+  await revokeSession(req.sessionId!, req.userId!);
+  res.json({ message: "Logged out" });
+};
+
+export const logoutAllSessions = async (req: AuthRequest, res: Response) => {
+  await User.updateOne({ _id: req.userId }, { $inc: { sessionVersion: 1 } });
+  res.json({ message: "Logged out on all devices" });
 };

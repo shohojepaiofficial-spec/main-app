@@ -1,15 +1,16 @@
+vi.mock("../models/AuthSession", () => ({ AuthSession: { create: vi.fn().mockResolvedValue({}), exists: vi.fn().mockResolvedValue({ _id: "session" }) } }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import jwt from "jsonwebtoken";
 import { protect, optionalAuth, adminOnly, authorize, type AuthRequest } from "./auth";
-import { signAccessToken } from "../utils/authTokens";
+import { signTestAccessToken as signAccessToken } from "../testUtils/auth";
 import { signTwoFactorChallenge, verifyTwoFactorChallenge } from "../utils/twoFactor";
 import { User } from "../models/User";
 
 const id = "507f1f77bcf86cd799439011";
 const secret = "security-regression-test-secret";
 
-beforeEach(() => vi.stubEnv("JWT_SECRET", secret));
+beforeEach(() => { vi.stubEnv("JWT_SECRET", secret); vi.spyOn(User, "findById").mockReturnValue({ select: () => Promise.resolve({ sessionVersion: 0 }) } as never); });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 describe("token purpose boundaries", () => {
@@ -51,19 +52,19 @@ describe("token purpose boundaries", () => {
     }
   });
 
-  it("treats a challenge as anonymous in optionalAuth", () => {
+  it("treats a challenge as anonymous in optionalAuth", async () => {
     const req = { headers: { authorization: `Bearer ${signTwoFactorChallenge(id)}` } } as AuthRequest;
     const next = vi.fn();
-    optionalAuth(req, {} as express.Response, next);
+    await optionalAuth(req, {} as express.Response, next);
     expect(req.userId).toBeUndefined();
     expect(req.userRole).toBeUndefined();
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it.each(["user", "coadmin", "admin"] as const)("accepts an access token for %s", (role) => {
+  it.each(["user", "coadmin", "admin"] as const)("accepts an access token for %s", async (role) => {
     const req = { headers: { authorization: `Bearer ${signAccessToken(id, role)}` } } as AuthRequest;
     const next = vi.fn();
-    protect(req, {} as express.Response, next);
+    await protect(req, {} as express.Response, next);
     expect(next).toHaveBeenCalledOnce();
     expect(req.userId).toBe(id);
     expect(req.userRole).toBe(role);
@@ -75,17 +76,17 @@ describe("token purpose boundaries", () => {
     ["unknown purpose", { id, role: "admin", purpose: "reset" }],
     ["bad ID", { id: "invalid", role: "admin", purpose: "access" }],
     ["bad role", { id, role: "superadmin", purpose: "access" }],
-  ])("rejects %s claims", (_label, claims) => {
+  ])("rejects %s claims", async (_label, claims) => {
     const token = jwt.sign(claims, secret, { expiresIn: "5m" });
     const status = vi.fn().mockReturnThis();
     const next = vi.fn();
-    protect({ headers: { authorization: `Bearer ${token}` } } as AuthRequest,
+    await protect({ headers: { authorization: `Bearer ${token}` } } as AuthRequest,
       { status, json: vi.fn() } as unknown as express.Response, next);
     expect(status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("rejects expired, unsigned-expiry, malformed and wrong-key tokens", () => {
+  it("rejects expired, unsigned-expiry, malformed and wrong-key tokens", async () => {
     const claims = { id, role: "admin", purpose: "access" };
     for (const token of [
       jwt.sign(claims, secret, { expiresIn: -1 }),
@@ -96,10 +97,10 @@ describe("token purpose boundaries", () => {
       const req = { headers: { authorization: `Bearer ${token}` } } as AuthRequest;
       const status = vi.fn().mockReturnThis();
       const next = vi.fn();
-      protect(req, { status, json: vi.fn() } as unknown as express.Response, next);
+      await protect(req, { status, json: vi.fn() } as unknown as express.Response, next);
       expect(status).toHaveBeenCalledWith(401);
       expect(next).not.toHaveBeenCalled();
-      optionalAuth(req, {} as express.Response, next);
+      await optionalAuth(req, {} as express.Response, next);
       expect(req.userId).toBeUndefined();
     }
     expect(verifyTwoFactorChallenge(signTwoFactorChallenge(id))).toBe(id);

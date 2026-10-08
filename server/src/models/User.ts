@@ -27,6 +27,7 @@ export interface IUser extends Document {
   // checkout form's contact field once set.
   phone?: string;
   role: UserRole;
+  sessionVersion: number;
   // Only meaningful when role === "coadmin" — admins implicitly have every
   // permission (see middleware/auth.ts#authorize), plain users have none.
   permissions: Permission[];
@@ -88,6 +89,7 @@ const userSchema = new Schema<IUser>(
     image: { type: String },
     phone: { type: String, trim: true },
     role: { type: String, enum: ["user", "coadmin", "admin"], default: "user" },
+    sessionVersion: { type: Number, default: 0, min: 0 },
     permissions: { type: [String], enum: PERMISSIONS, default: [] },
     deliveryLocation: {
       zila: { type: String, trim: true },

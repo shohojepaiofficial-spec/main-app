@@ -134,7 +134,7 @@ function LoginForm() {
         openTwoFactorChallenge(data.tempToken);
         return;
       }
-      setAuth(data.token, data.user);
+      setAuth(data.token, data.user, data.refreshToken);
       toast.success(t("auth.loggedIn", "Logged in"));
       closeAuthModal();
     } catch (err) {
@@ -292,7 +292,7 @@ function TwoFactorForm() {
       const data = await verifyTwoFactorLogin(tempToken, values.code.trim());
       // Remove the pending OAuth challenge before publishing the completed session.
       await signOut({ redirect: false }).catch(() => {});
-      setAuth(data.token, data.user);
+      setAuth(data.token, data.user, data.refreshToken);
       toast.success(t("auth.loggedIn", "Logged in"));
       closeAuthModal();
     } catch (err) {
@@ -361,7 +361,7 @@ function SignupForm() {
   const onSubmit = async (values: SignupValues) => {
     try {
       const data = await registerWithEmail(values.name, values.email, values.password);
-      setAuth(data.token, data.user);
+      setAuth(data.token, data.user, data.refreshToken);
       toast.success(t("auth.accountCreated", "Account created"));
       closeAuthModal();
     } catch (err) {

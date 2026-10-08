@@ -1,3 +1,4 @@
+vi.mock("../models/AuthSession", () => ({ AuthSession: { create: vi.fn().mockResolvedValue({}), exists: vi.fn().mockResolvedValue({ _id: "session" }) } }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express, { type Response } from "express";
 import { authenticator } from "otplib";
@@ -6,7 +7,8 @@ vi.mock("../models/User", () => ({ User: { findById: vi.fn(), findOne: vi.fn(), 
 vi.mock("../utils/sendEmail", () => ({ sendEmail: vi.fn().mockResolvedValue(undefined) }));
 import { User } from "../models/User";
 import { protect, type AuthRequest } from "../middleware/auth";
-import { hashToken, signAccessToken, verifyTypedToken } from "../utils/authTokens";
+import { hashToken, verifyTypedToken } from "../utils/authTokens";
+import { signTestAccessToken as signAccessToken } from "../testUtils/auth";
 import { signTwoFactorChallenge } from "../utils/twoFactor";
 import { setupTwoFactor, replaceTwoFactor, confirmTwoFactor, confirmTwoFactorReplacement, disableTwoFactor, verifyTwoFactorLogin } from "./twoFactorController";
 
@@ -28,7 +30,7 @@ function load(user: ReturnType<typeof account>) {
   vi.mocked(User.findById).mockReturnValue({ select: () => Promise.resolve(user) } as never);
 }
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.clearAllMocks();
   vi.stubEnv("JWT_SECRET", "management-test-secret");
   vi.mocked(User.updateOne).mockResolvedValue({ matchedCount: 1 } as never);
 });
@@ -170,8 +172,8 @@ describe("SEC-02 factor management", () => {
     load(user);
     const res = response();
     await disableTwoFactor(request(authenticator.generate(user.twoFactor.secret)), res as unknown as Response);
-    expect(User.updateOne).toHaveBeenCalledWith(expect.objectContaining({ "twoFactor.secret": user.twoFactor.secret, "twoFactor.enabled": true }), { $set: { twoFactor: { enabled: false } } });
-    expect(res.json).toHaveBeenCalledWith({ message: "Two-step verification disabled" });
+    expect(User.updateOne).toHaveBeenCalledWith(expect.objectContaining({ "twoFactor.secret": user.twoFactor.secret, "twoFactor.enabled": true }), { $set: { twoFactor: { enabled: false } }, $inc: { sessionVersion: 1 } });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: "Two-step verification disabled", refreshToken: expect.any(String) }));
   });
 
   it("preserves the original authentication time through a delayed challenge exchange", async () => {

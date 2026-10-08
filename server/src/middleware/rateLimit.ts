@@ -14,6 +14,14 @@ export const authLimiter = rateLimit({
   message: { message: "Too many attempts — please try again later." },
 });
 
+export const sessionRefreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many session refresh requests. Please try again later." },
+});
+
 // The public contact form has no auth at all, so it's the easiest thing on
 // the site to spam — and once real mail-provider/CONTACT_EMAIL credentials
 // exist, the easiest way to run up a sending bill or flood an inbox.

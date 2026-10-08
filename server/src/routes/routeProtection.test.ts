@@ -1,8 +1,9 @@
+vi.mock("../models/AuthSession", () => ({ AuthSession: { create: vi.fn().mockResolvedValue({}), exists: vi.fn().mockResolvedValue({ _id: "session" }) } }));
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import express from "express";
 import type { Server } from "node:http";
 import { signTwoFactorChallenge } from "../utils/twoFactor";
-import { signAccessToken } from "../utils/authTokens";
+import { signTestAccessToken as signAccessToken } from "../testUtils/auth";
 import { User } from "../models/User";
 import auth from "./authRoutes";
 import products from "./productRoutes";
@@ -24,7 +25,7 @@ import stats from "./statsRoutes";
 // links, login entry points, and the shared-secret OAuth exchange. Every other
 // route must reject both anonymous requests and incomplete 2FA logins.
 const publicRoutes = new Set([
-  "auth POST /register", "auth POST /login", "auth POST /oauth-sync",
+  "auth POST /refresh", "auth POST /register", "auth POST /login", "auth POST /oauth-sync",
   "auth POST /verify-email", "auth POST /forgot-password", "auth POST /reset-password",
   "auth GET /unsubscribe", "auth POST /2fa/verify-login",
   "products GET /", "products GET /categories", "products GET /:id", "products GET /:id/reviews",
@@ -34,7 +35,7 @@ const publicRoutes = new Set([
 const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, stats };
 const protectedRoutes: { name: string; method: string; path: string }[] = [];
 const customerRoutes = new Set([
-  "auth GET /me", "auth PATCH /profile", "auth PATCH /password", "auth PATCH /delivery-location",
+  "auth POST /logout", "auth POST /logout-all", "auth GET /me", "auth PATCH /profile", "auth PATCH /password", "auth PATCH /delivery-location",
   "auth PATCH /marketing-opt-in", "auth POST /resend-verification", "auth POST /2fa/setup",
   "auth POST /2fa/confirm", "auth POST /2fa/disable", "orders POST /", "orders POST /delivery-quote",
   "auth POST /2fa/replace", "auth POST /2fa/replace/confirm",

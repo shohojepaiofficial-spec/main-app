@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { useAuthStore } from "@/controllers/useAuthStore";
 import { translateNow } from "@/controllers/useTranslations";
 import { Permission } from "@/models";
+import { endSession } from "@/lib/sessionClient";
 
 // `useAuthStore` is the single source of truth for "who's logged in" — both
 // the email/password flow and the OAuth bridge (useOAuthBridge) write into it.
@@ -10,12 +11,16 @@ import { Permission } from "@/models";
 // NextAuth too, so a stale OAuth session cookie doesn't silently log the user
 // back in via useOAuthBridge on the next page load.
 export function useAuthController() {
-  const { user, logout: clearStore, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
 
-  const logout = async () => {
-    await nextAuthSignOut({ redirect: false }).catch(() => {});
-    clearStore();
-    toast.success(translateNow("auth.loggedOut", "Logged out"));
+  const logout = async (allDevices = false) => {
+    try {
+      await endSession(allDevices);
+      await nextAuthSignOut({ redirect: false }).catch(() => {});
+      toast.success(translateNow("auth.loggedOut", "Logged out"));
+    } catch {
+      toast.error(translateNow("auth.logoutFailed", "Logout could not be confirmed. Please try again."));
+    }
   };
 
   // Admins implicitly hold every permission; coadmins only what's in their
@@ -24,5 +29,5 @@ export function useAuthController() {
   const hasPermission = (permission: Permission) =>
     user?.role === "admin" || (user?.role === "coadmin" && !!user.permissions?.includes(permission));
 
-  return { user, isAuthenticated: isAuthenticated(), logout, hasPermission };
+  return { user, isAuthenticated: isAuthenticated(), logout: () => logout(false), logoutAll: () => logout(true), hasPermission };
 }

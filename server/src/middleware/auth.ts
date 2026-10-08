@@ -2,14 +2,17 @@ import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../utils/authTokens";
 import { User } from "../models/User";
 import { Permission } from "../utils/permissions";
+import { isSessionActive } from "../utils/sessions";
+import { TokenExpiredError } from "jsonwebtoken";
 
 export interface AuthRequest extends Request {
   userId?: string;
   userRole?: string;
   authenticatedAt?: number;
+  sessionId?: string;
 }
 
-export const protect = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const header = req.headers.authorization;
 
   if (!header || !header.startsWith("Bearer ")) {
@@ -18,15 +21,22 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction) => 
 
   const token = header.split(" ")[1];
 
+  let decoded: ReturnType<typeof verifyAccessToken>;
   try {
     // A valid signature alone does not make a 2FA challenge a session.
-    const decoded = verifyAccessToken(token);
+    decoded = verifyAccessToken(token);
+  } catch (error) {
+    return res.status(401).json({ code: error instanceof TokenExpiredError ? "ACCESS_TOKEN_EXPIRED" : "INVALID_ACCESS_TOKEN", message: "Not authorized, invalid or expired token" });
+  }
+  try {
+    if (!await isSessionActive(decoded)) return res.status(401).json({ code: "SESSION_REVOKED", message: "Your session has ended. Please sign in again." });
     req.userId = decoded.id;
     req.userRole = decoded.role;
     req.authenticatedAt = decoded.authenticatedAt;
+    req.sessionId = decoded.sid;
     next();
-  } catch {
-    return res.status(401).json({ message: "Not authorized, invalid token" });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -34,16 +44,18 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction) => 
 // when a valid token is present, otherwise just proceeds anonymously. For
 // routes that must work for guests but still want to attribute the request
 // to a logged-in user when there is one (see analyticsController#trackEvent).
-export const optionalAuth = (req: AuthRequest, _res: Response, next: NextFunction) => {
+export const optionalAuth = async (req: AuthRequest, _res: Response, next: NextFunction) => {
   const header = req.headers.authorization;
   if (header?.startsWith("Bearer ")) {
+    let decoded: ReturnType<typeof verifyAccessToken>;
+    try { decoded = verifyAccessToken(header.split(" ")[1]); } catch { return next(); }
     try {
-      const decoded = verifyAccessToken(header.split(" ")[1]);
-      req.userId = decoded.id;
-      req.userRole = decoded.role;
-    } catch {
-      // invalid/expired token — proceed as anonymous rather than failing
-    }
+      if (await isSessionActive(decoded)) {
+        req.userId = decoded.id;
+        req.userRole = decoded.role;
+        req.sessionId = decoded.sid;
+      }
+    } catch (error) { return next(error); }
   }
   next();
 };

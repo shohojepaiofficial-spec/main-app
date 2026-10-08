@@ -52,8 +52,8 @@ export async function consumeBackupCode(hashes: string[], input: string): Promis
   return null;
 }
 
-export function signTwoFactorChallenge(userId: string, authenticatedAt?: number): string {
-  return jwt.sign({ id: userId, purpose: "2fa", ...(authenticatedAt === undefined ? {} : { authenticatedAt }) }, process.env.JWT_SECRET as string, {
+export function signTwoFactorChallenge(userId: string, authenticatedAt?: number, version = 0): string {
+  return jwt.sign({ id: userId, purpose: "2fa", version, ...(authenticatedAt === undefined ? {} : { authenticatedAt }) }, process.env.JWT_SECRET as string, {
     expiresIn: TWO_FACTOR_CHALLENGE_TTL,
   });
 }

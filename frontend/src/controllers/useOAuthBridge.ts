@@ -35,7 +35,7 @@ export function useOAuthBridge() {
     if (handled.current === exchange) return;
     handled.current = exchange;
 
-    if (session.backendToken && session.backendUser) {
+    if (session.backendToken && session.backendUser && session.backendRefreshToken) {
       if (session.backendToken === currentToken) return;
       // The NextAuth session outlives the backend JWT inside it (30 days vs
       // the JWT's own expiry), so a long-idle browser can bring back a dead
@@ -44,7 +44,7 @@ export function useOAuthBridge() {
         signOut({ redirect: false }).catch(() => {});
         return;
       }
-      setAuth(session.backendToken, session.backendUser);
+      setAuth(session.backendToken, session.backendUser, session.backendRefreshToken);
       useUIStore.getState().closeAuthModal();
       signOut({ redirect: false }).catch(() => {});
       toast.success(translateNow("auth.loggedIn", "Logged in"));

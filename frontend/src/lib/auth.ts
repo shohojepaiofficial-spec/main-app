@@ -18,6 +18,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account && account.provider === "google") {
         // Clear previous credentials before any new exchange, including failures.
         token.backendToken = undefined;
+        token.backendRefreshToken = undefined;
         token.backendUser = undefined;
         token.twoFactorRequired = undefined;
         token.tempToken = undefined;
@@ -56,6 +57,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               token.backendUser = undefined;
             } else {
               token.backendToken = data.token;
+              token.backendRefreshToken = data.refreshToken;
               token.backendUser = data.user;
               token.twoFactorRequired = undefined;
               token.tempToken = undefined;
@@ -76,6 +78,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       session.backendAuthError = token.backendAuthError;
       if (token.backendToken) session.backendToken = token.backendToken;
+      if (token.backendRefreshToken) session.backendRefreshToken = token.backendRefreshToken;
       if (token.backendUser) session.backendUser = token.backendUser;
       if (token.twoFactorRequired) {
         session.twoFactorRequired = true;

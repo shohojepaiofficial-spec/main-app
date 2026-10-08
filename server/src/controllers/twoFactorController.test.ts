@@ -1,13 +1,16 @@
+vi.mock("../models/AuthSession", () => ({ AuthSession: { create: vi.fn().mockResolvedValue({}), exists: vi.fn().mockResolvedValue({ _id: "session" }) } }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request, Response } from "express";
 import { authenticator } from "otplib";
 
-vi.mock("../models/User", () => ({ User: { findById: vi.fn(), findOne: vi.fn(), create: vi.fn(), updateOne: vi.fn() } }));
+vi.mock("../models/User", () => ({ User: { findById: vi.fn(), findOne: vi.fn(), create: vi.fn(), updateOne: vi.fn(), findOneAndUpdate: vi.fn() } }));
 vi.mock("../utils/sendEmail", () => ({ sendEmail: vi.fn().mockResolvedValue(undefined) }));
 import { User } from "../models/User";
+import { AuthSession } from "../models/AuthSession";
 import { login, oauthSync, register, resetPassword } from "./authController";
 import { setupTwoFactor, confirmTwoFactor, disableTwoFactor, verifyTwoFactorLogin } from "./twoFactorController";
-import { verifyAccessToken, signAccessToken, hashToken, verifyTypedToken } from "../utils/authTokens";
+import { verifyAccessToken, hashToken, verifyTypedToken } from "../utils/authTokens";
+import { signTestAccessToken as signAccessToken } from "../testUtils/auth";
 import { signTwoFactorChallenge, verifyTwoFactorChallenge } from "../utils/twoFactor";
 import type { AuthRequest } from "../middleware/auth";
 
@@ -34,6 +37,7 @@ describe("login and restricted 2FA enrollment", () => {
     const user = account("admin", true);
     vi.mocked(User.findOne).mockReturnValue({ select: () => Promise.resolve(user) } as never);
     const res = response();
+    vi.mocked(User.findOneAndUpdate).mockResolvedValueOnce({ ...user, sessionVersion: 1 } as never);
     await resetPassword({ body: { token: "reset-link", password: "new-password" } } as Request, res as unknown as Response);
     expect(res.json.mock.calls[0][0].twoFactorRequired).toBe(true);
     expect(verifyTypedToken(res.json.mock.calls[0][0].tempToken, "2fa").authenticatedAt).toBeUndefined();
@@ -106,6 +110,8 @@ describe("login and restricted 2FA enrollment", () => {
     const res = response();
     await login({ body: { email: user.email, password: "test-password" } } as Request, res as unknown as Response);
     expect(verifyAccessToken(res.json.mock.calls[0][0].token)).toMatchObject({ id, role: "user" });
+    expect(verifyTypedToken(res.json.mock.calls[0][0].refreshToken, "refresh")).toMatchObject({ id, version: 0 });
+    expect(AuthSession.create).toHaveBeenCalledOnce();
   });
 
   it.each(["admin", "coadmin"] as const)("requires second factor and issues a usable session for %s", async (role) => {
@@ -117,12 +123,16 @@ describe("login and restricted 2FA enrollment", () => {
     const challenge = first.json.mock.calls[0][0];
     expect(challenge.twoFactorRequired).toBe(true);
     expect(challenge.token).toBeUndefined();
+    expect(challenge.refreshToken).toBeUndefined();
+    expect(AuthSession.create).not.toHaveBeenCalled();
     expect(verifyTwoFactorChallenge(challenge.tempToken)).toBe(id);
     expect(() => verifyAccessToken(challenge.tempToken)).toThrow();
     const second = response();
     await verifyTwoFactorLogin({ body: { tempToken: challenge.tempToken, code: authenticator.generate(user.twoFactor.secret) } } as Request,
       second as unknown as Response);
     expect(verifyAccessToken(second.json.mock.calls[0][0].token)).toMatchObject({ id, role });
+    expect(verifyTypedToken(second.json.mock.calls[0][0].refreshToken, "refresh")).toMatchObject({ id, version: 0 });
+    expect(AuthSession.create).toHaveBeenCalledOnce();
   });
 
   it("does not issue a session for an incorrect second factor", async () => {

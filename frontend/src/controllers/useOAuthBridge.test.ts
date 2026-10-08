@@ -43,10 +43,10 @@ describe("OAuth session handoff", () => {
   it("hands a valid session to the app and consumes the OAuth session", () => {
     const token = `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 60 })).toString("base64url")}.signature`;
     const user = { id: "test" };
-    state.session = { backendToken: token, backendUser: user };
+    state.session = { backendToken: token, backendRefreshToken: "refresh-token", backendUser: user };
     useOAuthBridge();
     useOAuthBridge();
-    expect(state.auth.setAuth).toHaveBeenCalledExactlyOnceWith(token, user);
+    expect(state.auth.setAuth).toHaveBeenCalledExactlyOnceWith(token, user, "refresh-token");
     expect(state.ui.closeAuthModal).toHaveBeenCalledOnce();
     expect(signOut).toHaveBeenCalledWith({ redirect: false });
   });

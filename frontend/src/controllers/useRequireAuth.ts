@@ -20,6 +20,7 @@ export function useRequireAuth() {
   const { status, data: session } = useSession();
   const { user, isAuthenticated } = useAuthController();
   const token = useAuthStore((s) => s.token);
+  const isHydrating = useAuthStore((s) => s.isHydrating);
   // Subscribed only so the effect re-runs when the modal is closed (to
   // decide whether that was a dismissal). The effect itself reads the
   // store's live value via getState() rather than this closed-over one —
@@ -38,8 +39,8 @@ export function useRequireAuth() {
   // — but `useAuthStore`'s own `isAuthenticated` is already known by then
   // for the common case (a returning email/password user, or a returning
   // OAuth user already bridged from a previous visit): `hydrate()` reads it
-  // straight off a cookie in an effect right after mount, no network call
-  // needed. Waiting on `status` regardless of that used to cost every
+  // from cookies, refreshing expired access credentials before completing.
+  // Waiting on `status` regardless of that used to cost every
   // protected-page load a "Checking your session..." flash even when the
   // answer was already known. Still wait on `status` when `useAuthStore`
   // doesn't yet know the answer — that's the one case this delay is for: a
@@ -59,7 +60,7 @@ export function useRequireAuth() {
       (!!session?.twoFactorRequired && session.tempToken !== currentTempToken) ||
       !!session?.backendAuthError
     );
-  const isChecking = !isAuthenticated && (status === "loading" || bridgePending);
+  const isChecking = isHydrating || (!isAuthenticated && (status === "loading" || bridgePending));
   const isAllowed = isAuthenticated;
 
   useEffect(() => {
@@ -73,9 +74,8 @@ export function useRequireAuth() {
       wasAllowed.current = false;
       hasPrompted.current = true;
       if (!token) {
-        // The user pressed "Log out" (logout() clears the token; an expiry
-        // leaves it in place). They meant to leave, so take them to the
-        // store instead of greeting them with a login prompt.
+        // Logout or server revocation cleared the session. Return to the
+        // storefront; protected API calls already reject these credentials.
         router.replace("/");
         return;
       }

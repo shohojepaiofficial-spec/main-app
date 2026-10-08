@@ -15,13 +15,20 @@ const { callbacks } = authModule.handlers as unknown as {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Google backend exchange", () => {
+  it("hands both backend credentials through the Google session callback", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ token: "access", refreshToken: "refresh", user: { id: "google-user" } }) }));
+    const token = await callbacks.jwt({ token: {}, account: { provider: "google", providerAccountId: "id" }, user: { email: "google@example.com" }, profile: { email: "google@example.com", email_verified: true } });
+    const session = await callbacks.session({ session: {}, token });
+    expect(session).toMatchObject({ backendToken: "access", backendRefreshToken: "refresh", backendUser: { id: "google-user" } });
+  });
   it("surfaces local-provider mismatch and removes stale credentials", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ code: "LOCAL_LOGIN_REQUIRED" }) }));
     const token = await callbacks.jwt({
-      token: { backendToken: "stale", backendUser: { id: "old" }, twoFactorRequired: true, tempToken: "old-challenge" },
+      token: { backendToken: "stale", backendRefreshToken: "stale-refresh", backendUser: { id: "old" }, twoFactorRequired: true, tempToken: "old-challenge" },
       account: { provider: "google", providerAccountId: "google-id" }, user: { email: "local@example.com" }, profile: { email: "local@example.com", email_verified: true },
     });
     expect(token.backendToken).toBeUndefined();
+    expect(token.backendRefreshToken).toBeUndefined();
     expect(token.backendUser).toBeUndefined();
     expect(token.tempToken).toBeUndefined();
     const session = await callbacks.session({ session: {}, token });
