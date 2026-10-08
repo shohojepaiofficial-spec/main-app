@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { newPasswordSchema } from "@/lib/passwordPolicy";
 import toast from "react-hot-toast";
 import { CheckCircle2, KeyRound } from "lucide-react";
 import { useAuthStore } from "@/controllers/useAuthStore";
@@ -20,7 +21,7 @@ function extractErrorMessage(err: unknown, fallback: string) {
 
 const schema = z
   .object({
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: newPasswordSchema,
     confirmPassword: z.string().min(1, "Please confirm your new password"),
   })
   .refine((v) => v.password === v.confirmPassword, {
@@ -170,7 +171,7 @@ export function ResetPasswordView({ token }: { token: string | null }) {
       <KeyRound size={28} className="mx-auto mb-3 text-primary" />
       <h1 className="mb-1 text-center text-xl font-semibold">{t("auth.chooseNewPassword", "Choose a new password")}</h1>
       <p className="mb-6 text-center text-sm text-muted">
-        {t("auth.atLeast6Chars", "Make it at least 6 characters — you'll be signed in right after.")}
+        {t("auth.passwordPolicy", "Use at least 12 characters and at most 72 UTF-8 bytes.")}
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">

@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { Types } from "mongoose";
 import { PromoCode, DiscountType, PromoScope } from "../models/PromoCode";
@@ -90,6 +91,7 @@ const validateInput = (body: Record<string, unknown>) => {
 };
 
 export const createPromoCode = async (req: Request, res: Response) => {
+  validateControllerInput("createPromoCode", req);
   const { data, error } = validateInput(req.body);
   if (error) return res.status(400).json({ message: error });
 
@@ -101,6 +103,7 @@ export const createPromoCode = async (req: Request, res: Response) => {
 };
 
 export const updatePromoCode = async (req: Request, res: Response) => {
+  validateControllerInput("updatePromoCode", req);
   const { data, error } = validateInput(req.body);
   if (error) return res.status(400).json({ message: error });
 
@@ -116,6 +119,7 @@ export const updatePromoCode = async (req: Request, res: Response) => {
 };
 
 export const deletePromoCode = async (req: Request, res: Response) => {
+  validateControllerInput("deletePromoCode", req);
   const promo = await PromoCode.findByIdAndDelete(req.params.id);
   if (!promo) return res.status(404).json({ message: "Promo code not found" });
   res.json({ message: "Promo code deleted" });
@@ -128,6 +132,7 @@ export const deletePromoCode = async (req: Request, res: Response) => {
 // client-only state (see docs/ARCHITECTURE.md's Auth section for the same
 // pattern elsewhere — nothing server-side to check it against yet).
 export const validatePromoCode = async (req: Request, res: Response) => {
+  validateControllerInput("validatePromoCode", req);
   const { code, productId } = req.body as { code?: string; productId?: string };
   if (!isNonEmptyString(code)) return res.status(400).json({ message: "code is required" });
 

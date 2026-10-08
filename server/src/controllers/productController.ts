@@ -1,4 +1,6 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
+import { productInput } from "../middleware/requestValidation";
 import { Product } from "../models/Product";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { escapeRegex } from "../utils/regex";
@@ -13,6 +15,7 @@ const DEFAULT_PAGE_SIZE = 12;
 const LOW_STOCK_THRESHOLD = 5;
 
 export const getProducts = async (req: Request, res: Response) => {
+  validateControllerInput("getProducts", req);
   const { category, search, excludeId, featured, stockStatus, deliveryType, dateFrom, dateTo } = req.query as Record<
     string,
     string | undefined
@@ -108,6 +111,7 @@ export const getProductCategories = async (_req: Request, res: Response) => {
 };
 
 export const getProductById = async (req: Request, res: Response) => {
+  validateControllerInput("getProductById", req);
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ message: "Product not found" });
   res.json(product);
@@ -125,6 +129,8 @@ function variantFields(body: Record<string, unknown>, finalImages: string[], new
 }
 
 export const createProduct = async (req: Request, res: Response) => {
+  validateControllerInput("createProduct", req);
+  req.body = productInput(req.body);
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const images = await Promise.all(files.map((file) => storeUploadedFile(file)));
 
@@ -147,6 +153,8 @@ export const createProduct = async (req: Request, res: Response) => {
 };
 
 export const updateProduct = async (req: Request, res: Response) => {
+  validateControllerInput("updateProduct", req);
+  req.body = productInput(req.body);
   // Edits arrive as multipart/form-data (to allow adding new image files
   // alongside text fields), so the client sends which existing images to
   // keep as a JSON-stringified array under `existingImages`, separate from
@@ -172,6 +180,10 @@ export const updateProduct = async (req: Request, res: Response) => {
     return res.status(404).json({ message: "Product not found" });
   }
   const previousImages = current.images;
+  if (imagesChanging && (update.images as string[]).some(image => !previousImages.includes(image) && !newImages.includes(image))) {
+    await Promise.all(newImages.map(img => deleteUploadedFile(img)));
+    return res.status(400).json({ message: "Existing images must belong to this product" });
+  }
 
   try {
     Object.assign(update, variantFields(req.body, (update.images as string[]) ?? previousImages, newImages));
@@ -207,6 +219,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 };
 
 export const deleteProduct = async (req: Request, res: Response) => {
+  validateControllerInput("deleteProduct", req);
   const product = await Product.findByIdAndDelete(req.params.id);
   if (!product) return res.status(404).json({ message: "Product not found" });
   res.json({ message: "Product deleted" });
@@ -220,6 +233,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
 // falling back to a keyword preset for a category with no products using
 // options yet. Case-insensitive on category, same as getProducts' filter.
 export const getOptionSuggestions = async (req: Request, res: Response) => {
+  validateControllerInput("getOptionSuggestions", req);
   const { category } = req.query;
   if (typeof category !== "string" || !category.trim()) return res.json([]);
 

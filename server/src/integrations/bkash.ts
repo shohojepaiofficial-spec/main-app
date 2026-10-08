@@ -66,6 +66,7 @@ async function getIdToken(config: BkashConfig): Promise<string> {
       password: config.password,
     },
     body: JSON.stringify({ app_key: config.appKey, app_secret: config.appSecret }),
+    signal: AbortSignal.timeout(10_000),
   });
   const data = (await res.json()) as {
     id_token?: string;
@@ -92,6 +93,7 @@ async function authedPost<T>(config: BkashConfig, path: string, body: Record<str
       "X-App-Key": config.appKey,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
   });
   return (await res.json()) as T;
 }

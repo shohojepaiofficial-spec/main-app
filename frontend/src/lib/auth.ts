@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { browserSessionMarker } from "./browserSession";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -77,8 +78,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       session.backendAuthError = token.backendAuthError;
-      if (token.backendToken) session.backendToken = token.backendToken;
-      if (token.backendRefreshToken) session.backendRefreshToken = token.backendRefreshToken;
+      if (token.backendToken) session.backendToken = browserSessionMarker(token.backendToken);
+      if (token.backendRefreshToken) session.backendRefreshToken = browserSessionMarker(token.backendRefreshToken);
       if (token.backendUser) session.backendUser = token.backendUser;
       if (token.twoFactorRequired) {
         session.twoFactorRequired = true;

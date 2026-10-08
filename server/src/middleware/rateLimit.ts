@@ -1,6 +1,14 @@
 import { Request } from "express";
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import createRateLimit, { type Options } from "express-rate-limit";
+import { MongoRateStore } from "./mongoRateStore";
+import { clientIpKey } from "./clientIp";
+import { createHash } from "node:crypto";
 import type { AuthRequest } from "./auth";
+let limiterId = 0;
+function rateLimit(options: Partial<Options>) {
+  const prefix = `limiter-${++limiterId}`;
+  return createRateLimit({ keyGenerator: clientIpKey, ...options, ...(process.env.NODE_ENV === "production" ? { store: new MongoRateStore(prefix) } : {}), passOnStoreError: false });
+}
 
 // Login/register/password-reset are the classic brute-force, credential-
 // stuffing, and email-bombing targets — none of them have an account to key
@@ -12,6 +20,12 @@ export const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many attempts — please try again later." },
+});
+
+export const authTargetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => typeof req.body?.email === "string" ? createHash("sha256").update(req.body.email.trim().toLowerCase()).digest("hex") : clientIpKey(req),
+  message: { message: "Too many attempts for this account. Please try again later." },
 });
 
 export const sessionRefreshLimiter = rateLimit({
@@ -39,7 +53,12 @@ export const contactLimiter = rateLimit({
 // the cap by hopping IPs. Falls back to the IP (via ipKeyGenerator, which
 // groups an IPv6 /56 so a client can't rotate through its own addresses)
 // should one ever be mounted without auth.
-const perAccount = (req: Request) => (req as AuthRequest).userId ?? ipKeyGenerator(req.ip ?? "");
+const perAccount = (req: Request) => (req as AuthRequest).userId ?? clientIpKey(req);
+
+export const checkoutIpLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
+export const checkoutAccountLimiter = rateLimit({ windowMs: 60_000, limit: 10, keyGenerator: perAccount, standardHeaders: true, legacyHeaders: false });
+export const quoteLimiter = rateLimit({ windowMs: 60_000, limit: 30, keyGenerator: perAccount, standardHeaders: true, legacyHeaders: false });
+export const apiLimiter = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: true, legacyHeaders: false });
 
 export const twoFactorManagementLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

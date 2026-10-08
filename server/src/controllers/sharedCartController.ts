@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Response, Request } from "express";
 import { SharedCart } from "../models/SharedCart";
 import { Product } from "../models/Product";
@@ -5,6 +6,7 @@ import { Types } from "mongoose";
 import { AuthRequest } from "../middleware/auth";
 import { isNonEmptyString } from "../utils/validate";
 import { resolvePurchasable } from "../utils/productVariants";
+import { cartItems, parseInput } from "../utils/checkoutValidation";
 interface CartItemInput {
   productId: string;
   variantId?: string;
@@ -15,7 +17,8 @@ interface CartItemInput {
 // pay" link (matches everywhere else in the app that requires login before
 // touching money/orders).
 export const createSharedCart = async (req: AuthRequest, res: Response) => {
-  const { items } = req.body as { items?: CartItemInput[] };
+  validateControllerInput("createSharedCart", req);
+  const items = parseInput(cartItems, req.body?.items);
   if (!items || items.length === 0) {
     return res.status(400).json({ message: "Cart is empty" });
   }
@@ -35,8 +38,9 @@ export const createSharedCart = async (req: AuthRequest, res: Response) => {
 // Public — whoever receives the link needs to see what's being asked of
 // them before deciding to log in and pay for it.
 export const getSharedCart = async (req: Request, res: Response) => {
+  validateControllerInput("getSharedCart", req);
   const sharedCart = await SharedCart.findById(req.params.id).populate("createdBy", "name");
-  if (!sharedCart) return res.status(404).json({ message: "This link is no longer valid" });
+  if (!sharedCart || !sharedCart.expiresAt || sharedCart.expiresAt <= new Date()) return res.status(404).json({ message: "This link is no longer valid" });
 
   const productIds = sharedCart.items.map((i) => i.product);
   const products = await Product.find({ _id: { $in: productIds } });
@@ -85,5 +89,6 @@ export const getSharedCart = async (req: Request, res: Response) => {
     items,
     createdByName: createdBy?.name ?? "Someone",
     isFulfilled: !!sharedCart.fulfilledOrder,
+    isPaymentPending: !!sharedCart.claimedOrder && !sharedCart.fulfilledOrder,
   });
 };

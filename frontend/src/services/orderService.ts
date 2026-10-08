@@ -26,8 +26,12 @@ export interface CreateOrderInput {
 
 // The server is the only source of truth for prices/delivery fees/discount —
 // this just sends productId + quantity + where to ship it.
+let pendingOrder: { fingerprint: string; key: string } | null = null;
 export const createOrder = async (input: CreateOrderInput): Promise<Order> => {
-  const { data } = await api.post<Order>("/orders", input);
+  const fingerprint = JSON.stringify(input);
+  if (pendingOrder?.fingerprint !== fingerprint) pendingOrder = { fingerprint, key: crypto.randomUUID() };
+  const { data } = await api.post<Order>("/orders", input, { headers: { "Idempotency-Key": pendingOrder.key } });
+  pendingOrder = null;
   return data;
 };
 
@@ -94,8 +98,12 @@ export interface AdminCreateOrderInput {
   paymentMethod: PaymentMethod;
 }
 
+let pendingAdminOrder: { fingerprint: string; key: string } | null = null;
 export const adminCreateOrder = async (input: AdminCreateOrderInput): Promise<Order> => {
-  const { data } = await api.post<Order>("/orders/admin", input);
+  const fingerprint = JSON.stringify(input);
+  if (pendingAdminOrder?.fingerprint !== fingerprint) pendingAdminOrder = { fingerprint, key: crypto.randomUUID() };
+  const { data } = await api.post<Order>("/orders/admin", input, { headers: { "Idempotency-Key": pendingAdminOrder.key } });
+  pendingAdminOrder = null;
   return data;
 };
 

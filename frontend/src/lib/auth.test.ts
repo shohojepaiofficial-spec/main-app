@@ -15,11 +15,13 @@ const { callbacks } = authModule.handlers as unknown as {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Google backend exchange", () => {
-  it("hands both backend credentials through the Google session callback", async () => {
+  it("keeps credentials out of the public Google session callback", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ token: "access", refreshToken: "refresh", user: { id: "google-user" } }) }));
     const token = await callbacks.jwt({ token: {}, account: { provider: "google", providerAccountId: "id" }, user: { email: "google@example.com" }, profile: { email: "google@example.com", email_verified: true } });
     const session = await callbacks.session({ session: {}, token });
-    expect(session).toMatchObject({ backendToken: "access", backendRefreshToken: "refresh", backendUser: { id: "google-user" } });
+    expect(session).toMatchObject({ backendToken: "ui..not-a-credential", backendRefreshToken: "ui..not-a-credential", backendUser: { id: "google-user" } });
+    expect(token.backendToken).toBe("access");
+    expect(token.backendRefreshToken).toBe("refresh");
   });
   it("surfaces local-provider mismatch and removes stale credentials", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ code: "LOCAL_LOGIN_REQUIRED" }) }));

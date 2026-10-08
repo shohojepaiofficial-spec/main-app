@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { ContactMessage } from "../models/ContactMessage";
 import { sendEmail } from "../utils/sendEmail";
@@ -6,6 +7,7 @@ import { isNonEmptyString } from "../utils/validate";
 import { AuthRequest } from "../middleware/auth";
 
 export const submitContactMessage = async (req: Request, res: Response) => {
+  validateControllerInput("submitContactMessage", req);
   const { name, email, subject, message } = req.body as {
     name?: string;
     email?: string;
@@ -61,6 +63,7 @@ export const getContactMessages = async (_req: AuthRequest, res: Response) => {
 };
 
 export const markMessageRead = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("markMessageRead", req);
   const { isRead } = req.body as { isRead?: boolean };
   const message = await ContactMessage.findByIdAndUpdate(
     req.params.id,
@@ -72,6 +75,7 @@ export const markMessageRead = async (req: AuthRequest, res: Response) => {
 };
 
 export const deleteContactMessage = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("deleteContactMessage", req);
   const message = await ContactMessage.findByIdAndDelete(req.params.id);
   if (!message) return res.status(404).json({ message: "Message not found" });
   res.status(204).send();

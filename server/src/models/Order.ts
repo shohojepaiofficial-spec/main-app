@@ -71,6 +71,12 @@ export interface IOrder extends Document {
   // present once the payment actually completed.
   bkashPaymentID?: string;
   bkashTrxID?: string;
+  bkashRedirectUrl?: string;
+  idempotencyKey?: string;
+  requestFingerprint?: string;
+  reservationExpiresAt?: Date;
+  paymentReviewRequired?: boolean;
+  lastPaymentCheckAt?: Date;
   source: OrderSource;
   shippingAddress: IShippingDetails;
   // Set when this order was placed by fulfilling someone else's shared-cart
@@ -144,6 +150,12 @@ const orderSchema = new Schema<IOrder>(
     },
     bkashPaymentID: { type: String },
     bkashTrxID: { type: String },
+    bkashRedirectUrl: { type: String },
+    idempotencyKey: { type: String },
+    requestFingerprint: { type: String },
+    reservationExpiresAt: { type: Date },
+    paymentReviewRequired: { type: Boolean, default: false },
+    lastPaymentCheckAt: { type: Date },
     source: {
       type: String,
       enum: ["online", "manual"],
@@ -161,4 +173,6 @@ const orderSchema = new Schema<IOrder>(
   { timestamps: true }
 );
 
+orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } } });
+orderSchema.index({ status: 1, reservationExpiresAt: 1 });
 export const Order = model<IOrder>("Order", orderSchema);

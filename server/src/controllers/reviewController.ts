@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Response } from "express";
 import mongoose from "mongoose";
 import { Review } from "../models/Review";
@@ -9,6 +10,7 @@ import { isNonEmptyString } from "../utils/validate";
 const PAGE_SIZE = 5;
 
 export const getProductReviews = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getProductReviews", req);
   const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
   const productId = req.params.id as string;
 
@@ -38,6 +40,7 @@ export const getProductReviews = async (req: AuthRequest, res: Response) => {
 };
 
 export const submitReview = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("submitReview", req);
   const { rating, comment } = req.body as { rating?: number; comment?: string };
 
   if (!rating || rating < 1 || rating > 5) {
@@ -73,6 +76,7 @@ const ADMIN_PAGE_SIZE = 20;
 // reviews still waiting on a store response — and the response always
 // carries that count so the page can show it whichever filter is active.
 export const getAllReviews = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getAllReviews", req);
   const { status, rating } = req.query;
   const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
 
@@ -104,6 +108,7 @@ export const getAllReviews = async (req: AuthRequest, res: Response) => {
 // Writes (or rewrites) the store's public response to a review — one reply
 // per review, no thread. Editing replaces it and moves repliedAt forward.
 export const replyToReview = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("replyToReview", req);
   const { text } = req.body as { text?: unknown };
   if (!isNonEmptyString(text)) {
     return res.status(400).json({ message: "Reply can't be empty" });
@@ -125,6 +130,7 @@ export const replyToReview = async (req: AuthRequest, res: Response) => {
 };
 
 export const deleteReviewReply = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("deleteReviewReply", req);
   const review = await Review.findByIdAndUpdate(
     req.params.reviewId,
     { $unset: { reply: 1 } },
@@ -137,6 +143,7 @@ export const deleteReviewReply = async (req: AuthRequest, res: Response) => {
 // The admin Reviews page's delete — same as deleteReview below, just
 // addressed by review id alone (that page lists reviews across products).
 export const deleteReviewById = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("deleteReviewById", req);
   const review = await Review.findByIdAndDelete(req.params.reviewId);
   if (!review) return res.status(404).json({ message: "Review not found" });
   res.status(204).send();
@@ -148,6 +155,7 @@ export const deleteReviewById = async (req: AuthRequest, res: Response) => {
 // matches the "delete confirmations, not edits" pattern used for banners/
 // products/promo codes elsewhere in the admin panel.
 export const deleteReview = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("deleteReview", req);
   const review = await Review.findOneAndDelete({
     _id: req.params.reviewId,
     product: req.params.id,

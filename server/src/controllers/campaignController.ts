@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Response } from "express";
 import { Campaign, CampaignChannel, CampaignSourceType } from "../models/Campaign";
 import { User } from "../models/User";
@@ -39,6 +40,7 @@ export const getCampaigns = async (_req: AuthRequest, res: Response) => {
 // AdminAdFormModal does for social ads; this just validates, finds who's
 // actually opted in, and sends immediately. No scheduling, same as ads.
 export const createCampaign = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("createCampaign", req);
   const {
     title,
     sourceType,

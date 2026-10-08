@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { verifyTypedToken } from "./authTokens";
+import { decryptSecret } from "./secretEncryption";
 
 const ISSUER = "Shohoje Pai";
 const BACKUP_CODE_COUNT = 10;
@@ -19,7 +20,7 @@ export function generateTwoFactorSecret(email: string): { secret: string; otpaut
 
 export function verifyTwoFactorToken(secret: string, token: string): boolean {
   try {
-    return authenticator.verify({ token, secret });
+    return authenticator.verify({ token, secret: decryptSecret(secret) });
   } catch {
     return false;
   }

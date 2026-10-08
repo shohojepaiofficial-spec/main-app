@@ -4,7 +4,7 @@ import type { User } from "@/models";
 
 export interface SessionCredentials { token: string; refreshToken: string; user: User }
 export const SESSION_SYNC_KEY = "auth-session-sync";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = "/api/backend";
 const listeners = new Set<(session: SessionCredentials | null) => void>();
 let refreshFlight: Promise<SessionCredentials | null> | null = null;
 
@@ -16,6 +16,10 @@ export function tokenIsFresh(token: string | undefined | null, marginSeconds = 0
 export function readSessionCookies(): SessionCredentials | null {
   try {
     const token = Cookies.get("token"), refreshToken = Cookies.get("refreshToken"), user = Cookies.get("user");
+    if (token && !token.startsWith("ui.") || refreshToken && !refreshToken.startsWith("ui.")) {
+      for (const name of ["token", "refreshToken", "user"]) Cookies.remove(name);
+      return null;
+    }
     return token && refreshToken && user ? { token, refreshToken, user: JSON.parse(user) as User } : null;
   } catch { return null; }
 }
@@ -26,6 +30,7 @@ export function subscribeSession(listener: (session: SessionCredentials | null) 
 }
 
 export function writeSessionCookies(session: SessionCredentials | null) {
+  // These are unsigned UI markers from the proxy, not backend credentials.
   if (session) {
     const expires = new Date(jwtDecode<{ exp: number }>(session.refreshToken).exp * 1000);
     const options = { expires, sameSite: "strict" as const, secure: typeof location !== "undefined" && location.protocol === "https:" };
@@ -40,7 +45,7 @@ export function writeSessionCookies(session: SessionCredentials | null) {
   try { localStorage.setItem(SESSION_SYNC_KEY, `${Date.now()}-${Math.random()}`); } catch { /* storage may be disabled */ }
 }
 
-async function withSessionLock<T>(work: () => Promise<T>): Promise<T> {
+export async function withSessionLock<T>(work: () => Promise<T>): Promise<T> {
   if (typeof navigator !== "undefined" && navigator.locks) return navigator.locks.request("backend-session", work);
   return work();
 }
@@ -51,7 +56,7 @@ async function refreshUnderLock(rejectedToken?: string): Promise<SessionCredenti
   if (tokenIsFresh(current.token, 30) && (!rejectedToken || current.token !== rejectedToken)) return current;
   if (!tokenIsFresh(current.refreshToken)) { writeSessionCookies(null); return null; }
   const response = await fetch(`${API_URL}/auth/refresh`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
+    method: "POST", headers: { "Content-Type": "application/json", "X-Requested-With": "ecommerce" },
     body: JSON.stringify({ refreshToken: current.refreshToken }), signal: AbortSignal.timeout(10_000),
   });
   // Never restore an earlier account or a logged-out session after a late response.
@@ -78,7 +83,7 @@ export async function endSession(allDevices = false) {
     const session = await refreshUnderLock();
     if (!session) { writeSessionCookies(null); return; }
     const response = await fetch(`${API_URL}/auth/${allDevices ? "logout-all" : "logout"}`, {
-      method: "POST", headers: { Authorization: `Bearer ${session.token}` }, signal: AbortSignal.timeout(10_000),
+      method: "POST", headers: { "X-Requested-With": "ecommerce" }, signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok && response.status !== 401) throw new Error("Logout could not be confirmed. Please try again.");
     if (Cookies.get("refreshToken") === session.refreshToken) writeSessionCookies(null);

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { newPasswordSchema } from "@/lib/passwordPolicy";
 import toast from "react-hot-toast";
 import { signOut } from "next-auth/react";
 import { getGoogleSignInUrl } from "@/lib/googleSignIn";
@@ -26,6 +27,7 @@ const loginSchema = z.object({
 });
 
 const signupSchema = loginSchema.extend({
+  password: newPasswordSchema,
   name: z.string().min(2, "Name is too short"),
 });
 

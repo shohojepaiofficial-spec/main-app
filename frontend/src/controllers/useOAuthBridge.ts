@@ -8,6 +8,7 @@ import { useAuthStore } from "@/controllers/useAuthStore";
 import { useUIStore } from "@/controllers/useUIStore";
 import { translateNow } from "@/controllers/useTranslations";
 import { DecodedToken } from "@/models";
+import { writeSessionCookies, withSessionLock, type SessionCredentials } from "@/lib/sessionClient";
 
 function isExpired(token: string) {
   try {
@@ -44,10 +45,18 @@ export function useOAuthBridge() {
         signOut({ redirect: false }).catch(() => {});
         return;
       }
-      setAuth(session.backendToken, session.backendUser, session.backendRefreshToken);
-      useUIStore.getState().closeAuthModal();
-      signOut({ redirect: false }).catch(() => {});
-      toast.success(translateNow("auth.loggedIn", "Logged in"));
+      void withSessionLock(() => fetch("/api/backend/auth/oauth-handoff", { method: "POST", headers: { "X-Requested-With": "ecommerce" }, signal: AbortSignal.timeout(10_000) })
+        .then(async response => {
+          if (!response.ok) throw new Error("OAuth handoff failed");
+          const credentials = await response.json() as SessionCredentials;
+          setAuth(credentials.token, credentials.user, credentials.refreshToken);
+          useUIStore.getState().closeAuthModal();
+          toast.success(translateNow("auth.loggedIn", "Logged in"));
+        }).catch(() => {
+          writeSessionCookies(null);
+          useUIStore.getState().openAuthModal("login");
+          toast.error(translateNow("auth.googleSignInFailed", "Google sign-in didn't finish. Please try again."));
+        }).finally(() => { signOut({ redirect: false }).catch(() => {}); }));
     } else if (session.twoFactorRequired && session.tempToken) {
       if (session.tempToken === currentTempToken) return;
       // The Google account itself checked out fine, but this account also

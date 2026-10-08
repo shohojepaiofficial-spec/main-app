@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Response, Request } from "express";
 import { Banner, CtaLink } from "../models/Banner";
 import { PromoCode, IPromoCode } from "../models/PromoCode";
@@ -96,6 +97,7 @@ const parseCta = (raw: unknown): CtaLink | undefined => {
 };
 
 export const createBanner = async (req: Request, res: Response) => {
+  validateControllerInput("createBanner", req);
   const file = req.file as Express.Multer.File | undefined;
   if (!file) return res.status(400).json({ message: "Image is required" });
 
@@ -128,6 +130,7 @@ export const createBanner = async (req: Request, res: Response) => {
 };
 
 export const updateBanner = async (req: Request, res: Response) => {
+  validateControllerInput("updateBanner", req);
   const file = req.file as Express.Multer.File | undefined;
 
   let primaryCta: CtaLink | undefined;
@@ -175,6 +178,7 @@ export const updateBanner = async (req: Request, res: Response) => {
 };
 
 export const moveBanner = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("moveBanner", req);
   const { direction } = req.body as { direction?: "up" | "down" };
   if (direction !== "up" && direction !== "down") {
     return res.status(400).json({ message: "direction must be 'up' or 'down'" });
@@ -201,6 +205,7 @@ export const moveBanner = async (req: AuthRequest, res: Response) => {
 };
 
 export const deleteBanner = async (req: Request, res: Response) => {
+  validateControllerInput("deleteBanner", req);
   const banner = await Banner.findByIdAndDelete(req.params.id);
   if (!banner) return res.status(404).json({ message: "Banner not found" });
   res.json({ message: "Banner deleted" });

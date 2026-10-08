@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { newPasswordSchema } from "@/lib/passwordPolicy";
 import toast from "react-hot-toast";
 import { IMAGE_ACCEPT, imageUploadError } from "@/lib/imageUpload";
 import { useAuthController } from "@/controllers/useAuthController";
@@ -562,7 +563,7 @@ function TwoFactorSection() {
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z.string().min(6, "New password must be at least 6 characters"),
+    newPassword: newPasswordSchema,
     confirmPassword: z.string().min(1, "Please confirm your new password"),
   })
   .refine((v) => v.newPassword === v.confirmPassword, {

@@ -22,24 +22,15 @@ import statsRoutes from "./routes/statsRoutes";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
 import { liveOnlinePaymentMethods } from "./utils/paymentMethods";
+import { apiLimiter } from "./middleware/rateLimit";
+import { requestValidation, boundMultipart } from "./middleware/requestValidation";
 
 const app = express();
 
-// Railway (and effectively every PaaS host) sits the app behind exactly one
-// reverse proxy, which adds an `X-Forwarded-For` header for the real client
-// IP. Express doesn't trust that header at all by default, and without this,
-// express-rate-limit's own safety check (added to stop a real spoofing risk:
-// blindly trusting X-Forwarded-For with no trust-proxy setting lets a client
-// fake its rate-limit key) throws `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` on
-// every request through a rate-limited route (confirmed live in Railway's
-// logs — every contact-form/auth-endpoint hit was logging this). Worth
-// fixing regardless of what else turns out to be wrong, since it also means
-// rate limiting itself wasn't working correctly (every request was likely
-// being keyed on the same fallback value instead of the real per-client IP).
-// `1` (not `true`) trusts exactly one hop, matching Railway's actual
-// topology, rather than trusting an arbitrarily long chain a client could
-// forge additional entries onto.
-app.set("trust proxy", 1);
+// Trust only explicitly configured ingress addresses. The frontend proxy
+// signs Vercel-verified client IPs separately for application rate limits.
+const trustedProxies = process.env.TRUSTED_PROXIES?.split(",").map(value => value.trim()).filter(Boolean);
+app.set("trust proxy", trustedProxies?.length ? trustedProxies : false);
 
 // `contentSecurityPolicy: false` — this is a JSON API plus a static
 // /uploads folder, not an HTML-serving app, so a CSP tuned for pages isn't
@@ -60,9 +51,17 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use("/api", apiLimiter);
+app.use(express.json({ limit: "128kb" }));
+app.use(requestValidation);
+app.use(boundMultipart);
 app.use(cookieParser());
-app.use(morgan("dev"));
+app.use(morgan((tokens, req, res) => `${tokens.method(req, res)} ${(req as express.Request).path} ${tokens.status(req, res)} ${tokens["response-time"](req, res)} ms`));
+app.use((_req, res, next) => {
+  const json = res.json.bind(res);
+  res.json = body => json(res.statusCode >= 500 ? { message: "Service unavailable. Please try again." } : body);
+  next();
+});
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/api/health", (_req, res) => {

@@ -44,6 +44,6 @@ export const errorHandler = (
         ? { status: 400, message: Object.values(err.errors)[0]?.message ?? err.message }
         : { status: err.status ?? 500, message: err.message || "Internal server error" };
 
-  if (status >= 500) reportError(err, { method: req.method, url: req.originalUrl });
-  res.status(status).json({ message });
+  if (status >= 500) reportError(err, { method: req.method, url: req.path });
+  res.status(status).json({ message: status >= 500 ? "Internal server error" : message });
 };

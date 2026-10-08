@@ -16,6 +16,8 @@ export interface ISharedCart extends Document {
   // be completed twice and the link's page can show "already paid".
   fulfilledBy?: Types.ObjectId;
   fulfilledOrder?: Types.ObjectId;
+  claimedOrder?: Types.ObjectId;
+  expiresAt: Date;
   createdAt: Date;
 }
 
@@ -31,6 +33,8 @@ const sharedCartSchema = new Schema<ISharedCart>(
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     fulfilledBy: { type: Schema.Types.ObjectId, ref: "User" },
     fulfilledOrder: { type: Schema.Types.ObjectId, ref: "Order" },
+    claimedOrder: { type: Schema.Types.ObjectId, ref: "Order" },
+    expiresAt: { type: Date, default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), index: true },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );

@@ -3,12 +3,20 @@
 // upload. The server enforces the same rules (server/src/utils/upload.ts) —
 // keep the two in sync.
 
-export const MAX_IMAGE_MB = 5;
+export const MAX_IMAGE_MB = 4;
+export const MAX_MULTIPART_BYTES = 4 * 1024 * 1024;
 export const MAX_IMAGE_BYTES = MAX_IMAGE_MB * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 // For <input accept>, so the file dialog only offers images the server takes
 // (a plain "image/*" also offers HEIC, SVG, TIFF…, which it would reject).
 export const IMAGE_ACCEPT = ALLOWED_IMAGE_TYPES.join(",");
+
+export function validateMultipartSize(data: FormData) {
+  let bytes = 0;
+  for (const [name, value] of data.entries()) bytes += new TextEncoder().encode(name).length + (typeof value === "string" ? new TextEncoder().encode(value).length : value.size) + 512;
+  // Leave room for multipart boundaries and other form fields below Vercel's 4.5 MB cap.
+  if (bytes > MAX_MULTIPART_BYTES) throw new Error("Images and form fields must total less than 4 MB. Use smaller images or fewer files.");
+}
 
 // A reason the file can't be uploaded, or null when it's fine.
 export function imageUploadError(file: File): string | null {

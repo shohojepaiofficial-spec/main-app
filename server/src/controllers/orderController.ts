@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { format } from "date-fns";
 import mongoose, { ClientSession, Types } from "mongoose";
@@ -13,6 +14,10 @@ import { resolvePurchasable } from "../utils/productVariants";
 import { AuthRequest } from "../middleware/auth";
 import { liveOnlinePaymentMethods } from "../utils/paymentMethods";
 import { preorderDiscountPercent, preorderSpotsLeft } from "../utils/preorder";
+import { transitionOrder } from "../utils/orderTransitions";
+import { checkoutSchema, parseInput, cartFingerprint, cartItems } from "../utils/checkoutValidation";
+import { createHash } from "node:crypto";
+import { reconcilePayment } from "../utils/paymentReconciliation";
 import {
   createBkashPayment,
   executeBkashPayment,
@@ -262,6 +267,8 @@ export async function computeOrderTotals(
 // requires login") — no orders:manage permission needed to preview your own
 // cart's delivery cost.
 export const getDeliveryQuote = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getDeliveryQuote", req);
+  parseInput(cartItems, req.body?.items);
   const { items, zila, upazila } = req.body as {
     items?: CheckoutItemInput[];
     zila?: string;
@@ -411,13 +418,20 @@ function readShippingAddress(input?: ShippingInput) {
 // when checking out via a shared "ask someone else to pay" link, marks that
 // link fulfilled so it can't be completed twice.
 export const createOrder = async (req: AuthRequest, res: Response) => {
-  const { items, shippingAddress, promoCode, sharedCartId, paymentMethod } = req.body as {
-    items?: CheckoutItemInput[];
-    shippingAddress?: ShippingInput;
-    promoCode?: string;
-    sharedCartId?: string;
-    paymentMethod?: PaymentMethod;
-  };
+  validateControllerInput("createOrder", req);
+  const input = parseInput(checkoutSchema, req.body);
+  const buyer = await User.findById(req.userId).select("provider isEmailVerified");
+  if (!buyer || !buyer.isEmailVerified) return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "Verify your email before checkout. You can resend the verification email from Settings." });
+  const { items, shippingAddress, promoCode, sharedCartId, paymentMethod } = input;
+  const idempotencyKey = req.get("Idempotency-Key");
+  if (!idempotencyKey || !/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) return res.status(400).json({ message: "A valid Idempotency-Key header is required" });
+  const requestFingerprint = createHash("sha256").update(JSON.stringify({ ...input, items: cartFingerprint(items) })).digest("hex");
+  const previous = await Order.findOne({ user: req.userId, idempotencyKey });
+  if (previous) {
+    if (previous.requestFingerprint !== requestFingerprint) return res.status(409).json({ message: "Idempotency key was used for a different order" });
+    if (previous.paymentMethod === "bkash" && !previous.bkashRedirectUrl && previous.status === "pending") return res.status(409).json({ message: "Payment is being prepared; retry with the same key" });
+    return res.status(200).json(previous);
+  }
 
   if (!items || items.length === 0) {
     return res.status(400).json({ message: "Your cart is empty" });
@@ -436,7 +450,14 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     await session.withTransaction(async () => {
       address = readShippingAddress(shippingAddress);
-      const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method);
+      let authoritativeItems = items;
+      if (sharedCartId) {
+        const cart = await SharedCart.findOne({ _id: sharedCartId, expiresAt: { $gt: new Date() }, fulfilledOrder: { $exists: false }, claimedOrder: { $exists: false } }).session(session);
+        if (!cart) throw Object.assign(new Error("Shared cart is expired or already claimed"), { status: 409 });
+        authoritativeItems = cart.items.map(i => ({ productId: i.product.toString(), variantId: i.variant?.toString(), quantity: i.quantity }));
+        if (cartFingerprint(items) !== cartFingerprint(authoritativeItems)) throw Object.assign(new Error("Shared cart contents have changed"), { status: 400 });
+      }
+      const totals = await computeOrderTotals(authoritativeItems, address.zila, address.upazila, promoCode, session, method);
 
       await decrementStockAtomically(totals.orderItems, session);
 
@@ -444,6 +465,8 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         [
           {
             user: req.userId,
+            idempotencyKey, requestFingerprint,
+            reservationExpiresAt: method === "bkash" ? new Date(Date.now() + 30 * 60 * 1000) : undefined,
             ...orderFieldsFromTotals(totals),
             paymentMethod: method,
             source: "online",
@@ -456,14 +479,20 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       order = created;
 
       if (sharedCartId) {
-        await SharedCart.findByIdAndUpdate(
-          sharedCartId,
-          { fulfilledBy: req.userId, fulfilledOrder: created.id },
+        const claimed = await SharedCart.findOneAndUpdate(
+          { _id: sharedCartId, expiresAt: { $gt: new Date() }, fulfilledOrder: { $exists: false }, claimedOrder: { $exists: false } },
+          { $set: { claimedOrder: created._id, ...(method === "cod" ? { fulfilledBy: req.userId, fulfilledOrder: created._id } : {}) } },
           { session }
         );
+        if (!claimed) throw Object.assign(new Error("Shared cart already claimed"), { status: 409 });
       }
     });
   } catch (err) {
+    if ((err as { code?: number }).code === 11000) {
+      const existing = await Order.findOne({ user: req.userId, idempotencyKey });
+      if (existing?.requestFingerprint === requestFingerprint && (existing.paymentMethod === "cod" || existing.bkashRedirectUrl)) return res.status(200).json(existing);
+      return res.status(409).json({ message: "Order request already exists; retry with the same key" });
+    }
     const { status, message } = err as { status?: number; message?: string };
     return res.status(status ?? 500).json({ message: message ?? "Failed to place order" });
   } finally {
@@ -487,13 +516,16 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         callbackURL: `${process.env.SERVER_PUBLIC_URL || "http://localhost:5000"}/api/orders/bkash/callback`,
       });
       order.bkashPaymentID = paymentID;
-      await order.save();
+      order.bkashRedirectUrl = bkashURL;
+      const saved = await Order.updateOne({ _id: order._id, status: "pending", reservationExpiresAt: { $gt: new Date() } }, { $set: { bkashPaymentID: paymentID, bkashRedirectUrl: bkashURL } });
+      if (!saved.matchedCount) {
+        await Order.updateOne({ _id: order._id }, { $set: { bkashPaymentID: paymentID, paymentReviewRequired: true } });
+        return res.status(409).json({ message: "This reservation expired; payment needs review" });
+      }
       return res.status(201).json({ ...order.toObject(), bkashRedirectUrl: bkashURL });
     } catch (err) {
       console.error("bKash create payment failed:", err);
-      order.status = "cancelled";
-      await order.save();
-      await restoreStock(order);
+      await transitionOrder(order.id, "cancelled", { pendingOnly: true });
       return res
         .status(502)
         .json({ message: "Couldn't start the bKash payment — please try again or choose Cash on Delivery." });
@@ -507,6 +539,14 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 // entered on the customer's behalf — same price/stock authority, just no
 // buyer account required. See docs/ARCHITECTURE.md's "Checkout & Orders".
 export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("adminCreateOrder", req);
+  parseInput(checkoutSchema.omit({ sharedCartId: true }), req.body);
+  const key = req.get("Idempotency-Key");
+  if (!key || !/^[A-Za-z0-9_-]{16,128}$/.test(key)) return res.status(400).json({ message: "A valid Idempotency-Key header is required" });
+  const idempotencyKey = `${req.userId}:${key}`;
+  const requestFingerprint = createHash("sha256").update(JSON.stringify(req.body)).digest("hex");
+  const previous = await Order.findOne({ source: "manual", idempotencyKey });
+  if (previous) return previous.requestFingerprint === requestFingerprint ? res.status(200).json(previous) : res.status(409).json({ message: "Idempotency key was used for a different order" });
   const { items, shippingAddress, promoCode, paymentMethod } = req.body as {
     items?: CheckoutItemInput[];
     shippingAddress?: ShippingInput;
@@ -539,6 +579,7 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
             ...orderFieldsFromTotals(totals),
             paymentMethod: method,
             source: "manual" as OrderSource,
+            idempotencyKey, requestFingerprint,
             shippingAddress: address,
           },
         ],
@@ -550,6 +591,11 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
     res.status(201).json(order);
   } catch (err) {
     const { status, message } = err as { status?: number; message?: string };
+    if ((err as { code?: number }).code === 11000) {
+      const existing = await Order.findOne({ source: "manual", idempotencyKey });
+      if (existing?.requestFingerprint === requestFingerprint) return res.status(200).json(existing);
+      return res.status(409).json({ message: "Order request already exists" });
+    }
     res.status(status ?? 500).json({ message: message ?? "Failed to create order" });
   } finally {
     await session.endSession();
@@ -563,6 +609,7 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
 // server-to-server. Looks the order up by the paymentID bKash gave back at
 // creation, rather than trusting anything in the redirect beyond that.
 export const bkashCallback = async (req: Request, res: Response) => {
+  validateControllerInput("bkashCallback", req);
   const { paymentID, status } = req.query as { paymentID?: string; status?: string };
   const redirectBase = `${process.env.CLIENT_URL || "http://localhost:3000"}/checkout/bkash-result`;
 
@@ -571,15 +618,6 @@ export const bkashCallback = async (req: Request, res: Response) => {
 
   const finish = (queryStatus: string) => res.redirect(`${redirectBase}?status=${queryStatus}&order=${order.id}`);
 
-  if (status !== "success") {
-    if (order.status === "pending") {
-      order.status = "cancelled";
-      await order.save();
-      await restoreStock(order);
-    }
-    return finish(status === "cancel" ? "cancelled" : "failed");
-  }
-
   // Already resolved by an earlier hit of this same callback (e.g. the
   // customer reloading the redirect page) — nothing left to do.
   if (order.status !== "pending") {
@@ -587,7 +625,7 @@ export const bkashCallback = async (req: Request, res: Response) => {
   }
 
   try {
-    let result = await executeBkashPayment(paymentID as string);
+    let result = status === "success" ? await executeBkashPayment(paymentID as string) : await queryBkashPayment(paymentID as string);
     if (result.transactionStatus !== "Completed") {
       // Execute only ever works once per paymentID — a repeat hit lands
       // here with "already been called before" instead of a real result,
@@ -595,17 +633,7 @@ export const bkashCallback = async (req: Request, res: Response) => {
       result = await queryBkashPayment(paymentID as string);
     }
 
-    if (result.transactionStatus === "Completed") {
-      order.status = "paid";
-      order.bkashTrxID = result.trxID;
-      await order.save();
-      return finish("success");
-    }
-
-    order.status = "cancelled";
-    await order.save();
-    await restoreStock(order);
-    return finish("failed");
+    return finish(await reconcilePayment(order, result));
   } catch (err) {
     console.error("bKash execute/query failed:", err);
     return finish("error");
@@ -613,6 +641,7 @@ export const bkashCallback = async (req: Request, res: Response) => {
 };
 
 export const getMyOrders = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getMyOrders", req);
   const orders = await Order.find({ user: req.userId })
     .sort({ createdAt: -1 })
     .populate("items.product", "name images deliveryFeeInsideCity deliveryFeeOutsideCity");
@@ -622,6 +651,7 @@ export const getMyOrders = async (req: AuthRequest, res: Response) => {
 // Delivered orders' products the current user hasn't reviewed yet — feeds
 // the dashboard's "leave a review" prompt.
 export const getReviewableProducts = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getReviewableProducts", req);
   const orders = await Order.find({ user: req.userId, status: "delivered" }).populate(
     "items.product",
     "name images"
@@ -659,6 +689,7 @@ export const getReviewableProducts = async (req: AuthRequest, res: Response) => 
 // look up a single order this way — otherwise any signed-in user could read
 // anyone else's order (and shipping address) just by guessing/finding an id.
 export const getOrderById = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getOrderById", req);
   const order = await Order.findById(req.params.id)
     .populate("items.product", "name images deliveryFeeInsideCity deliveryFeeOutsideCity")
     .populate("user", "name email");
@@ -728,21 +759,13 @@ export async function restoreStock(order: {
 }
 
 export const updateOrderStatus = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("updateOrderStatus", req);
   const { status } = req.body as { status?: string };
   if (!status || !ORDER_STATUSES.includes(status as (typeof ORDER_STATUSES)[number])) {
     return res.status(400).json({ message: "Invalid status" });
   }
 
-  const existing = await Order.findById(req.params.id);
-  if (!existing) return res.status(404).json({ message: "Order not found" });
-  const wasAlreadyCancelled = existing.status === "cancelled";
-
-  existing.status = status as (typeof ORDER_STATUSES)[number];
-  await existing.save();
-
-  if (status === "cancelled" && !wasAlreadyCancelled) {
-    await restoreStock(existing);
-  }
+  const existing = await transitionOrder(req.params.id, status as (typeof ORDER_STATUSES)[number]);
 
   const order = await Order.findById(existing.id)
     .populate("items.product", "name images deliveryFeeInsideCity deliveryFeeOutsideCity")
@@ -755,18 +778,8 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response) => {
 // in transit to stop). Restores stock the same way an admin cancellation
 // does; see restoreStock above.
 export const cancelMyOrder = async (req: AuthRequest, res: Response) => {
-  const order = await Order.findById(req.params.id);
-  if (!order) return res.status(404).json({ message: "Order not found" });
-  if (order.user?.toString() !== req.userId) {
-    return res.status(403).json({ message: "Not authorized to cancel this order" });
-  }
-  if (order.status !== "pending") {
-    return res.status(400).json({ message: "This order can no longer be cancelled" });
-  }
-
-  order.status = "cancelled";
-  await order.save();
-  await restoreStock(order);
+  validateControllerInput("cancelMyOrder", req);
+  const order = await transitionOrder(req.params.id, "cancelled", { owner: req.userId, pendingOnly: true });
 
   const updated = await Order.findById(order.id).populate(
     "items.product",
@@ -806,6 +819,7 @@ async function populatedOrder(id: string) {
 // Admin-only free-text note, never shown to the customer — see Order.ts's
 // internalNote field.
 export const updateOrderNote = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("updateOrderNote", req);
   const { note } = req.body as { note?: string };
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ message: "Order not found" });
@@ -821,6 +835,7 @@ export const updateOrderNote = async (req: AuthRequest, res: Response) => {
 // Pathao" button. Clearing every field drops courierProvider too, so an
 // order can go back to "no courier yet".
 export const updateCourierInfo = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("updateCourierInfo", req);
   const { consignmentId, trackingStatus, note } = req.body as {
     consignmentId?: string;
     trackingStatus?: string;
@@ -851,6 +866,7 @@ export const listPathaoCities = async (_req: AuthRequest, res: Response) => {
 };
 
 export const listPathaoZones = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("listPathaoZones", req);
   if (!isPathaoConfigured()) {
     return res.status(400).json({ message: "Pathao isn't connected yet." });
   }
@@ -863,6 +879,7 @@ export const listPathaoZones = async (req: AuthRequest, res: Response) => {
 };
 
 export const listPathaoAreas = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("listPathaoAreas", req);
   if (!isPathaoConfigured()) {
     return res.status(400).json({ message: "Pathao isn't connected yet." });
   }
@@ -881,6 +898,7 @@ export const listPathaoAreas = async (req: AuthRequest, res: Response) => {
 // onto Pathao's location IDs. amount_to_collect is the order total for Cash
 // on Delivery, 0 for anything already paid online.
 export const bookPathaoOrder = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("bookPathaoOrder", req);
   if (!isPathaoConfigured()) {
     return res.status(400).json({
       message: "Pathao isn't connected yet — add PATHAO_* environment variables, or enter courier details manually.",
@@ -937,6 +955,7 @@ export const bookPathaoOrder = async (req: AuthRequest, res: Response) => {
 };
 
 export const refreshPathaoStatus = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("refreshPathaoStatus", req);
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ message: "Order not found" });
   if (!order.courierConsignmentId) {
@@ -963,6 +982,7 @@ export const refreshPathaoStatus = async (req: AuthRequest, res: Response) => {
 // updateMany, since restoring stock on cancel needs each order's own
 // previous status checked individually.
 export const bulkUpdateStatus = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("bulkUpdateStatus", req);
   const { ids, status } = req.body as { ids?: string[]; status?: string };
   if (!ids || ids.length === 0) {
     return res.status(400).json({ message: "No orders selected" });
@@ -973,12 +993,7 @@ export const bulkUpdateStatus = async (req: AuthRequest, res: Response) => {
 
   const orders = await Order.find({ _id: { $in: ids } });
   for (const order of orders) {
-    const wasAlreadyCancelled = order.status === "cancelled";
-    order.status = status as (typeof ORDER_STATUSES)[number];
-    await order.save();
-    if (status === "cancelled" && !wasAlreadyCancelled) {
-      await restoreStock(order);
-    }
+    await transitionOrder(order.id, status as (typeof ORDER_STATUSES)[number]);
   }
 
   const updated = await Order.find({ _id: { $in: ids } })

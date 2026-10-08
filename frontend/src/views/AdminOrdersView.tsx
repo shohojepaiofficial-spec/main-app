@@ -282,6 +282,7 @@ function OrderRow({
             <span className="text-xs text-muted">
               Payment: {PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}
             </span>
+            {order.paymentReviewRequired && <span className="text-xs font-semibold text-amber-700">Payment needs review before fulfillment or refund</span>}
             <Link
               href={`/admin/orders/${order._id}/print`}
               target="_blank"

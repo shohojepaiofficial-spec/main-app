@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Response } from "express";
 import { AnalyticsEvent } from "../models/AnalyticsEvent";
 import { Product } from "../models/Product";
@@ -11,6 +12,7 @@ import { AuthRequest } from "../middleware/auth";
 // detail view on the storefront. Never blocks the page: the frontend calls
 // this fire-and-forget and swallows errors (see frontend's lib/analytics.ts).
 export const trackEvent = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("trackEvent", req);
   const { type, path, productId, sessionId, referrer } = req.body as {
     type?: string;
     path?: string;
@@ -44,6 +46,7 @@ export const trackEvent = async (req: AuthRequest, res: Response) => {
 // the time-series-shaped data. Product/user totals are always "as of now"
 // regardless of range; there's no meaningful "stock count for last 7 days".
 export const getAnalyticsOverview = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getAnalyticsOverview", req);
   const { preset, since } = resolveAnalyticsRange(req.query.range);
   const dateFilter = since ? { createdAt: { $gte: since } } : {};
 
@@ -192,6 +195,7 @@ function buildEventFilter(query: Record<string, unknown>) {
 // matches before actually deleting anything, so the confirm dialog can show
 // a real number instead of "are you sure?" in the abstract.
 export const getAnalyticsEventCount = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getAnalyticsEventCount", req);
   try {
     const filter = buildEventFilter(req.query);
     const count = await AnalyticsEvent.countDocuments(filter);
@@ -210,6 +214,7 @@ export const getAnalyticsEventCount = async (req: AuthRequest, res: Response) =>
 // before a real launch) doesn't have to mean losing genuine same-day data,
 // and a specific event type can be cleared without touching the other.
 export const resetAnalyticsEvents = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("resetAnalyticsEvents", req);
   try {
     const filter = buildEventFilter(req.query);
     const result = await AnalyticsEvent.deleteMany(filter);

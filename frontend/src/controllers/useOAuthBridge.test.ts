@@ -40,13 +40,14 @@ describe("OAuth session handoff", () => {
     expect(state.ui.openAuthModal).toHaveBeenCalledWith("login");
     expect(state.auth.setAuth).not.toHaveBeenCalled();
   });
-  it("hands a valid session to the app and consumes the OAuth session", () => {
+  it("redeems the server-held OAuth session and consumes the handoff", async () => {
     const token = `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 60 })).toString("base64url")}.signature`;
     const user = { id: "test" };
     state.session = { backendToken: token, backendRefreshToken: "refresh-token", backendUser: user };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ token, refreshToken: "refresh-token", user }) }));
     useOAuthBridge();
     useOAuthBridge();
-    expect(state.auth.setAuth).toHaveBeenCalledExactlyOnceWith(token, user, "refresh-token");
+    await vi.waitFor(() => expect(state.auth.setAuth).toHaveBeenCalledExactlyOnceWith(token, user, "refresh-token"));
     expect(state.ui.closeAuthModal).toHaveBeenCalledOnce();
     expect(signOut).toHaveBeenCalledWith({ redirect: false });
   });

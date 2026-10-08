@@ -275,6 +275,7 @@ export interface Order {
   // order — where to send the browser to actually pay. Never stored, never
   // present on an order read back later (getMyOrders/getOrderById/etc).
   bkashRedirectUrl?: string;
+  paymentReviewRequired?: boolean;
   // Admin-only fields — absent from the customer's own getMyOrders response.
   internalNote?: string;
   courierProvider?: "pathao";

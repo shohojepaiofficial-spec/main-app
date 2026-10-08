@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Response } from "express";
 import { User, UserRole } from "../models/User";
 import { PERMISSIONS, isPermission } from "../utils/permissions";
@@ -29,6 +30,7 @@ const shapeUser = (user: InstanceType<typeof User>) => ({
 // admin-created records), so it needed the same treatment once a real store
 // accumulates more than a page's worth of accounts.
 export const getUsers = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getUsers", req);
   const { search, role, permission, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
   const filter: Record<string, unknown> = {};
 
@@ -71,6 +73,7 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
 // for coadmins, which of PERMISSIONS they hold. A user's own access can't be
 // changed here so an admin can't accidentally lock themselves out.
 export const updateUserAccess = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("updateUserAccess", req);
   const { role, permissions } = req.body as { role?: UserRole; permissions?: unknown };
 
   if (req.params.id === req.userId) {

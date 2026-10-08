@@ -1,5 +1,7 @@
 # SEC-03: revocable sessions
 
+> Later implementation: see [2026-10-08 rollout](ROLLOUT_2026-10-08.md) and the [current queue](README.md). Statements below about open source weaknesses or JavaScript-readable credentials describe the earlier review/design; deployment checks still apply.
+
 Implemented and verified locally on 2026-10-08. Deployment and live MongoDB/browser verification are pending.
 
 ## Session lifetime and verification

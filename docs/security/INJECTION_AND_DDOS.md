@@ -1,5 +1,7 @@
 # Injection and DDoS protection plan
 
+> Later implementation: see [2026-10-08 rollout](ROLLOUT_2026-10-08.md) and the [current queue](README.md). Statements below about open source weaknesses or JavaScript-readable credentials describe the earlier review/design; deployment checks still apply.
+
 Updated: 2026-10-07. This is a proposed plan, not a statement that protection has been deployed.
 
 ## Injection protection

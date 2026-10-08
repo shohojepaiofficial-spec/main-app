@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Response } from "express";
 import { Ad, AdPlatform, AdPlatformStatus, AdSourceType } from "../models/Ad";
 import { Product } from "../models/Product";
@@ -48,6 +49,7 @@ export const getAds = async (_req: AuthRequest, res: Response) => {
 };
 
 export const createAd = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("createAd", req);
   const file = req.file as Express.Multer.File | undefined;
   const {
     title,
@@ -139,6 +141,7 @@ export const createAd = async (req: AuthRequest, res: Response) => {
 // each attempt's outcome is recorded on the ad itself so the list always
 // reflects reality, and one platform failing doesn't stop the others.
 export const publishAd = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("publishAd", req);
   const ad = await Ad.findById(req.params.id);
   if (!ad) return res.status(404).json({ message: "Ad not found" });
 
@@ -196,6 +199,7 @@ export const publishAd = async (req: AuthRequest, res: Response) => {
 // `product.images[0]` when nothing was uploaded specifically for the ad),
 // and deleting that would delete an image a live product still depends on.
 export const deleteAd = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("deleteAd", req);
   const ad = await Ad.findByIdAndDelete(req.params.id);
   if (!ad) return res.status(404).json({ message: "Ad not found" });
   if (ad.ownsImage) await deleteUploadedFile(ad.image);

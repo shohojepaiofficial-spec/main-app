@@ -1,5 +1,6 @@
 vi.mock("../models/AuthSession", () => ({ AuthSession: { create: vi.fn().mockResolvedValue({}), exists: vi.fn().mockResolvedValue({ _id: "session" }) } }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { decryptSecret } from "../utils/secretEncryption";
 import type { Request, Response } from "express";
 import { authenticator } from "otplib";
 
@@ -28,6 +29,8 @@ function account(role: "user" | "admin" | "coadmin", enabled = false) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("JWT_SECRET", "controller-regression-secret");
+  vi.stubEnv("TOTP_ENCRYPTION_KEY_ID", "test");
+  vi.stubEnv("TOTP_ENCRYPTION_KEYS", JSON.stringify({ test: Buffer.alloc(32, 1).toString("base64") }));
   vi.mocked(User.updateOne).mockResolvedValue({ matchedCount: 1 } as never);
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -171,8 +174,10 @@ describe("login and restricted 2FA enrollment", () => {
     await setupTwoFactor({ authenticatedAt: Math.floor(Date.now() / 1000), headers: { authorization: "Bearer management-session" }, userId: id } as AuthRequest, res as unknown as Response);
     expect(User.updateOne).toHaveBeenCalledWith(
       expect.objectContaining({ "twoFactor.enabled": { $ne: true } }),
-      expect.objectContaining({ $set: expect.objectContaining({ "twoFactor.pendingSecret": res.json.mock.calls[0][0].secret }) }),
+      expect.objectContaining({ $set: expect.objectContaining({ "twoFactor.pendingSecret": expect.stringMatching(/^enc:v1:/) }) }),
     );
+    const stored = vi.mocked(User.updateOne).mock.calls[0][1] as { $set: { "twoFactor.pendingSecret": string } };
+    expect(decryptSecret(stored.$set["twoFactor.pendingSecret"])).toBe(res.json.mock.calls[0][0].secret);
     expect(user.twoFactor.enabled).toBe(false);
   });
 

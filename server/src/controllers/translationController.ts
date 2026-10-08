@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { Translation } from "../models/Translation";
 import { AuthRequest } from "../middleware/auth";
@@ -32,6 +33,7 @@ export const getAllTranslations = async (_req: AuthRequest, res: Response) => {
 // wouldn't do anything). 404s on an unknown key rather than silently
 // creating one, so a typo'd key doesn't quietly vanish into an unused row.
 export const updateTranslation = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("updateTranslation", req);
   const { bn } = req.body as { bn?: string };
   if (typeof bn !== "string") {
     return res.status(400).json({ message: "bn is required" });

@@ -21,13 +21,14 @@ import {
   bulkUpdateStatus,
 } from "../controllers/orderController";
 import { protect, authorize } from "../middleware/auth";
+import { checkoutIpLimiter, checkoutAccountLimiter, quoteLimiter } from "../middleware/rateLimit";
 
 const router = Router();
 const canManageOrders = authorize("orders:manage");
 
-router.post("/", protect, createOrder);
-router.post("/delivery-quote", protect, getDeliveryQuote);
-router.post("/admin", protect, canManageOrders, adminCreateOrder);
+router.post("/", checkoutIpLimiter, protect, checkoutAccountLimiter, createOrder);
+router.post("/delivery-quote", checkoutIpLimiter, protect, quoteLimiter, getDeliveryQuote);
+router.post("/admin", checkoutIpLimiter, protect, canManageOrders, checkoutAccountLimiter, adminCreateOrder);
 router.get("/bkash/callback", bkashCallback);
 router.get("/my", protect, getMyOrders);
 router.get("/reviewable", protect, getReviewableProducts);

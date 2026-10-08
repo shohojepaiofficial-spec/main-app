@@ -27,13 +27,13 @@ import {
 } from "../controllers/twoFactorController";
 import { requireInternalSecret } from "../middleware/internalAuth";
 import { protect } from "../middleware/auth";
-import { authLimiter, profileUploadLimiter, twoFactorManagementLimiter, sessionRefreshLimiter } from "../middleware/rateLimit";
+import { authLimiter, authTargetLimiter, profileUploadLimiter, twoFactorManagementLimiter, sessionRefreshLimiter } from "../middleware/rateLimit";
 import { upload } from "../utils/upload";
 
 const router = Router();
 
-router.post("/register", authLimiter, register);
-router.post("/login", authLimiter, login);
+router.post("/register", authLimiter, authTargetLimiter, register);
+router.post("/login", authLimiter, authTargetLimiter, login);
 router.post("/refresh", sessionRefreshLimiter, refreshSession);
 router.post("/logout", protect, logoutSession);
 router.post("/logout-all", protect, logoutAllSessions);
@@ -45,7 +45,7 @@ router.patch("/marketing-opt-in", protect, updateMarketingOptIn);
 router.post("/oauth-sync", requireInternalSecret, oauthSync);
 router.post("/verify-email", verifyEmail);
 router.post("/resend-verification", protect, authLimiter, resendVerificationEmail);
-router.post("/forgot-password", authLimiter, forgotPassword);
+router.post("/forgot-password", authLimiter, authTargetLimiter, forgotPassword);
 router.post("/reset-password", authLimiter, resetPassword);
 router.get("/unsubscribe", unsubscribeFromMarketing);
 

@@ -1,6 +1,7 @@
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
+import sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";
 import { isCloudinaryConfigured, uploadBufferToCloudinary, deleteFromCloudinary } from "./cloudinary";
 
@@ -17,7 +18,7 @@ const storage = multer.memoryStorage();
 // on delivery anyway), while a raw 20MB+ camera file is refused. Mirrored in
 // frontend/src/lib/imageUpload.ts, which checks before uploading — keep the
 // two in sync.
-export const MAX_UPLOAD_MB = 5;
+export const MAX_UPLOAD_MB = 4;
 export const MAX_UPLOAD_FILES = 5;
 
 const ALLOWED_EXTENSIONS = new Set([".jpeg", ".jpg", ".png", ".webp", ".gif"]);
@@ -48,8 +49,23 @@ const fileFilter = (
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: MAX_UPLOAD_FILES },
+  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: MAX_UPLOAD_FILES, fields: 30, fieldSize: 128 * 1024, parts: 35, fieldNameSize: 100 },
 });
+
+let activeDecodes = 0;
+export async function sanitizeImage(buffer: Buffer) {
+  if (activeDecodes >= 4) throw Object.assign(new Error("Image processing is busy; please retry"), { status: 429 });
+  activeDecodes++;
+  try {
+    if (buffer.length > MAX_UPLOAD_MB * 1024 * 1024) throw new Error("Image too large");
+    const decoder = sharp(buffer, { limitInputPixels: 20_000_000, failOn: "warning", animated: true });
+    const info = await decoder.metadata();
+    if (!["jpeg", "png", "webp", "gif"].includes(info.format ?? "") || !info.width || !info.height || info.width > 8000 || info.height > 8000 || (info.pages ?? 1) > 1) throw new Error("Unsupported image");
+    return await decoder.rotate().webp({ quality: 85 }).toBuffer();
+  } catch {
+    throw Object.assign(new Error("Use a valid, non-animated JPG, PNG, WebP or GIF image up to 20 megapixels"), { status: 400 });
+  } finally { activeDecodes--; }
+}
 
 // The one place every controller goes through to turn an uploaded file into
 // a storable URL — never read `file.filename`/`file.path` directly. Once
@@ -62,6 +78,7 @@ export const upload = multer({
 // `toUploadUrl` and the ad integrations' `toPublicImageUrl` already pass an
 // absolute URL through unchanged and only prefix a bare local path.
 export async function storeUploadedFile(file: Express.Multer.File): Promise<string> {
+  file = { ...file, buffer: await sanitizeImage(file.buffer), mimetype: "image/webp", originalname: "image.webp" };
   if (isCloudinaryConfigured()) {
     return uploadBufferToCloudinary(file.buffer);
   }

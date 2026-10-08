@@ -32,6 +32,8 @@ function load(user: ReturnType<typeof account>) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("JWT_SECRET", "management-test-secret");
+  vi.stubEnv("TOTP_ENCRYPTION_KEY_ID", "test");
+  vi.stubEnv("TOTP_ENCRYPTION_KEYS", JSON.stringify({ test: Buffer.alloc(32, 1).toString("base64") }));
   vi.mocked(User.updateOne).mockResolvedValue({ matchedCount: 1 } as never);
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });

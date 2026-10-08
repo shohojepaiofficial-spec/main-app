@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { User } from "../models/User";
 import { sendEmail } from "../utils/sendEmail";
@@ -9,6 +10,7 @@ import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { signTwoFactorChallenge } from "../utils/twoFactor";
 import { isNonEmptyString } from "../utils/validate";
 import { AuthRequest } from "../middleware/auth";
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../utils/passwordPolicy";
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -70,6 +72,7 @@ async function sendVerificationEmail(user: InstanceType<typeof User>) {
 }
 
 export const register = async (req: Request, res: Response) => {
+  validateControllerInput("register", req);
   const { name, email, password } = req.body;
 
   if (!isNonEmptyString(name) || !isNonEmptyString(email) || !isNonEmptyString(password)) {
@@ -85,6 +88,7 @@ export const register = async (req: Request, res: Response) => {
     return res.status(409).json({ message: "Email already registered" });
   }
 
+  if (!validNewPassword(password)) return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   const user = await User.create({ name, email: normalizedEmail, password });
   const credentials = await createSession(user);
 
@@ -95,6 +99,7 @@ export const register = async (req: Request, res: Response) => {
 };
 
 export const login = async (req: Request, res: Response) => {
+  validateControllerInput("login", req);
   const { email, password } = req.body;
 
   if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
@@ -118,6 +123,7 @@ export const login = async (req: Request, res: Response) => {
 // admin changing a coadmin's access mid-session wouldn't otherwise show up
 // until they logged out and back in.
 export const getMe = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getMe", req);
   const user = await User.findById(req.userId);
   if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -125,6 +131,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 };
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("updateProfile", req);
   const user = await User.findById(req.userId);
   if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -153,6 +160,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
 };
 
 export const changePassword = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("changePassword", req);
   const { currentPassword, newPassword } = req.body as {
     currentPassword?: string;
     newPassword?: string;
@@ -161,8 +169,8 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
   if (!isNonEmptyString(currentPassword) || !isNonEmptyString(newPassword)) {
     return res.status(400).json({ message: "currentPassword and newPassword are required" });
   }
-  if (newPassword.length < 6) {
-    return res.status(400).json({ message: "New password must be at least 6 characters" });
+  if (!validNewPassword(newPassword)) {
+    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   }
 
   const user = await User.findById(req.userId).select("+password");
@@ -188,6 +196,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
 };
 
 export const updateDeliveryLocation = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("updateDeliveryLocation", req);
   const { zila, upazila, addressLine } = req.body as {
     zila?: string;
     upazila?: string;
@@ -214,6 +223,7 @@ export const updateDeliveryLocation = async (req: AuthRequest, res: Response) =>
 // Shared by Settings' "Promotions" section and the checkout page's "Send me
 // SMS about offers" checkbox — both just flip one or both of these flags.
 export const updateMarketingOptIn = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("updateMarketingOptIn", req);
   const { email, sms } = req.body as { email?: boolean; sms?: boolean };
 
   const user = await User.findById(req.userId);
@@ -236,6 +246,7 @@ export const updateMarketingOptIn = async (req: AuthRequest, res: Response) => {
 // whatever device opens it. Only ever turns email marketing off, never the
 // whole account or SMS opt-in.
 export const unsubscribeFromMarketing = async (req: Request, res: Response) => {
+  validateControllerInput("unsubscribeFromMarketing", req);
   const { uid, token } = req.query as { uid?: string; token?: string };
   if (!isNonEmptyString(uid) || !isNonEmptyString(token) || !verifyUnsubscribeToken(uid, token)) {
     return res.status(400).json({ message: "This unsubscribe link is invalid." });
@@ -256,6 +267,7 @@ export const unsubscribeFromMarketing = async (req: Request, res: Response) => {
 // only inside NextAuth's own session. Protected by requireInternalSecret —
 // never call this directly from a browser.
 export const oauthSync = async (req: Request, res: Response) => {
+  validateControllerInput("oauthSync", req);
   const { name, email, provider, providerId, image } = req.body;
 
   // "google" is the only OAuth provider this app supports (Facebook sign-in
@@ -315,6 +327,7 @@ export const oauthSync = async (req: Request, res: Response) => {
 // fresh token replaces the old one each time, so an old, unused email link
 // stops working once a new one is requested.
 export const resendVerificationEmail = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("resendVerificationEmail", req);
   const user = await User.findById(req.userId);
   if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -340,6 +353,7 @@ export const resendVerificationEmail = async (req: AuthRequest, res: Response) =
 // no login required, since a brand-new signup may not have a session yet on
 // whatever device/browser opens the email link.
 export const verifyEmail = async (req: Request, res: Response) => {
+  validateControllerInput("verifyEmail", req);
   const { token } = req.body as { token?: string };
   if (!isNonEmptyString(token)) return res.status(400).json({ message: "Missing token" });
 
@@ -364,6 +378,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
 // this can't be used to check which emails have an account (user
 // enumeration) — the real work only happens when a match is found.
 export const forgotPassword = async (req: Request, res: Response) => {
+  validateControllerInput("forgotPassword", req);
   const { email } = req.body as { email?: string };
   if (!isNonEmptyString(email)) return res.status(400).json({ message: "Email is required" });
 
@@ -396,12 +411,13 @@ export const forgotPassword = async (req: Request, res: Response) => {
 // login) — the token already proved control of the email inbox, so there's
 // no reason to also make them type their new password in again to sign in.
 export const resetPassword = async (req: Request, res: Response) => {
+  validateControllerInput("resetPassword", req);
   const { token, password } = req.body as { token?: string; password?: string };
   if (!isNonEmptyString(token) || !isNonEmptyString(password)) {
     return res.status(400).json({ message: "Token and password are required" });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  if (!validNewPassword(password)) {
+    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   }
 
   const user = await User.findOne({
@@ -426,6 +442,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 };
 
 export const refreshSession = async (req: Request, res: Response) => {
+  validateControllerInput("refreshSession", req);
   if (!isNonEmptyString(req.body?.refreshToken) || req.body.refreshToken.length > 4096) {
     return res.status(400).json({ message: "A refresh token is required" });
   }
@@ -440,11 +457,13 @@ export const refreshSession = async (req: Request, res: Response) => {
 };
 
 export const logoutSession = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("logoutSession", req);
   await revokeSession(req.sessionId!, req.userId!);
   res.json({ message: "Logged out" });
 };
 
 export const logoutAllSessions = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("logoutAllSessions", req);
   await User.updateOne({ _id: req.userId }, { $inc: { sessionVersion: 1 } });
   res.json({ message: "Logged out on all devices" });
 };

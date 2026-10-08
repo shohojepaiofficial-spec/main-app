@@ -12,7 +12,7 @@ import { endSession, ensureSession, readSessionCookies, writeSessionCookies, typ
 
 const fetchMock = vi.fn();
 function token(seconds: number, nonce = "initial") {
-  return `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + seconds, nonce })).toString("base64url")}.signature`;
+  return `ui.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + seconds, nonce })).toString("base64url")}.not-a-credential`;
 }
 function credentials(fresh = false, id = "user-1"): SessionCredentials {
   return { token: token(fresh ? 900 : -1), refreshToken: token(604800), user: { id } as User };
@@ -124,7 +124,8 @@ describe("browser session lifecycle", () => {
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(readSessionCookies()).toEqual(first);
     expect(fetchMock.mock.calls[0][0]).toMatch(allDevices ? /\/auth\/logout-all$/ : /\/auth\/logout$/);
-    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe(`Bearer ${first.token}`);
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
+    expect(fetchMock.mock.calls[0][1].headers["X-Requested-With"]).toBe("ecommerce");
     pending.resolve({ ok: true, status: 200 });
     await ending;
     expect(readSessionCookies()).toBeNull();

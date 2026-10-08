@@ -1,3 +1,4 @@
+import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import QRCode from "qrcode";
 import { hashToken, verifyTypedToken } from "../utils/authTokens";
@@ -6,6 +7,7 @@ import { User, type UserRole } from "../models/User";
 import { AuthRequest } from "../middleware/auth";
 import { isNonEmptyString } from "../utils/validate";
 import { shapeUser } from "./authController";
+import { encryptSecret } from "../utils/secretEncryption";
 import {
   generateTwoFactorSecret,
   verifyTwoFactorToken,
@@ -65,6 +67,7 @@ async function beginSetup(req: AuthRequest, res: Response, replacement: boolean)
     return res.status(409).json({ message: replacement ? "Enable two-step verification before replacing it." : "Two-step verification is already enabled. Use Replace authenticator instead." });
   }
   if (!assertRecentAuthentication(req, res)) return;
+  validateControllerInput(replacement ? "replaceTwoFactor" : "setupTwoFactor", req);
 
   const proof = replacement ? await verifyExistingFactor(user, req.body?.code) : {};
   if (!proof) return res.status(401).json({ message: "Enter a valid code from your current authenticator or an unused backup code." });
@@ -79,7 +82,7 @@ async function beginSetup(req: AuthRequest, res: Response, replacement: boolean)
     },
     {
       $set: {
-        "twoFactor.pendingSecret": secret,
+        "twoFactor.pendingSecret": encryptSecret(secret),
         "twoFactor.pendingExpires": new Date((req.authenticatedAt! + MANAGEMENT_WINDOW_SECONDS) * 1000),
         "twoFactor.pendingSessionHash": sessionHash(req),
         ...(replacement ? { "twoFactor.pendingFactorHash": hashToken(user.twoFactor.secret!) } : {}),
@@ -113,6 +116,7 @@ async function confirmSetup(req: AuthRequest, res: Response, replacement: boolea
     return res.status(409).json({ message: "Two-step verification changed. Restart setup or replacement." });
   }
   if (!assertRecentAuthentication(req, res)) return;
+  validateControllerInput(replacement ? "confirmTwoFactorReplacement" : "confirmTwoFactor", req);
 
   if (!user.twoFactor.pendingSecret || !user.twoFactor.pendingExpires || user.twoFactor.pendingExpires.getTime() <= Date.now() ||
       user.twoFactor.pendingSessionHash !== sessionHash(req) ||
@@ -168,6 +172,7 @@ export const disableTwoFactor = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: "Two-step verification isn't enabled" });
   }
   if (!assertRecentAuthentication(req, res)) return;
+  validateControllerInput("disableTwoFactor", req);
 
   const proof = await verifyExistingFactor(user, code);
   if (!proof) {
@@ -192,6 +197,7 @@ export const disableTwoFactor = async (req: AuthRequest, res: Response) => {
 // a normal login, so the frontend treats a completed challenge exactly like
 // a completed login.
 export const verifyTwoFactorLogin = async (req: Request, res: Response) => {
+  validateControllerInput("verifyTwoFactorLogin", req);
   const { tempToken, code } = req.body as { tempToken?: string; code?: string };
   if (!isNonEmptyString(tempToken) || !isNonEmptyString(code)) {
     return res.status(400).json({ message: "tempToken and code are required" });

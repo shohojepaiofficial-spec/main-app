@@ -8,6 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "promote-admin": "tsx src/scripts/promoteAdmin.ts",
+    "security:preflight": "tsx src/scripts/securityPreflight.ts",
+    "security:encrypt-totp": "tsx src/scripts/encryptTotpSecrets.ts",
     "sync-translations": "tsx src/scripts/syncTranslations.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -31,11 +33,13 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.0",
     "morgan": "^1.12.1",
-    "multer": "^2.3.0",
+    "multer": "^2.4.0",
     "otplib": "^12.0.1",
     "pm2": "^7.0.4",
     "qrcode": "^1.5.4",
-    "uuid": "^14.0.2"
+    "sharp": "^0.35.5",
+    "uuid": "^14.0.2",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

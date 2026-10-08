@@ -390,7 +390,7 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
           className="mt-2 text-sm disabled:opacity-50"
         />
         <p className="text-xs text-muted mt-1">
-          Up to {MAX_IMAGES} images total · JPG, PNG, WebP or GIF · {MAX_IMAGE_MB}MB max each.
+          Up to {MAX_IMAGES} static images · JPG, PNG, WebP or GIF · {MAX_IMAGE_MB}MB combined with form fields. No animation; up to 20 megapixels.
         </p>
       </div>
 
