@@ -1,5 +1,10 @@
 # Remaining Work
 
+New step-by-step queues (2026-10-07): [security](security/README.md) and
+[remaining works](remaining-works/README.md). Use `SEC-xx` or `WORK-xx` to
+select a task. This file is preserved for historical context; newly found
+security issues remain open even where older entries below say completed.
+
 Reference an item by its number (e.g. "let's do 2.6") to discuss it one at a
 time — nothing here is meant to be done in one shot. Finished items are
 collapsed to one line each below (full detail, including how each was

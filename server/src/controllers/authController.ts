@@ -1,18 +1,12 @@
 import { Request, Response } from "express";
-import jwt from "jsonwebtoken";
 import { User } from "../models/User";
 import { sendEmail } from "../utils/sendEmail";
-import { generateRawAndHash, hashToken } from "../utils/authTokens";
+import { generateRawAndHash, hashToken, signAccessToken as signToken } from "../utils/authTokens";
 import { verifyUnsubscribeToken } from "../utils/campaignTokens";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { signTwoFactorChallenge } from "../utils/twoFactor";
 import { isNonEmptyString } from "../utils/validate";
 import { AuthRequest } from "../middleware/auth";
-
-const signToken = (id: string, role: string) =>
-  jwt.sign({ id, role }, process.env.JWT_SECRET as string, {
-    expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as jwt.SignOptions["expiresIn"],
-  });
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -34,18 +28,18 @@ export const shapeUser = (user: InstanceType<typeof User>) => ({
   deliveryLocation: user.deliveryLocation,
   isEmailVerified: user.isEmailVerified,
   marketingOptIn: user.marketingOptIn,
-  twoFactorEnabled: user.twoFactor?.enabled ?? false,
+  twoFactorEnabled: (user.role === "admin" || user.role === "coadmin") && (user.twoFactor?.enabled ?? false),
 });
 
 // Every place that verifies a credential and would normally hand back a
 // real session (login, oauth-sync, password reset) routes through here
 // instead of signing a token directly, so a 2FA-enabled admin/coadmin gets
 // challenged at all three, not just the one path someone remembered to gate.
-function respondWithSessionOrChallenge(res: Response, user: InstanceType<typeof User>) {
-  if (user.twoFactor?.enabled) {
-    return res.json({ twoFactorRequired: true, tempToken: signTwoFactorChallenge(user.id) });
+function respondWithSessionOrChallenge(res: Response, user: InstanceType<typeof User>, authenticatedAt?: number) {
+  if ((user.role === "admin" || user.role === "coadmin") && user.twoFactor?.enabled) {
+    return res.json({ twoFactorRequired: true, tempToken: signTwoFactorChallenge(user.id, authenticatedAt) });
   }
-  const token = signToken(user.id, user.role);
+  const token = signToken(user.id, user.role, authenticatedAt);
   return res.json({ token, user: shapeUser(user) });
 }
 
@@ -80,12 +74,16 @@ export const register = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "name, email and password are required" });
   }
 
-  const existing = await User.findOne({ email });
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
+    if (existing.provider === "google") {
+      return res.status(409).json({ code: "GOOGLE_LOGIN_REQUIRED", message: "This account uses Google. Please continue with Google." });
+    }
     return res.status(409).json({ message: "Email already registered" });
   }
 
-  const user = await User.create({ name, email, password });
+  const user = await User.create({ name, email: normalizedEmail, password });
   const token = signToken(user.id, user.role);
 
   sendVerificationEmail(user).catch((err) => console.error("Verification email failed:", err.message));
@@ -100,12 +98,15 @@ export const login = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "email and password are required" });
   }
 
-  const user = await User.findOne({ email }).select("+password");
+  const user = await User.findOne({ email: email.trim().toLowerCase() }).select("+password");
+  if (user && user.provider !== "local") {
+    return res.status(401).json({ code: "GOOGLE_LOGIN_REQUIRED", message: "This account uses Google. Please continue with Google." });
+  }
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({ message: "Invalid email or password" });
   }
 
-  respondWithSessionOrChallenge(res, user);
+  respondWithSessionOrChallenge(res, user, Math.floor(Date.now() / 1000));
 };
 
 // Lets an already-logged-in client refresh its cached `user` (role/
@@ -253,16 +254,25 @@ export const oauthSync = async (req: Request, res: Response) => {
   // "google" is the only OAuth provider this app supports (Facebook sign-in
   // was removed — see docs/PROGRESS.md) — reject anything else outright
   // rather than letting an arbitrary string reach User.create below.
-  if (!isNonEmptyString(email) || provider !== "google") {
-    return res.status(400).json({ message: "email and provider are required" });
+  if (!isNonEmptyString(email) || provider !== "google" || !isNonEmptyString(providerId)) {
+    return res.status(400).json({ message: "email, Google provider and providerId are required" });
   }
 
-  let user = await User.findOne({ email });
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail });
+
+  if (user && user.provider !== "google") {
+    return res.status(409).json({ code: "LOCAL_LOGIN_REQUIRED", message: "This email uses email and password sign-in. Please sign in with your password." });
+  }
+
+  if (user?.providerId && user.providerId !== providerId) {
+    return res.status(401).json({ message: "This Google account does not match the registered account." });
+  }
 
   if (!user) {
     user = await User.create({
       name: name || email.split("@")[0],
-      email,
+      email: normalizedEmail,
       provider,
       providerId,
       image,
@@ -290,7 +300,7 @@ export const oauthSync = async (req: Request, res: Response) => {
     if (changed) await user.save();
   }
 
-  respondWithSessionOrChallenge(res, user);
+  respondWithSessionOrChallenge(res, user, Math.floor(Date.now() / 1000));
 };
 
 // Re-sends the verification email for the currently logged-in account —

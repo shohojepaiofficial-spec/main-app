@@ -33,6 +33,15 @@ export const contactLimiter = rateLimit({
 // should one ever be mounted without auth.
 const perAccount = (req: Request) => (req as AuthRequest).userId ?? ipKeyGenerator(req.ip ?? "");
 
+export const twoFactorManagementLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: perAccount,
+  message: { message: "Too many two-step verification attempts. Please try again later." },
+});
+
 // Public and unauthenticated (guest visitors are tracked too), so it's the
 // easiest endpoint to flood with fake events and skew the analytics. A real
 // visitor sends a handful of events per page, so this only ever stops a

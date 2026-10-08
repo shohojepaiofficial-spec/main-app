@@ -2,6 +2,7 @@ import { authenticator } from "otplib";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { verifyTypedToken } from "./authTokens";
 
 const ISSUER = "Shohoje Pai";
 const BACKUP_CODE_COUNT = 10;
@@ -51,8 +52,8 @@ export async function consumeBackupCode(hashes: string[], input: string): Promis
   return null;
 }
 
-export function signTwoFactorChallenge(userId: string): string {
-  return jwt.sign({ id: userId, purpose: "2fa" }, process.env.JWT_SECRET as string, {
+export function signTwoFactorChallenge(userId: string, authenticatedAt?: number): string {
+  return jwt.sign({ id: userId, purpose: "2fa", ...(authenticatedAt === undefined ? {} : { authenticatedAt }) }, process.env.JWT_SECRET as string, {
     expiresIn: TWO_FACTOR_CHALLENGE_TTL,
   });
 }
@@ -62,11 +63,7 @@ export function signTwoFactorChallenge(userId: string): string {
 // access token to this endpoint instead).
 export function verifyTwoFactorChallenge(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ["HS256"] }) as {
-      id: string;
-      purpose?: string;
-    };
-    return decoded.purpose === "2fa" ? decoded.id : null;
+    return verifyTypedToken(token, "2fa").id;
   } catch {
     return null;
   }

@@ -1,10 +1,12 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
-import { signIn, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
+import { getGoogleSignInUrl } from "@/lib/googleSignIn";
 import { usePathname } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { useUIStore } from "@/controllers/useUIStore";
@@ -46,7 +48,7 @@ function extractErrorMessage(err: unknown, fallback: string) {
   );
 }
 
-function OAuthButtons() {
+function OAuthButtons({ redirecting, setRedirecting }: { redirecting: boolean; setRedirecting: (value: boolean) => void }) {
   // Return to whatever page prompted the login (e.g. checkout) instead of
   // always dropping the user back on the homepage.
   const pathname = usePathname();
@@ -93,10 +95,20 @@ function OAuthButtons() {
     <div className="flex flex-col gap-2 mt-4">
       <button
         type="button"
-        onClick={() => signIn("google", { callbackUrl: pathname })}
+        disabled={redirecting}
+        onClick={async () => {
+          setRedirecting(true);
+          try {
+            const url = await getGoogleSignInUrl(pathname + window.location.search);
+            window.location.assign(url);
+          } catch {
+            setRedirecting(false);
+            toast.error(t("auth.googleSignInFailed", "Google sign-in didn't finish. Please try again."));
+          }
+        }}
         className="flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm font-normal hover:bg-background"
       >
-        {t("auth.continueWithGoogle", "Continue with Google")}
+        {redirecting ? t("auth.loggingIn", "Logging in...") : t("auth.continueWithGoogle", "Continue with Google")}
       </button>
     </div>
   );
@@ -126,7 +138,10 @@ function LoginForm() {
       toast.success(t("auth.loggedIn", "Logged in"));
       closeAuthModal();
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("auth.loginFailed", "Login failed")));
+      const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+      toast.error(code === "GOOGLE_LOGIN_REQUIRED"
+        ? t("auth.googleLoginRequired", "This account uses Google. Please continue with Google.")
+        : extractErrorMessage(err, t("auth.loginFailed", "Login failed")));
     }
   };
 
@@ -275,6 +290,8 @@ function TwoFactorForm() {
     }
     try {
       const data = await verifyTwoFactorLogin(tempToken, values.code.trim());
+      // Remove the pending OAuth challenge before publishing the completed session.
+      await signOut({ redirect: false }).catch(() => {});
       setAuth(data.token, data.user);
       toast.success(t("auth.loggedIn", "Logged in"));
       closeAuthModal();
@@ -348,7 +365,10 @@ function SignupForm() {
       toast.success(t("auth.accountCreated", "Account created"));
       closeAuthModal();
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("auth.signUpFailed", "Sign up failed")));
+      const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+      toast.error(code === "GOOGLE_LOGIN_REQUIRED"
+        ? t("auth.googleLoginRequired", "This account uses Google. Please continue with Google.")
+        : extractErrorMessage(err, t("auth.signUpFailed", "Sign up failed")));
     }
   };
 
@@ -405,6 +425,12 @@ function SignupForm() {
 }
 
 export function AuthModal() {
+  const [googleRedirecting, setGoogleRedirecting] = useState(false);
+  useEffect(() => {
+    const resetRedirect = () => setGoogleRedirecting(false);
+    window.addEventListener("pageshow", resetRedirect);
+    return () => window.removeEventListener("pageshow", resetRedirect);
+  }, []);
   const isOpen = useUIStore((s) => s.isAuthModalOpen);
   const mode = useUIStore((s) => s.authModalMode);
   const closeAuthModal = useUIStore((s) => s.closeAuthModal);
@@ -416,9 +442,16 @@ export function AuthModal() {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={closeAuthModal}
+      guardUnsavedChanges={false}
+      onClose={() => { if (!googleRedirecting) closeAuthModal(); }}
       title={mode === "twoFactor" ? t("auth.twoFactorTitle", "Two-step verification") : undefined}
     >
+      {googleRedirecting ? (
+        <div role="status" aria-live="polite" className="flex min-h-48 flex-col items-center justify-center gap-4 text-sm">
+          <span aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+          {t("auth.googleRedirecting", "Opening Google sign-in...")}
+        </div>
+      ) : <>
       {showTabs && (
         <div className="flex mb-4 border-b border-border">
           <button
@@ -453,9 +486,10 @@ export function AuthModal() {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <OAuthButtons />
+          <OAuthButtons redirecting={googleRedirecting} setRedirecting={setGoogleRedirecting} />
         </>
       )}
+      </>}
     </Modal>
   );
 }

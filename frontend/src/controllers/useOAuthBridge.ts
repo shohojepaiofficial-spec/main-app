@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { signOut, useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { jwtDecode } from "jwt-decode";
@@ -27,9 +27,13 @@ export function useOAuthBridge() {
   const currentToken = useAuthStore((s) => s.token);
   const openTwoFactorChallenge = useUIStore((s) => s.openTwoFactorChallenge);
   const currentTempToken = useUIStore((s) => s.twoFactorTempToken);
+  const handled = useRef<string | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated" || !session) return;
+    const exchange = session.backendToken ?? session.tempToken ?? session.backendAuthError ?? "failed";
+    if (handled.current === exchange) return;
+    handled.current = exchange;
 
     if (session.backendToken && session.backendUser) {
       if (session.backendToken === currentToken) return;
@@ -41,21 +45,18 @@ export function useOAuthBridge() {
         return;
       }
       setAuth(session.backendToken, session.backendUser);
+      useUIStore.getState().closeAuthModal();
+      signOut({ redirect: false }).catch(() => {});
       toast.success(translateNow("auth.loggedIn", "Logged in"));
     } else if (session.twoFactorRequired && session.tempToken) {
       if (session.tempToken === currentTempToken) return;
-      // Already logged in means this challenge was just completed in
-      // AuthModal's TwoFactorForm — the session still carries the spent
-      // tempToken, and closing the modal cleared currentTempToken, so without
-      // this the challenge would immediately reopen. Drop the stale session.
-      if (currentToken) {
-        signOut({ redirect: false }).catch(() => {});
-        return;
-      }
       // The Google account itself checked out fine, but this account also
       // has 2FA enabled — surface the same code-entry step LoginForm uses
       // for a local login, rather than completing sign-in silently.
       openTwoFactorChallenge(session.tempToken);
+      // The modal now owns the challenge. Do not restore it after dismissal
+      // or overwrite a later login when NextAuth refreshes its session.
+      signOut({ redirect: false }).catch(() => {});
     } else {
       // Google accepted the user but lib/auth.ts's call to our backend's
       // oauth-sync failed (backend restarting/unreachable, secret mismatch —
@@ -63,7 +64,10 @@ export function useOAuthBridge() {
       // over. This used to fail silently: the user came back from Google
       // still logged out with no explanation. Say so, and clear the
       // half-finished session so the next attempt starts clean.
-      toast.error(translateNow("auth.googleSignInFailed", "Google sign-in didn't finish. Please try again."));
+      toast.error(session.backendAuthError === "LOCAL_LOGIN_REQUIRED"
+        ? translateNow("auth.localLoginRequired", "This email uses email and password sign-in. Please sign in with your password.")
+        : translateNow("auth.googleSignInFailed", "Google sign-in didn't finish. Please try again."));
+      useUIStore.getState().openAuthModal("login");
       signOut({ redirect: false }).catch(() => {});
     }
   }, [session, status, currentToken, currentTempToken, setAuth, openTwoFactorChallenge]);

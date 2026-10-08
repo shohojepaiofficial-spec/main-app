@@ -27,6 +27,7 @@ export function useRequireAuth() {
   // this subscribed value would still be the stale pre-open snapshot,
   // firing a bogus redirect a beat before the modal's "open" state caught up.
   const isAuthModalOpen = useUIStore((s) => s.isAuthModalOpen);
+  const currentTempToken = useUIStore((s) => s.twoFactorTempToken);
   const hasPrompted = useRef(false);
   // Whether this page has been showing a logged-in user — losing that is a
   // logout or an expiry, not a visitor who arrived logged out.
@@ -53,7 +54,11 @@ export function useRequireAuth() {
   // Google redirect and fired the "Please log in first" toast + modal at a
   // user who was already signed in.
   const bridgePending =
-    status === "authenticated" && !!session?.backendToken && session.backendToken !== token;
+    status === "authenticated" && (
+      (!!session?.backendToken && session.backendToken !== token) ||
+      (!!session?.twoFactorRequired && session.tempToken !== currentTempToken) ||
+      !!session?.backendAuthError
+    );
   const isChecking = !isAuthenticated && (status === "loading" || bridgePending);
   const isAllowed = isAuthenticated;
 
@@ -81,6 +86,7 @@ export function useRequireAuth() {
 
     if (!hasPrompted.current) {
       hasPrompted.current = true;
+      if (useUIStore.getState().isAuthModalOpen) return;
       toast.error(translateNow("auth.pleaseLogInFirst", "Please log in first"));
       useUIStore.getState().openAuthModal("login");
       return;

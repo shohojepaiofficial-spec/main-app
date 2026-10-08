@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { verifyAccessToken } from "../utils/authTokens";
 import { User } from "../models/User";
 import { Permission } from "../utils/permissions";
 
 export interface AuthRequest extends Request {
   userId?: string;
   userRole?: string;
+  authenticatedAt?: number;
 }
 
 export const protect = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -18,18 +19,11 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction) => 
   const token = header.split(" ")[1];
 
   try {
-    // Pinning the algorithm is defense-in-depth, not a fix for an active
-    // exploit here — this app only ever signs with a plain string secret
-    // (HS256), never an asymmetric keypair, so the classic "RS256 public
-    // key used as an HS256 secret" confusion attack has no public key to
-    // exploit in the first place. Still worth not leaving it to whatever
-    // jsonwebtoken's default happens to accept.
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ["HS256"] }) as {
-      id: string;
-      role: string;
-    };
+    // A valid signature alone does not make a 2FA challenge a session.
+    const decoded = verifyAccessToken(token);
     req.userId = decoded.id;
     req.userRole = decoded.role;
+    req.authenticatedAt = decoded.authenticatedAt;
     next();
   } catch {
     return res.status(401).json({ message: "Not authorized, invalid token" });
@@ -44,12 +38,7 @@ export const optionalAuth = (req: AuthRequest, _res: Response, next: NextFunctio
   const header = req.headers.authorization;
   if (header?.startsWith("Bearer ")) {
     try {
-      const decoded = jwt.verify(header.split(" ")[1], process.env.JWT_SECRET as string, {
-        algorithms: ["HS256"],
-      }) as {
-        id: string;
-        role: string;
-      };
+      const decoded = verifyAccessToken(header.split(" ")[1]);
       req.userId = decoded.id;
       req.userRole = decoded.role;
     } catch {
@@ -77,7 +66,7 @@ export const adminOnly = async (req: AuthRequest, res: Response, next: NextFunct
 export const authorize = (permission: Permission) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     const user = await User.findById(req.userId).select("role permissions");
-    const allowed = !!user && (user.role === "admin" || user.permissions.includes(permission));
+    const allowed = !!user && (user.role === "admin" || (user.role === "coadmin" && user.permissions.includes(permission)));
     if (!allowed) {
       return res.status(403).json({ message: "You don't have permission to do this" });
     }

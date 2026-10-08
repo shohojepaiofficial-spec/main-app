@@ -60,6 +60,9 @@ export interface IUser extends Document {
     // enabling 2FA with a secret that was never actually saved to an app,
     // which would otherwise lock the account out immediately.
     pendingSecret?: string;
+    pendingExpires?: Date;
+    pendingSessionHash?: string;
+    pendingFactorHash?: string;
     secret?: string;
     // bcrypt-hashed, single-use — see utils/twoFactor.ts#generateBackupCodes.
     backupCodeHashes?: string[];
@@ -111,6 +114,9 @@ const userSchema = new Schema<IUser>(
     twoFactor: {
       enabled: { type: Boolean, default: false },
       pendingSecret: { type: String, select: false },
+      pendingExpires: { type: Date, select: false },
+      pendingSessionHash: { type: String, select: false },
+      pendingFactorHash: { type: String, select: false },
       secret: { type: String, select: false },
       backupCodeHashes: { type: [String], select: false },
       _id: false,

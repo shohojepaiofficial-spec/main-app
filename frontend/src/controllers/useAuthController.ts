@@ -22,7 +22,7 @@ export function useAuthController() {
   // `permissions` array. Mirrors the server's `authorize` middleware — this
   // is UI-gating only (show/hide), the API is the real enforcement.
   const hasPermission = (permission: Permission) =>
-    user?.role === "admin" || !!user?.permissions?.includes(permission);
+    user?.role === "admin" || (user?.role === "coadmin" && !!user.permissions?.includes(permission));
 
   return { user, isAuthenticated: isAuthenticated(), logout, hasPermission };
 }

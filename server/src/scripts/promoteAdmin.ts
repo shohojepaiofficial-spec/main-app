@@ -36,6 +36,7 @@ const run = async () => {
   for (const previous of previousAdmins) {
     previous.role = "user";
     previous.permissions = [];
+    previous.twoFactor = { enabled: false };
     await previous.save();
     console.log(`${previous.email} is no longer admin.`);
   }

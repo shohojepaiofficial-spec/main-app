@@ -16,16 +16,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // shared secret) — see server/src/controllers/authController.ts#oauthSync.
     async jwt({ token, account, profile, user }) {
       if (account && account.provider === "google") {
+        // Clear previous credentials before any new exchange, including failures.
+        token.backendToken = undefined;
+        token.backendUser = undefined;
+        token.twoFactorRequired = undefined;
+        token.tempToken = undefined;
+        token.backendAuthError = undefined;
+        if (profile?.email_verified !== true || !profile.email) {
+          token.backendAuthError = "GOOGLE_SIGN_IN_FAILED";
+          return token;
+        }
         try {
           const res = await fetch(`${API_URL}/auth/oauth-sync`, {
             method: "POST",
+            signal: AbortSignal.timeout(10_000),
             headers: {
               "Content-Type": "application/json",
               "X-Internal-Secret": process.env.INTERNAL_API_SECRET || "",
             },
             body: JSON.stringify({
               name: user?.name ?? profile?.name,
-              email: user?.email ?? profile?.email,
+              email: profile.email,
               provider: account.provider,
               providerId: account.providerAccountId,
               image: user?.image,
@@ -50,15 +61,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               token.tempToken = undefined;
             }
           } else {
-            console.error("oauth-sync failed:", res.status, await res.text());
+            const error = await res.json().catch(() => null);
+            token.backendAuthError = error?.code === "LOCAL_LOGIN_REQUIRED"
+              ? "LOCAL_LOGIN_REQUIRED" : "GOOGLE_SIGN_IN_FAILED";
+            console.error("oauth-sync failed:", res.status);
           }
         } catch (err) {
+          token.backendAuthError = "GOOGLE_SIGN_IN_FAILED";
           console.error("oauth-sync request failed:", err);
         }
       }
       return token;
     },
     async session({ session, token }) {
+      session.backendAuthError = token.backendAuthError;
       if (token.backendToken) session.backendToken = token.backendToken;
       if (token.backendUser) session.backendUser = token.backendUser;
       if (token.twoFactorRequired) {

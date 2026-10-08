@@ -450,6 +450,14 @@ export const translationSeed: TranslationSeedEntry[] = [
 
   // --- Auth modal / pages ---
   { key: "auth.continueWithGoogle", en: "Continue with Google", bn: "গুগল দিয়ে চালিয়ে যান" },
+  { key: "auth.localLoginRequired", en: "This email uses email and password sign-in. Please sign in with your password.", bn: "এই ইমেইলে ইমেইল ও পাসওয়ার্ড দিয়ে লগইন করতে হয়। আপনার পাসওয়ার্ড দিয়ে লগইন করুন।" },
+  { key: "auth.googleLoginRequired", en: "This account uses Google. Please continue with Google.", bn: "এই অ্যাকাউন্টে Google দিয়ে লগইন করতে হয়। Google দিয়ে চালিয়ে যান।" },
+  { key: "auth.googleRedirecting", en: "Opening Google sign-in...", bn: "Google সাইন-ইন খোলা হচ্ছে..." },
+  { key: "settings.reauthenticate2fa", en: "Sign in again, then restart your two-step verification change within five minutes.", bn: "আবার সাইন-ইন করুন, তারপর পাঁচ মিনিটের মধ্যে দুই ধাপ যাচাইকরণের পরিবর্তন আবার শুরু করুন।" },
+  { key: "settings.replaceAuthenticator", en: "Replace authenticator", bn: "অথেন্টিকেটর পরিবর্তন করুন" },
+  { key: "settings.authenticatorReplaced", en: "Authenticator replaced", bn: "অথেন্টিকেটর পরিবর্তন করা হয়েছে" },
+  { key: "settings.replacementSafety", en: "Your current authenticator stays active until you confirm the new one. Confirmation also replaces your backup codes.", bn: "নতুন অথেন্টিকেটর নিশ্চিত না করা পর্যন্ত বর্তমানটি চালু থাকবে। নিশ্চিত করলে ব্যাকআপ কোডগুলোও পরিবর্তিত হবে।" },
+  { key: "settings.replaceAuthenticatorInstructions", en: "Enter a code from your current authenticator, or an unused backup code, to start replacement.", bn: "পরিবর্তন শুরু করতে বর্তমান অথেন্টিকেটরের কোড বা একটি অব্যবহৃত ব্যাকআপ কোড লিখুন।" },
   { key: "auth.inAppGoogleBlocked", en: "Google sign-in doesn't work inside this app's browser. Use email above, or open this page in your browser to continue with Google.", bn: "এই অ্যাপের ভেতরের ব্রাউজারে গুগল দিয়ে লগইন কাজ করে না। উপরে ইমেইল দিয়ে লগইন করুন, অথবা গুগল দিয়ে চালিয়ে যেতে পেজটি আপনার ব্রাউজারে খুলুন।" },
   { key: "auth.inAppOpenInChrome", en: "Open in Chrome", bn: "Chrome-এ খুলুন" },
   { key: "auth.inAppIosHint", en: "Tap ••• (top right), then \"Open in browser\".", bn: "উপরে ডানদিকে ••• চাপুন, তারপর \"Open in browser\" বেছে নিন।" },

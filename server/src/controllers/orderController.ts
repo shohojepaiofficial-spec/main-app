@@ -669,7 +669,7 @@ export const getOrderById = async (req: AuthRequest, res: Response) => {
   if (!isOwner) {
     const requester = await User.findById(req.userId).select("role permissions");
     const canManage =
-      !!requester && (requester.role === "admin" || requester.permissions.includes("orders:manage"));
+      !!requester && (requester.role === "admin" || (requester.role === "coadmin" && requester.permissions.includes("orders:manage")));
     if (!canManage) return res.status(403).json({ message: "Not authorized to view this order" });
   }
 

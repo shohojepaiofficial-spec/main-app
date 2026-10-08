@@ -9,6 +9,8 @@ import toast from "react-hot-toast";
 import { IMAGE_ACCEPT, imageUploadError } from "@/lib/imageUpload";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useAuthStore } from "@/controllers/useAuthStore";
+import { useUIStore } from "@/controllers/useUIStore";
+import { AuthModal } from "@/views/AuthModal";
 import * as authService from "@/services/authService";
 import { toUploadUrl } from "@/lib/api";
 import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
@@ -326,9 +328,10 @@ function MarketingSection() {
 // enough that navigating away and back makes sense.
 type TwoFactorStep =
   | { name: "idle" }
-  | { name: "settingUp"; secret: string; qrCodeDataUrl: string }
+  | { name: "settingUp"; secret: string; qrCodeDataUrl: string; replacement?: boolean }
   | { name: "backupCodes"; codes: string[] }
-  | { name: "disabling" };
+  | { name: "disabling" }
+  | { name: "replacing" };
 
 function TwoFactorSection() {
   const { user } = useAuthController();
@@ -340,6 +343,18 @@ function TwoFactorSection() {
 
   if (!user) return null;
 
+  const handleError = (err: unknown, fallback: string) => {
+    const errorCode = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+    if (errorCode === "REAUTHENTICATION_REQUIRED") {
+      setStep({ name: "idle" });
+      setCode("");
+      toast.error(t("settings.reauthenticate2fa", "Sign in again, then restart your two-step verification change within five minutes."));
+      useUIStore.getState().openAuthModal("login");
+      return;
+    }
+    toast.error(extractErrorMessage(err, fallback));
+  };
+
   const startSetup = async () => {
     setIsSubmitting(true);
     try {
@@ -347,7 +362,20 @@ function TwoFactorSection() {
       setStep({ name: "settingUp", secret: data.secret, qrCodeDataUrl: data.qrCodeDataUrl });
       setCode("");
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("settings.failedToStart2fa", "Failed to start setup")));
+      handleError(err, t("settings.failedToStart2fa", "Failed to start setup"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const startReplacement = async () => {
+    setIsSubmitting(true);
+    try {
+      const data = await authService.replaceTwoFactor(code.trim());
+      setStep({ name: "settingUp", secret: data.secret, qrCodeDataUrl: data.qrCodeDataUrl, replacement: true });
+      setCode("");
+    } catch (err) {
+      handleError(err, t("settings.failedToStart2fa", "Failed to start setup"));
     } finally {
       setIsSubmitting(false);
     }
@@ -356,13 +384,14 @@ function TwoFactorSection() {
   const confirmSetup = async () => {
     setIsSubmitting(true);
     try {
-      const data = await authService.confirmTwoFactor(code.trim());
+      const replacing = step.name === "settingUp" && step.replacement;
+      const data = await (replacing ? authService.confirmTwoFactorReplacement(code.trim()) : authService.confirmTwoFactor(code.trim()));
       updateUser({ ...user, twoFactorEnabled: true });
       setStep({ name: "backupCodes", codes: data.backupCodes });
       setCode("");
-      toast.success(t("settings.twoFactorEnabled", "Two-step verification enabled"));
+      toast.success(replacing ? t("settings.authenticatorReplaced", "Authenticator replaced") : t("settings.twoFactorEnabled", "Two-step verification enabled"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("settings.invalidCode", "That code didn't match — try again")));
+      handleError(err, t("settings.invalidCode", "That code didn't match — try again"));
     } finally {
       setIsSubmitting(false);
     }
@@ -377,7 +406,7 @@ function TwoFactorSection() {
       setCode("");
       toast.success(t("settings.twoFactorDisabled", "Two-step verification disabled"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("settings.invalidCode", "That code didn't match — try again")));
+      handleError(err, t("settings.invalidCode", "That code didn't match — try again"));
     } finally {
       setIsSubmitting(false);
     }
@@ -390,6 +419,7 @@ function TwoFactorSection() {
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4">
+      <AuthModal />
       <div>
         <h2 className="text-sm font-semibold">{t("settings.twoFactor", "Two-step verification")}</h2>
         <p className="mt-1 text-xs text-muted">
@@ -408,12 +438,20 @@ function TwoFactorSection() {
               : t("settings.twoFactorStatusOff", "Disabled")}
           </span>
           {user.twoFactorEnabled ? (
-            <button
-              onClick={() => setStep({ name: "disabling" })}
-              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-background"
-            >
-              {t("settings.disable", "Disable")}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setCode(""); setStep({ name: "replacing" }); }}
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
+              >
+                {t("settings.replaceAuthenticator", "Replace authenticator")}
+              </button>
+              <button
+                onClick={() => setStep({ name: "disabling" })}
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-background"
+              >
+                {t("settings.disable", "Disable")}
+              </button>
+            </div>
           ) : (
             <button
               onClick={startSetup}
@@ -428,6 +466,7 @@ function TwoFactorSection() {
 
       {step.name === "settingUp" && (
         <div className="flex flex-col gap-3">
+          {step.replacement && <p className="text-sm text-muted">{t("settings.replacementSafety", "Your current authenticator stays active until you confirm the new one. Confirmation also replaces your backup codes.")}</p>}
           <p className="text-sm">
             {t(
               "settings.twoFactorScanQr",
@@ -453,6 +492,7 @@ function TwoFactorSection() {
             </button>
             <button
               onClick={cancel}
+              disabled={isSubmitting}
               className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
             >
               {t("settings.cancel", "Cancel")}
@@ -483,12 +523,12 @@ function TwoFactorSection() {
         </div>
       )}
 
-      {step.name === "disabling" && (
+      {(step.name === "disabling" || step.name === "replacing") && (
         <div className="flex flex-col gap-3">
           <p className="text-sm">
             {t(
-              "settings.twoFactorDisableInstructions",
-              "Enter a current 6-digit code, or one of your backup codes, to confirm."
+              step.name === "replacing" ? "settings.replaceAuthenticatorInstructions" : "settings.twoFactorDisableInstructions",
+              step.name === "replacing" ? "Enter a code from your current authenticator, or an unused backup code, to start replacement." : "Enter a current 6-digit code, or one of your backup codes, to confirm."
             )}
           </p>
           <input
@@ -499,14 +539,15 @@ function TwoFactorSection() {
           />
           <div className="flex gap-2">
             <button
-              onClick={confirmDisable}
+              onClick={step.name === "replacing" ? startReplacement : confirmDisable}
               disabled={isSubmitting || !code.trim()}
               className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {isSubmitting ? t("settings.verifying", "Verifying...") : t("settings.confirmDisable", "Confirm disable")}
+              {isSubmitting ? t("settings.verifying", "Verifying...") : step.name === "replacing" ? t("settings.replaceAuthenticator", "Replace authenticator") : t("settings.confirmDisable", "Confirm disable")}
             </button>
             <button
               onClick={cancel}
+              disabled={isSubmitting}
               className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
             >
               {t("settings.cancel", "Cancel")}
@@ -622,7 +663,7 @@ export function SettingsView() {
         <ProfileSection />
         <DeliveryLocationSection />
         <MarketingSection />
-        {(user.role === "admin" || user.role === "coadmin") && <TwoFactorSection />}
+        {(user.role === "admin" || user.role === "coadmin") && <TwoFactorSection key={user.id} />}
         {user.provider === "google" ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted">
             {t("settings.signedInWithGoogle", "You signed in with Google, so there's no password to manage here.")}

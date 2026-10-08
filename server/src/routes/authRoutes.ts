@@ -19,10 +19,12 @@ import {
   confirmTwoFactor,
   disableTwoFactor,
   verifyTwoFactorLogin,
+  replaceTwoFactor,
+  confirmTwoFactorReplacement,
 } from "../controllers/twoFactorController";
 import { requireInternalSecret } from "../middleware/internalAuth";
 import { protect } from "../middleware/auth";
-import { authLimiter, profileUploadLimiter } from "../middleware/rateLimit";
+import { authLimiter, profileUploadLimiter, twoFactorManagementLimiter } from "../middleware/rateLimit";
 import { upload } from "../utils/upload";
 
 const router = Router();
@@ -45,9 +47,11 @@ router.get("/unsubscribe", unsubscribeFromMarketing);
 // `verify-login` is deliberately public + rate-limited, same as login
 // itself: it's the second half of signing in, called before a real session
 // exists, authenticated by the short-lived tempToken in its body instead.
-router.post("/2fa/setup", protect, setupTwoFactor);
-router.post("/2fa/confirm", protect, confirmTwoFactor);
-router.post("/2fa/disable", protect, disableTwoFactor);
+router.post("/2fa/setup", protect, twoFactorManagementLimiter, setupTwoFactor);
+router.post("/2fa/confirm", protect, twoFactorManagementLimiter, confirmTwoFactor);
+router.post("/2fa/replace", protect, twoFactorManagementLimiter, replaceTwoFactor);
+router.post("/2fa/replace/confirm", protect, twoFactorManagementLimiter, confirmTwoFactorReplacement);
+router.post("/2fa/disable", protect, twoFactorManagementLimiter, disableTwoFactor);
 router.post("/2fa/verify-login", authLimiter, verifyTwoFactorLogin);
 
 export default router;

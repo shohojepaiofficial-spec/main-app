@@ -37,6 +37,16 @@ export const setupTwoFactor = async (): Promise<TwoFactorSetup> => {
   return data;
 };
 
+export const replaceTwoFactor = async (code: string): Promise<TwoFactorSetup> => {
+  const { data } = await api.post<TwoFactorSetup>("/auth/2fa/replace", { code });
+  return data;
+};
+
+export const confirmTwoFactorReplacement = async (code: string): Promise<{ message: string; backupCodes: string[] }> => {
+  const { data } = await api.post<{ message: string; backupCodes: string[] }>("/auth/2fa/replace/confirm", { code });
+  return data;
+};
+
 export const confirmTwoFactor = async (
   code: string
 ): Promise<{ message: string; backupCodes: string[] }> => {
