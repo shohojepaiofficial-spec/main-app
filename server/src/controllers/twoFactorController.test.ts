@@ -1,6 +1,6 @@
 vi.mock("../models/AuthSession", () => ({ AuthSession: { create: vi.fn().mockResolvedValue({}), exists: vi.fn().mockResolvedValue({ _id: "session" }) } }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { decryptSecret } from "../utils/secretEncryption";
+import { encryptSecret, decryptSecret } from "../utils/secretEncryption";
 import type { Request, Response } from "express";
 import { authenticator } from "otplib";
 
@@ -22,12 +22,13 @@ function response() {
 function account(role: "user" | "admin" | "coadmin", enabled = false) {
   return {
     id, role, provider: "local", name: "Test", email: "test@example.com", permissions: [],
-    twoFactor: { enabled, secret: authenticator.generateSecret(), pendingSecret: authenticator.generateSecret(), pendingExpires: new Date(Date.now() + 60_000), pendingSessionHash: hashToken("Bearer management-session") },
+    twoFactor: { enabled, secret: encryptSecret(authenticator.generateSecret()), pendingSecret: encryptSecret(authenticator.generateSecret()), pendingExpires: new Date(Date.now() + 60_000), pendingSessionHash: hashToken("Bearer management-session") },
     comparePassword: vi.fn().mockResolvedValue(true), save: vi.fn().mockResolvedValue(undefined),
   };
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("TOTP_ALLOW_LEGACY_PLAINTEXT", "false");
   vi.stubEnv("JWT_SECRET", "controller-regression-secret");
   vi.stubEnv("TOTP_ENCRYPTION_KEY_ID", "test");
   vi.stubEnv("TOTP_ENCRYPTION_KEYS", JSON.stringify({ test: Buffer.alloc(32, 1).toString("base64") }));
@@ -103,7 +104,7 @@ describe("login and restricted 2FA enrollment", () => {
     const user = account("user", true);
     vi.mocked(User.findById).mockReturnValue({ select: () => Promise.resolve(user) } as never);
     const res = response();
-    await verifyTwoFactorLogin({ body: { tempToken: signTwoFactorChallenge(id), code: authenticator.generate(user.twoFactor.secret) } } as Request, res as unknown as Response);
+    await verifyTwoFactorLogin({ body: { tempToken: signTwoFactorChallenge(id), code: authenticator.generate(decryptSecret(user.twoFactor.secret)) } } as Request, res as unknown as Response);
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json.mock.calls[0][0].token).toBeUndefined();
   });
@@ -131,7 +132,7 @@ describe("login and restricted 2FA enrollment", () => {
     expect(verifyTwoFactorChallenge(challenge.tempToken)).toBe(id);
     expect(() => verifyAccessToken(challenge.tempToken)).toThrow();
     const second = response();
-    await verifyTwoFactorLogin({ body: { tempToken: challenge.tempToken, code: authenticator.generate(user.twoFactor.secret) } } as Request,
+    await verifyTwoFactorLogin({ body: { tempToken: challenge.tempToken, code: authenticator.generate(decryptSecret(user.twoFactor.secret)) } } as Request,
       second as unknown as Response);
     expect(verifyAccessToken(second.json.mock.calls[0][0].token)).toMatchObject({ id, role });
     expect(verifyTypedToken(second.json.mock.calls[0][0].refreshToken, "refresh")).toMatchObject({ id, version: 0 });
@@ -210,7 +211,7 @@ describe("login and restricted 2FA enrollment", () => {
     expect(setup.status).toHaveBeenCalledWith(409);
     vi.mocked(User.findById).mockReturnValueOnce({ select: () => Promise.resolve(user) } as never);
     const confirm = response();
-    await confirmTwoFactor({ authenticatedAt: Math.floor(Date.now() / 1000), headers: { authorization: "Bearer management-session" }, userId: id, body: { code: authenticator.generate(user.twoFactor.pendingSecret) } } as AuthRequest, confirm as unknown as Response);
+    await confirmTwoFactor({ authenticatedAt: Math.floor(Date.now() / 1000), headers: { authorization: "Bearer management-session" }, userId: id, body: { code: authenticator.generate(decryptSecret(user.twoFactor.pendingSecret)) } } as AuthRequest, confirm as unknown as Response);
     expect(confirm.status).toHaveBeenCalledWith(409);
     expect(User.updateOne).not.toHaveBeenCalled();
   });
@@ -219,7 +220,7 @@ describe("login and restricted 2FA enrollment", () => {
     const user = account("user", true);
     vi.mocked(User.findById).mockReturnValueOnce({ select: () => Promise.resolve(user) } as never);
     const res = response();
-    await disableTwoFactor({ authenticatedAt: Math.floor(Date.now() / 1000), headers: { authorization: "Bearer management-session" }, userId: id, body: { code: authenticator.generate(user.twoFactor.secret) } } as AuthRequest, res as unknown as Response);
+    await disableTwoFactor({ authenticatedAt: Math.floor(Date.now() / 1000), headers: { authorization: "Bearer management-session" }, userId: id, body: { code: authenticator.generate(decryptSecret(user.twoFactor.secret)) } } as AuthRequest, res as unknown as Response);
     expect(res.status).toHaveBeenCalledWith(403);
     expect(user.save).not.toHaveBeenCalled();
   });
@@ -229,7 +230,7 @@ describe("login and restricted 2FA enrollment", () => {
     vi.mocked(User.findById).mockReturnValueOnce({ select: () => Promise.resolve(user) } as never);
     vi.mocked(User.updateOne).mockResolvedValueOnce({ matchedCount } as never);
     const res = response();
-    await confirmTwoFactor({ authenticatedAt: Math.floor(Date.now() / 1000), headers: { authorization: "Bearer management-session" }, userId: id, body: { code: authenticator.generate(user.twoFactor.pendingSecret) } } as AuthRequest, res as unknown as Response);
+    await confirmTwoFactor({ authenticatedAt: Math.floor(Date.now() / 1000), headers: { authorization: "Bearer management-session" }, userId: id, body: { code: authenticator.generate(decryptSecret(user.twoFactor.pendingSecret)) } } as AuthRequest, res as unknown as Response);
     expect(User.updateOne).toHaveBeenCalledWith(expect.objectContaining({
       "twoFactor.enabled": { $ne: true }, "twoFactor.pendingSecret": user.twoFactor.pendingSecret,
     }), expect.any(Object));

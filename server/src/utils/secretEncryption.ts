@@ -22,7 +22,7 @@ export function encryptSecret(secret: string) {
 export function decryptSecret(value: string) {
   // Legacy plaintext is readable during the explicit backfill rollout only.
   if (!value.startsWith("enc:")) {
-    if (process.env.TOTP_ALLOW_LEGACY_PLAINTEXT === "true" || process.env.NODE_ENV === "test") return value;
+    if (process.env.TOTP_ALLOW_LEGACY_PLAINTEXT === "true") return value;
     throw new Error("Legacy TOTP secret needs migration");
   }
   const [prefix, version, id, iv, tag, data, extra] = value.split(":");

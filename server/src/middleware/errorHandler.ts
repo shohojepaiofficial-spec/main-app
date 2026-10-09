@@ -3,6 +3,13 @@ import multer from "multer";
 import mongoose from "mongoose";
 import { reportError } from "../utils/errorMonitoring";
 import { MAX_UPLOAD_FILES, MAX_UPLOAD_MB } from "../utils/upload";
+import { TwoFactorUnavailableError } from "../utils/twoFactor";
+
+// A fixed public response; no crypto/configuration details are sent to clients.
+export const twoFactorUnavailableResponse = Object.freeze({
+  code: "TWO_FACTOR_UNAVAILABLE",
+  message: "Authenticator codes are temporarily unavailable. Use an unused backup code or contact the store administrator.",
+});
 
 export const notFound = (req: Request, res: Response) => {
   res.status(404).json({ message: `Route not found: ${req.originalUrl}` });
@@ -45,5 +52,10 @@ export const errorHandler = (
         : { status: err.status ?? 500, message: err.message || "Internal server error" };
 
   if (status >= 500) reportError(err, { method: req.method, url: req.path });
+  if (err instanceof TwoFactorUnavailableError) {
+    res.setHeader("Cache-Control", "no-store");
+    res.status(503).json(twoFactorUnavailableResponse);
+    return;
+  }
   res.status(status).json({ message: status >= 500 ? "Internal server error" : message });
 };

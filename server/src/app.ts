@@ -19,7 +19,7 @@ import campaignRoutes from "./routes/campaignRoutes";
 import translationRoutes from "./routes/translationRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
 import statsRoutes from "./routes/statsRoutes";
-import { notFound, errorHandler } from "./middleware/errorHandler";
+import { notFound, errorHandler, twoFactorUnavailableResponse } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
 import { liveOnlinePaymentMethods } from "./utils/paymentMethods";
 import { apiLimiter } from "./middleware/rateLimit";
@@ -59,7 +59,14 @@ app.use(cookieParser());
 app.use(morgan((tokens, req, res) => `${tokens.method(req, res)} ${(req as express.Request).path} ${tokens.status(req, res)} ${tokens["response-time"](req, res)} ms`));
 app.use((_req, res, next) => {
   const json = res.json.bind(res);
-  res.json = body => json(res.statusCode >= 500 ? { message: "Service unavailable. Please try again." } : body);
+  res.json = body => {
+    if (res.statusCode < 500) return json(body);
+    // Reconstruct this one known public error instead of passing arbitrary
+    // 5xx bodies through. Other controller/provider errors stay redacted.
+    return json(res.statusCode === 503 && body?.code === twoFactorUnavailableResponse.code
+      ? twoFactorUnavailableResponse
+      : { message: "Service unavailable. Please try again." });
+  };
   next();
 });
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));

@@ -32,9 +32,9 @@ if (process.env.NODE_ENV === "production" && !isCloudinaryConfigured()) {
 // guidance is that after an uncaught exception the process is in an
 // undefined state and should not keep serving requests — so this reports
 // the error and exits, deliberately, rather than trying to soldier on. A
-// process supervisor (see ecosystem.config.js / "npm run start:pm2") is
-// what's actually responsible for bringing it back up afterward; without
-// one, exiting here just means downtime until someone restarts it by hand.
+// hosting platform is responsible for restarting it afterward. Railway
+// runs `npm start` with an ON_FAILURE policy (10 retries). Self-managed
+// hosts need an equivalent service manager before running in production.
 process.on("uncaughtException", (err) => {
   reportError(err, { source: "uncaughtException" });
   process.exit(1);

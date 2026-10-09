@@ -18,9 +18,26 @@ export function generateTwoFactorSecret(email: string): { secret: string; otpaut
   return { secret, otpauthUrl };
 }
 
+export class TwoFactorUnavailableError extends Error {
+  readonly status = 503;
+  constructor() {
+    // Do not attach the original crypto/JSON error: it may contain key material.
+    super("TOTP secret could not be read. Check encryption keys and the legacy-secret migration configuration.");
+  }
+}
+
 export function verifyTwoFactorToken(secret: string, token: string): boolean {
+  // Backup codes have their own verifier and must remain usable during a
+  // key/configuration outage. They never need to decrypt the TOTP secret.
+  if (!/^\d{6}$/.test(token)) return false;
+  let plaintext: string;
   try {
-    return authenticator.verify({ token, secret: decryptSecret(secret) });
+    plaintext = decryptSecret(secret);
+  } catch {
+    throw new TwoFactorUnavailableError();
+  }
+  try {
+    return authenticator.verify({ token, secret: plaintext });
   } catch {
     return false;
   }

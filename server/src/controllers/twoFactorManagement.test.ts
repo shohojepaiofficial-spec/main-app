@@ -2,10 +2,15 @@ vi.mock("../models/AuthSession", () => ({ AuthSession: { create: vi.fn().mockRes
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express, { type Response } from "express";
 import { authenticator } from "otplib";
+import { encryptSecret, decryptSecret } from "../utils/secretEncryption";
 import bcrypt from "bcryptjs";
 vi.mock("../models/User", () => ({ User: { findById: vi.fn(), findOne: vi.fn(), updateOne: vi.fn() } }));
 vi.mock("../utils/sendEmail", () => ({ sendEmail: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../utils/errorMonitoring", () => ({ reportError: vi.fn() }));
 import { User } from "../models/User";
+import { AuthSession } from "../models/AuthSession";
+import application from "../app";
+import { reportError } from "../utils/errorMonitoring";
 import { protect, type AuthRequest } from "../middleware/auth";
 import { hashToken, verifyTypedToken } from "../utils/authTokens";
 import { signTestAccessToken as signAccessToken } from "../testUtils/auth";
@@ -15,9 +20,9 @@ import { setupTwoFactor, replaceTwoFactor, confirmTwoFactor, confirmTwoFactorRep
 const id = "507f1f77bcf86cd799439011";
 const header = "Bearer management-session";
 function account(enabled = true) {
-  const secret = authenticator.generateSecret();
+  const secret = encryptSecret(authenticator.generateSecret());
   return { id, role: "admin", email: "admin@example.com", twoFactor: {
-    enabled, secret, backupCodeHashes: [] as string[], pendingSecret: authenticator.generateSecret(),
+    enabled, secret, backupCodeHashes: [] as string[], pendingSecret: encryptSecret(authenticator.generateSecret()),
     pendingExpires: new Date(Date.now() + 60_000), pendingSessionHash: hashToken(header),
     pendingFactorHash: enabled ? hashToken(secret) : undefined,
   } };
@@ -31,6 +36,7 @@ function load(user: ReturnType<typeof account>) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("TOTP_ALLOW_LEGACY_PLAINTEXT", "false");
   vi.stubEnv("JWT_SECRET", "management-test-secret");
   vi.stubEnv("TOTP_ENCRYPTION_KEY_ID", "test");
   vi.stubEnv("TOTP_ENCRYPTION_KEYS", JSON.stringify({ test: Buffer.alloc(32, 1).toString("base64") }));
@@ -39,6 +45,65 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
 
 describe("SEC-02 factor management", () => {
+  it("restores legacy authenticator login only when the migration flag is explicitly enabled", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-09T00:00:00Z"));
+    vi.stubEnv("NODE_ENV", "development");
+    const user = account();
+    user.twoFactor.secret = decryptSecret(user.twoFactor.secret);
+    vi.stubEnv("TOTP_ENCRYPTION_KEYS", "{}");
+    load(user);
+    const req = { body: { tempToken: signTwoFactorChallenge(id), code: authenticator.generate(user.twoFactor.secret) } } as AuthRequest;
+    const rejected = response();
+    await expect(verifyTwoFactorLogin(req, rejected as unknown as Response)).rejects.toMatchObject({ status: 503 });
+    expect(AuthSession.create).not.toHaveBeenCalled();
+    vi.stubEnv("TOTP_ALLOW_LEGACY_PLAINTEXT", "true");
+    const accepted = response();
+    await verifyTwoFactorLogin(req, accepted as unknown as Response);
+    expect(verifyTypedToken(accepted.json.mock.calls[0][0].token, "access")).toMatchObject({ id, role: "admin" });
+    expect(User.updateOne).not.toHaveBeenCalled();
+  });
+
+  it("returns a safe configuration error over HTTP while retaining single-use backup recovery", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-09T00:00:00Z"));
+    const user = account();
+    const code = authenticator.generate(decryptSecret(user.twoFactor.secret));
+    user.twoFactor.backupCodeHashes = [bcrypt.hashSync("ABCDE-12345", 4)];
+    vi.stubEnv("TOTP_ENCRYPTION_KEYS", "{}");
+    load(user);
+    const server = application.listen(0, "127.0.0.1");
+    try {
+      await new Promise<void>((resolve) => server.once("listening", resolve));
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("Missing port");
+      const send = (input: string) => fetch(`http://127.0.0.1:${address.port}/api/auth/2fa/verify-login`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tempToken: signTwoFactorChallenge(id), code: input }),
+      });
+      const unavailable = await send(code);
+      expect(unavailable.status).toBe(503);
+      expect(unavailable.headers.get("cache-control")).toBe("no-store");
+      expect(await unavailable.json()).toEqual({ code: "TWO_FACTOR_UNAVAILABLE", message: "Authenticator codes are temporarily unavailable. Use an unused backup code or contact the store administrator." });
+      expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ status: 503 }), expect.any(Object));
+      expect(AuthSession.create).not.toHaveBeenCalled();
+      const recovered = await send("ABCDE-12345");
+      expect(recovered.status).toBe(200);
+      const recoveredSession = await recovered.json() as { token: string };
+      expect(verifyTypedToken(recoveredSession.token, "access")).toMatchObject({ id, role: "admin" });
+      expect(User.updateOne).toHaveBeenCalledWith(expect.objectContaining({ "twoFactor.backupCodeHashes": user.twoFactor.backupCodeHashes[0] }), { $pull: { "twoFactor.backupCodeHashes": user.twoFactor.backupCodeHashes[0] } });
+      vi.mocked(User.updateOne).mockResolvedValueOnce({ matchedCount: 0 } as never);
+      expect((await send("ABCDE-12345")).status).toBe(401);
+      expect(AuthSession.create).toHaveBeenCalledOnce();
+      vi.mocked(User.findById).mockImplementationOnce(() => { throw new Error("private database details"); });
+      const unexpected = await send(code);
+      expect(unexpected.status).toBe(500);
+      expect(await unexpected.json()).toEqual({ message: "Service unavailable. Please try again." });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("gives separate logins distinct session bindings even within the same second", () => {
     expect(signAccessToken(id, "admin")).not.toBe(signAccessToken(id, "admin"));
   });
@@ -60,7 +125,7 @@ describe("SEC-02 factor management", () => {
     const user = account(enabled);
     load(user);
     for (const timestamp of [undefined, Math.floor(Date.now() / 1000) - 300, Math.floor(Date.now() / 1000) + 60]) {
-      const req = request(authenticator.generate(user.twoFactor.secret));
+      const req = request(authenticator.generate(decryptSecret(user.twoFactor.secret)));
       req.authenticatedAt = timestamp;
       const res = response();
       await handler(req, res as unknown as Response);
@@ -83,7 +148,7 @@ describe("SEC-02 factor management", () => {
     user.role = role;
     load(user);
     const res = response();
-    await replaceTwoFactor(request(authenticator.generate(user.twoFactor.secret)), res as unknown as Response);
+    await replaceTwoFactor(request(authenticator.generate(decryptSecret(user.twoFactor.secret))), res as unknown as Response);
     const [filter, update] = vi.mocked(User.updateOne).mock.calls[0] as unknown as [Record<string, unknown>, { $set: Record<string, unknown> }];
     expect(filter).toMatchObject({ "twoFactor.enabled": true, "twoFactor.secret": user.twoFactor.secret, role: { $in: ["admin", "coadmin"] } });
     expect(update.$set).toMatchObject({ "twoFactor.pendingFactorHash": hashToken(user.twoFactor.secret), "twoFactor.pendingSessionHash": hashToken(header) });
@@ -99,7 +164,7 @@ describe("SEC-02 factor management", () => {
     user.role = role;
     load(user);
     const res = response();
-    await confirmTwoFactorReplacement(request(authenticator.generate(user.twoFactor.pendingSecret)), res as unknown as Response);
+    await confirmTwoFactorReplacement(request(authenticator.generate(decryptSecret(user.twoFactor.pendingSecret))), res as unknown as Response);
     expect(User.updateOne).toHaveBeenCalledWith(expect.objectContaining({
       "twoFactor.secret": user.twoFactor.secret, "twoFactor.pendingSecret": user.twoFactor.pendingSecret,
       "twoFactor.pendingFactorHash": hashToken(user.twoFactor.secret), "twoFactor.pendingSessionHash": hashToken(header),
@@ -115,11 +180,11 @@ describe("SEC-02 factor management", () => {
     const user = account();
     if (kind === "expired") user.twoFactor.pendingExpires = new Date(Date.now() - 1);
     if (kind === "other-session") user.twoFactor.pendingSessionHash = hashToken("another session");
-    if (kind === "changed-factor") user.twoFactor.secret = authenticator.generateSecret();
+    if (kind === "changed-factor") user.twoFactor.secret = encryptSecret(authenticator.generateSecret());
     if (kind === "unbound") user.twoFactor.pendingFactorHash = undefined;
     load(user);
     const res = response();
-    await confirmTwoFactorReplacement(request(authenticator.generate(user.twoFactor.pendingSecret)), res as unknown as Response);
+    await confirmTwoFactorReplacement(request(authenticator.generate(decryptSecret(user.twoFactor.pendingSecret))), res as unknown as Response);
     expect(res.status).toHaveBeenCalledWith(409);
     expect(User.updateOne).not.toHaveBeenCalled();
   });
@@ -137,7 +202,7 @@ describe("SEC-02 factor management", () => {
     const user = account();
     load(user);
     vi.mocked(User.updateOne).mockResolvedValueOnce({ matchedCount: 0 } as never);
-    const code = authenticator.generate(handler === confirmTwoFactorReplacement ? user.twoFactor.pendingSecret : user.twoFactor.secret);
+    const code = authenticator.generate(decryptSecret(handler === confirmTwoFactorReplacement ? user.twoFactor.pendingSecret : user.twoFactor.secret));
     const res = response();
     await handler(request(code), res as unknown as Response);
     expect(res.status).toHaveBeenCalledWith(409);
@@ -173,7 +238,7 @@ describe("SEC-02 factor management", () => {
     const user = account();
     load(user);
     const res = response();
-    await disableTwoFactor(request(authenticator.generate(user.twoFactor.secret)), res as unknown as Response);
+    await disableTwoFactor(request(authenticator.generate(decryptSecret(user.twoFactor.secret))), res as unknown as Response);
     expect(User.updateOne).toHaveBeenCalledWith(expect.objectContaining({ "twoFactor.secret": user.twoFactor.secret, "twoFactor.enabled": true }), { $set: { twoFactor: { enabled: false } }, $inc: { sessionVersion: 1 } });
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: "Two-step verification disabled", refreshToken: expect.any(String) }));
   });
@@ -186,7 +251,7 @@ describe("SEC-02 factor management", () => {
     const user = account();
     load(user);
     const res = response();
-    await verifyTwoFactorLogin({ body: { tempToken: challenge, code: authenticator.generate(user.twoFactor.secret) } } as AuthRequest, res as unknown as Response);
+    await verifyTwoFactorLogin({ body: { tempToken: challenge, code: authenticator.generate(decryptSecret(user.twoFactor.secret)) } } as AuthRequest, res as unknown as Response);
     const claims = verifyTypedToken(res.json.mock.calls[0][0].token, "access");
     expect(claims.authenticatedAt).toBe(original);
     expect(claims.iat).toBe(original + 240);
