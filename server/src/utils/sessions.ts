@@ -41,7 +41,7 @@ export async function rotateSession(refreshToken: string) {
   const session = await AuthSession.findOneAndUpdate({
     _id: claims.sid, user: user.id, version: claims.version,
     refreshTokenHash: hashToken(refreshToken), revokedAt: null, expiresAt: { $gt: new Date() },
-  }, { $set: { refreshTokenHash: hashToken(nextRefreshToken) } }, { new: true });
+  }, { $set: { refreshTokenHash: hashToken(nextRefreshToken) } }, { returnDocument: "after" });
   if (!session) {
     // A correctly signed but spent refresh token proves replay, so revoke
     // its session as well as refusing to mint any more credentials.

@@ -1099,3 +1099,25 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Removed unused PM2, start:pm2 and ecosystem.config.js, eliminating its FTP/glob/YAML dependency chains. Updated process-supervision guidance. No force downgrade, dependency hiding, provider-setting change, deployment or live restart was performed.
 - Final production audits: backend zero findings; frontend zero findings. Backend 331 tests and frontend 87 tests pass; both production builds pass. Two isolated compiled Node startup/health checks passed with database/provider configuration blanked. The full application HTTP test verifies safe 2FA configuration errors, backup recovery, backup reuse rejection and generic-error redaction.
 - SEC-07 is remediated for local production dependencies; deploy the new lockfile and smoke-test production startup before closing rollout. Development dependency advisories, coordinated TOTP key provisioning/migration, real staging concurrency/payment/browser checks, edge/origin controls and operational evidence remain separate work.
+
+## 2026-10-09 - Verify completed security work and refresh remaining tasks
+
+- User requested checking what remains and marking completed parts. Updated the security queue, rollout and handoff with explicit completed/open status; this pass changes documentation only.
+- Read-only Railway check: commit 19423ab deployed successfully; npm start and ON_FAILURE policy retained. Public API health returned 200/ok. The supported storefront proxy /api/backend/config returned 200 with expected public configuration. /api/backend/health is intentionally excluded by the proxy allowlist and returns 404.
+- Marked SEC-07 production dependency remediation and backend rollout complete using the recorded zero-finding audits, successful deployment and API health evidence. Marked code/regression implementation, push/deployment verification and explicit legacy compatibility configuration complete as individual parts. Other security acceptance checks remain open.
+- Secret-safe configuration diagnostics: Railway TOTP_ENCRYPTION_KEY_ID is present/valid, but TOTP_ENCRYPTION_KEYS is not valid JSON. Localhost has no key ID configured and no valid JSON keyring. Both enable legacy compatibility and point to the same database. A read-only aggregate found two enabled plaintext factors. No secrets or account identifiers were printed; no database records or provider settings were changed.
+- Next: correct the existing Railway keyring JSON and configure matching local keys; verify backup and staging migration, coordinate production factor migration, then disable legacy compatibility. Live phone/Google/session/cookie flows, database/index/payment checks, uploads, edge/origin controls, provider MFA, least privilege, isolated restore and alerts remain. Mongoose new-option deprecation cleanup remains an unrelated maintenance task.
+- Validation for this documentation-only pass: git diff --check. No code changes or repeated test/build runs; the last recorded application validation remains 331 backend tests, 87 frontend tests and both builds passed.
+
+## 2026-10-09 - Mongoose update-option maintenance; TOTP migration guidance
+
+- Explained that Railway TOTP_ENCRYPTION_KEYS must contain the complete JSON keyring object, with TOTP_ENCRYPTION_KEY_ID matching its key label. Migration remains separate from adding configuration and requires matching keys on every reader, recoverable backup and an isolated migration test before using the existing security:encrypt-totp command against the shared database.
+- Replaced all 15 deprecated new: true options across 11 backend files with returnDocument: after, preserving returned-document behavior in authentication, sessions, rate counters, order transitions and controller edits. No matching deprecated new/returnOriginal options remain in server/src.
+- Validation: all 331 backend tests and the TypeScript build passed; git diff --check passed. No production database changes or migration were performed; these code changes are not yet pushed/deployed.
+- User deferred integration and infrastructure checks (items 3 and 4); they remain open. Marked Mongoose maintenance complete locally with deployment pending in the security records.
+
+## 2026-10-10 - Confirm TOTP test-database migration and Mongoose maintenance
+
+- User ran `npm.cmd --prefix server run security:encrypt-totp` and reported `Updated 2 factor records; no secrets logged.` Localhost and Railway use the same dummy/test database and matching validated keys. User subsequently confirmed that the admin authenticator code worked; a regular account signed in locally without a 2FA prompt, as expected.
+- Remaining SEC-12 check: disable `TOTP_ALLOW_LEGACY_PLAINTEXT` in Railway and localhost, restart each backend, and retest the admin authenticator. A separate production database, if any, remains unverified.
+- Replaced all 15 deprecated Mongoose `new: true` options across 11 backend files with `returnDocument: 'after'`. Previously completed verification: 331 backend tests and TypeScript build passed. Current push contains this change and updated security tracking.

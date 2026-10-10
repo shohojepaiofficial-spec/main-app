@@ -189,7 +189,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     $set: { password: await bcrypt.hash(newPassword, 10) },
     $inc: { sessionVersion: 1 },
     $unset: { resetPasswordTokenHash: 1, resetPasswordExpires: 1 },
-  }, { new: true });
+  }, { returnDocument: "after" });
   if (!updated) return res.status(409).json({ message: "Password changed during this request. Please sign in again." });
 
   res.json({ message: "Password updated. Please sign in again on your devices." });
@@ -435,7 +435,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     $set: { password: await bcrypt.hash(password, 10) },
     $inc: { sessionVersion: 1 },
     $unset: { resetPasswordTokenHash: 1, resetPasswordExpires: 1 },
-  }, { new: true });
+  }, { returnDocument: "after" });
   if (!updated) return res.status(400).json({ message: "This reset link is invalid or has expired" });
 
   await respondWithSessionOrChallenge(res, updated);

@@ -42,7 +42,7 @@ export const updateTranslation = async (req: AuthRequest, res: Response) => {
   const updated = await Translation.findOneAndUpdate(
     { key: req.params.key },
     { bn },
-    { new: true }
+    { returnDocument: "after" }
   );
   if (!updated) return res.status(404).json({ message: "Unknown translation key" });
 

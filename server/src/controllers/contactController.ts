@@ -68,7 +68,7 @@ export const markMessageRead = async (req: AuthRequest, res: Response) => {
   const message = await ContactMessage.findByIdAndUpdate(
     req.params.id,
     { isRead: isRead ?? true },
-    { new: true }
+    { returnDocument: "after" }
   );
   if (!message) return res.status(404).json({ message: "Message not found" });
   res.json(message);

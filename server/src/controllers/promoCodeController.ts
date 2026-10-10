@@ -111,7 +111,7 @@ export const updatePromoCode = async (req: Request, res: Response) => {
   if (existing) return res.status(409).json({ message: "That code already exists" });
 
   const promo = await PromoCode.findByIdAndUpdate(req.params.id, data!, {
-    new: true,
+    returnDocument: "after",
     runValidators: true,
   });
   if (!promo) return res.status(404).json({ message: "Promo code not found" });

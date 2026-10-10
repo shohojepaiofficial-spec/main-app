@@ -63,7 +63,7 @@ export const submitReview = async (req: AuthRequest, res: Response) => {
   const review = await Review.findOneAndUpdate(
     { product: req.params.id, user: req.userId },
     { rating, comment: comment.trim(), userName: user.name, isVerifiedPurchase },
-    { new: true, upsert: true, runValidators: true }
+    { returnDocument: "after", upsert: true, runValidators: true }
   );
 
   res.status(201).json(review);
@@ -123,7 +123,7 @@ export const replyToReview = async (req: AuthRequest, res: Response) => {
   const review = await Review.findByIdAndUpdate(
     req.params.reviewId,
     { reply: { text: text.trim(), repliedBy: admin._id, repliedByName: admin.name, repliedAt: new Date() } },
-    { new: true, runValidators: true }
+    { returnDocument: "after", runValidators: true }
   ).populate("product", "name images");
   if (!review) return res.status(404).json({ message: "Review not found" });
   res.json(review);
@@ -134,7 +134,7 @@ export const deleteReviewReply = async (req: AuthRequest, res: Response) => {
   const review = await Review.findByIdAndUpdate(
     req.params.reviewId,
     { $unset: { reply: 1 } },
-    { new: true }
+    { returnDocument: "after" }
   ).populate("product", "name images");
   if (!review) return res.status(404).json({ message: "Review not found" });
   res.json(review);

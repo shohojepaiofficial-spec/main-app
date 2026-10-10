@@ -45,7 +45,7 @@ export async function transitionOrder(
       const updated = await Order.findOneAndUpdate(
         { _id: current._id, status: current.status },
         { $set: { status, ...(status === "cancelled" && current.bkashTrxID ? { paymentReviewRequired: true } : {}), ...(options.transactionId ? { bkashTrxID: options.transactionId } : {}) } },
-        { session, new: true },
+        { session, returnDocument: "after" },
       );
       if (!updated) throw Object.assign(new Error("Order changed; please retry"), { status: 409 });
       if (status === "cancelled") {

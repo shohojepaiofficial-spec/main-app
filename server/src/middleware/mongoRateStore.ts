@@ -17,10 +17,10 @@ export class MongoRateStore implements Store {
     const resetTime = new Date((Math.floor(Date.now() / this.windowMs) + 1) * this.windowMs);
     let result;
     try {
-      result = await Counter.findOneAndUpdate({ _id: id }, { $inc: { hits: 1 }, $setOnInsert: { expiresAt: resetTime } }, { upsert: true, new: true });
+      result = await Counter.findOneAndUpdate({ _id: id }, { $inc: { hits: 1 }, $setOnInsert: { expiresAt: resetTime } }, { upsert: true, returnDocument: "after" });
     } catch (err) {
       if ((err as { code?: number }).code !== 11000) throw err;
-      result = await Counter.findOneAndUpdate({ _id: id }, { $inc: { hits: 1 } }, { new: true });
+      result = await Counter.findOneAndUpdate({ _id: id }, { $inc: { hits: 1 } }, { returnDocument: "after" });
     }
     if (!result) throw new Error("Rate limit store unavailable");
     return { totalHits: result.hits, resetTime };

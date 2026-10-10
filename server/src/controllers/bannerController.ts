@@ -168,7 +168,7 @@ export const updateBanner = async (req: Request, res: Response) => {
   }
 
   const banner = await Banner.findByIdAndUpdate(req.params.id, update, {
-    new: true,
+    returnDocument: "after",
     runValidators: true,
   });
   if (!banner) return res.status(404).json({ message: "Banner not found" });

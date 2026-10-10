@@ -103,7 +103,7 @@ export const updateUserAccess = async (req: AuthRequest, res: Response) => {
   if (update.role && update.role !== "coadmin") update.permissions = [];
   if (update.role === "user") Object.assign(update, { twoFactor: { enabled: false } });
 
-  const user = await User.findByIdAndUpdate(req.params.id, update, { new: true });
+  const user = await User.findByIdAndUpdate(req.params.id, update, { returnDocument: "after" });
   if (!user) return res.status(404).json({ message: "User not found" });
   res.json(shapeUser(user));
 };
