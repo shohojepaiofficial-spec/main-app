@@ -1193,3 +1193,11 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Verified: backend `tsc` + 399 tests (new `stockLedger.test.ts`; ledger assertions added to cancellation and return tests). Frontend `tsc`, eslint on changed files, 90 tests. **Not tried in a browser yet.**
 - Left: deploy; edit a product's stock, place and cancel an order, and check the history. No backfill: history starts at deployment.
 - Catalog clean-up: deleted all 25 test orders (Sep 18 – Oct 5, from the owner's own accounts, against already-deleted test products) and 2 shared-cart links from the live database. The owner chose not to keep a copy. Left in place: 8 users, 1 banner.
+
+## 2026-10-11 ("About this page" help on every dashboard page)
+
+- Owner asked for an explanation on every dashboard page. Each page now has an **About this page** button that opens a side panel: what the page does, what to expect, and a list of short forms/terms (COD, SKU, TrxID, 2FA, order and return statuses, etc.).
+- One shared component in the `(protected)` layout: `lib/pageHelp.ts` (text per route), `controllers/usePageHelp.ts`, `views/PageHelpPanel.tsx`. Staff and customers get different help on `/dashboard`. Customer pages are in Bangla too (41 new `help.*` keys); admin pages are English like the rest of the admin panel. Hidden on checkout and the print page.
+- `lib/pageHelp.test.ts` fails if a dashboard page has no help text.
+- Verified: frontend `tsc`, eslint on changed files, 92 tests; backend `tsc` + 399 tests. **Not tried in a browser yet.**
+- Left: deploy, `npm run sync-translations`, open a few pages and check the panel (also in Bangla).

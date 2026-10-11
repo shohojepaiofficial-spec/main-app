@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { DashboardSidebar } from "@/views/DashboardSidebar";
 import { AuthModal } from "@/views/AuthModal";
 import { EmailVerificationBanner } from "@/views/EmailVerificationBanner";
+import { PageHelpPanel } from "@/views/PageHelpPanel";
 import { useRequireAuth } from "@/controllers/useRequireAuth";
 
 // Checkout is driven entirely by the client-side cart — nothing on it
@@ -52,6 +53,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <DashboardSidebar />
       <div className="flex-1">
         <EmailVerificationBanner />
+        <PageHelpPanel />
         {children}
       </div>
     </div>
