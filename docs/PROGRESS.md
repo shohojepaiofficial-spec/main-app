@@ -1176,3 +1176,4 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - The Next.js proxy now forwards `User-Agent`. `middleware/clientIp.ts` exposes the raw signed IP (`clientIp`); the rate-limit key is unchanged.
 - Verified: backend `tsc` + 388 tests (new `sessionController.test.ts`: UA parsing, list/revoke rules, alert sent/not sent; route-protection list updated). Frontend `tsc`, eslint on changed files, 90 tests. **Not tried in a browser yet.**
 - Left: deploy, `npm run sync-translations` (15 `sessions.*` keys). Sessions created before this deploy show "Unknown browser" until they refresh. Signing in from a new browser after deploy should send the alert email.
+- WORK-12 verified live by the owner: translations synced; second-browser sign-in showed in Active sessions and the new sign-in email arrived.
