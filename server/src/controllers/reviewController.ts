@@ -6,6 +6,7 @@ import { User } from "../models/User";
 import { Order } from "../models/Order";
 import { AuthRequest } from "../middleware/auth";
 import { isNonEmptyString } from "../utils/validate";
+import { notifyReviewReply } from "../utils/reviewReplyEmail";
 
 const PAGE_SIZE = 5;
 
@@ -120,12 +121,17 @@ export const replyToReview = async (req: AuthRequest, res: Response) => {
   const admin = await User.findById(req.userId).select("name");
   if (!admin) return res.status(401).json({ message: "Not authorized" });
 
-  const review = await Review.findByIdAndUpdate(
+  // The pre-update document tells a first reply (email the customer) apart
+  // from an edit (don't re-notify).
+  const before = await Review.findByIdAndUpdate(
     req.params.reviewId,
     { reply: { text: text.trim(), repliedBy: admin._id, repliedByName: admin.name, repliedAt: new Date() } },
-    { returnDocument: "after", runValidators: true }
-  ).populate("product", "name images");
+    { returnDocument: "before", runValidators: true }
+  );
+  if (!before) return res.status(404).json({ message: "Review not found" });
+  const review = await Review.findById(before._id).populate("product", "name images");
   if (!review) return res.status(404).json({ message: "Review not found" });
+  if (!before.reply?.text) notifyReviewReply(review);
   res.json(review);
 };
 

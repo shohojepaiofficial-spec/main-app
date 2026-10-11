@@ -1177,3 +1177,10 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Verified: backend `tsc` + 388 tests (new `sessionController.test.ts`: UA parsing, list/revoke rules, alert sent/not sent; route-protection list updated). Frontend `tsc`, eslint on changed files, 90 tests. **Not tried in a browser yet.**
 - Left: deploy, `npm run sync-translations` (15 `sessions.*` keys). Sessions created before this deploy show "Unknown browser" until they refresh. Signing in from a new browser after deploy should send the alert email.
 - WORK-12 verified live by the owner: translations synced; second-browser sign-in showed in Active sessions and the new sign-in email arrived.
+
+## 2026-10-11 (WORK-06 2FA Bangla text, WORK-13 review-reply email)
+
+- WORK-06: 24 translation keys in `translationSeed.ts` with Bangla: the two-step verification screens (sign-in code step and Settings enable/disable) plus `auth.passwordPolicy`, `settings.cancel` and `checkout.calculatingDelivery`.
+- WORK-13: new `utils/reviewReplyEmail.ts` (`notifyReviewReply`, fire-and-forget, HTML-escaped). `replyToReview` now reads the review as it was before the update, so only the first reply emails the customer and edits don't. The email links to the product page.
+- Verified: backend `tsc` clean, 391 tests (new `reviewReply.test.ts`: email on first reply, none on edit, escaping).
+- Left: deploy, `npm run sync-translations`, post a real reply and check the email arrives.

@@ -53,13 +53,13 @@ the user deferred them on 2026-10-09.
 | ID | Status | Task |
 | --- | --- | --- |
 | WORK-10 | **Done locally** | Change History at `/admin/audit-log` (full admin only) logs every admin/co-admin change — products, banners, orders, user access, promo codes, ads, campaigns, messages, reviews, translations, analytics resets, own password/2FA/profile — with before → after values; works on phones (2026-10-11). Left: deploy, make a change as a co-admin and check it shows. History starts at deployment (no backfill); sign-ins aren't logged. |
-| WORK-06 | Deferred | Bangla text for the 9 two-step-verification strings (add to `translationSeed.ts`, sync). |
+| WORK-06 | **Done locally** | Bangla text for the two-step verification strings (plus a few other untranslated settings/auth/checkout strings) added to `translationSeed.ts`, 24 keys (2026-10-11). Left: deploy, `npm run sync-translations`, check the 2FA screens in Bangla. |
 | WORK-07 | Proposed | Customer delivery timeline + status notifications. |
 | WORK-08 | **Done locally** | Returns, exchanges and refunds (2026-10-11). Customers request from My Orders within 7 days of delivery; staff handle them at `/admin/returns` (approve/reject, mark received with optional restock, record refund, mark exchange sent) and can log phone requests from Manage Orders. Refunds are recorded by hand; the bKash Refund API is built but shows "Coming soon" until bKash is live (and is not sandbox-verified). Left: deploy, `npm run sync-translations`, try a full return and an exchange in a browser.|
 | WORK-09 | Proposed | Per-variant low-stock alerts + stock ledger (dashboard "running low" is per product today; ad captions use the lowest variant price). |
 | WORK-11 | **Done locally** | Payment reconciliation at `/admin/payments` (2026-10-11): bKash/COD collected, refunds, net; flagged and stuck bKash orders with "Re-check with bKash" and a required-note resolve (mark paid / cancel / close). Left: deploy; can only be truly exercised once SEC-05 is verified live and bKash is live. |
 | WORK-12 | **Done** | Active sessions in Settings (browser, OS, IP, last active; sign out one device) plus a "new sign-in" email when a browser the account hasn't used signs in (2026-10-11). Verified live by the owner (2026-10-11). |
-| WORK-13 | Proposed | Email the customer when the store replies to their review. |
+| WORK-13 | **Done locally** | The customer gets an email the first time the store replies to their review; editing the reply doesn't send another (2026-10-11). Left: deploy, post a reply on `/admin/reviews` and check the email arrives. |
 | WORK-14 | **Done locally** | Promo code and pre-order discounts no longer stack (2026-10-11): the bigger one wins, ties go to pre-order, and a losing promo code is not recorded on the order. Checkout preview matches. Left: deploy. |
 | WORK-15 | Later | Upgrade Atlas off the shared/Flex tier before a real sales event (storage cap, throttling). |
 | — | Deferred | "Remember this device for 30 days" for 2FA — after the session work is verified live. |
