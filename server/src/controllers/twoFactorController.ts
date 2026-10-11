@@ -2,7 +2,7 @@ import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import QRCode from "qrcode";
 import { hashToken, verifyTypedToken } from "../utils/authTokens";
-import { createSession } from "../utils/sessions";
+import { createSession, sessionDevice } from "../utils/sessions";
 import { User, type UserRole } from "../models/User";
 import { AuthRequest } from "../middleware/auth";
 import { isNonEmptyString } from "../utils/validate";
@@ -152,7 +152,7 @@ async function confirmSetup(req: AuthRequest, res: Response, replacement: boolea
   user.sessionVersion = (user.sessionVersion ?? 0) + 1;
   user.twoFactor.enabled = true;
   res.json({ message: replacement ? "Authenticator replaced" : "Two-step verification enabled", backupCodes: codes,
-    ...await createSession(user, req.authenticatedAt), user: shapeUser(user) });
+    ...await createSession(user, req.authenticatedAt, sessionDevice(req)), user: shapeUser(user) });
 }
 
 export const confirmTwoFactor = (req: AuthRequest, res: Response) => confirmSetup(req, res, false);
@@ -188,7 +188,7 @@ export const disableTwoFactor = async (req: AuthRequest, res: Response) => {
   user.sessionVersion = (user.sessionVersion ?? 0) + 1;
   user.twoFactor.enabled = false;
   res.setHeader("Cache-Control", "no-store");
-  res.json({ message: "Two-step verification disabled", ...await createSession(user, req.authenticatedAt), user: shapeUser(user) });
+  res.json({ message: "Two-step verification disabled", ...await createSession(user, req.authenticatedAt, sessionDevice(req)), user: shapeUser(user) });
 };
 
 // The second step of login (see authController.ts#login/oauthSync/
@@ -239,5 +239,5 @@ export const verifyTwoFactorLogin = async (req: Request, res: Response) => {
 
   const authenticatedAt = challenge.authenticatedAt;
   res.setHeader("Cache-Control", "no-store");
-  res.json({ ...await createSession(user, Number.isSafeInteger(authenticatedAt) ? authenticatedAt : undefined), user: shapeUser(user) });
+  res.json({ ...await createSession(user, Number.isSafeInteger(authenticatedAt) ? authenticatedAt : undefined, sessionDevice(req)), user: shapeUser(user) });
 };

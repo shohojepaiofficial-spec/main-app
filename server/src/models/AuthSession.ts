@@ -8,6 +8,10 @@ const authSessionSchema = new Schema({
   refreshTokenHash: { type: String, required: true, select: false },
   expiresAt: { type: Date, required: true },
   revokedAt: { type: Date, default: null },
+  // Shown on the "Active sessions" list; never used for authentication.
+  userAgent: { type: String, maxlength: 300 },
+  ip: { type: String, maxlength: 64 },
+  lastUsedAt: Date,
 }, { timestamps: true });
 
 // Cleanup only: every authentication query also checks expiresAt explicitly.

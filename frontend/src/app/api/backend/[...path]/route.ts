@@ -57,7 +57,7 @@ async function proxy(req: NextRequest, context: { params: Promise<{ path: string
       headers.set("X-Client-IP-Signature", createHmac("sha256", process.env.INTERNAL_API_SECRET).update(`client-ip:${timestamp}:${clientIp}`).digest("hex"));
     }
     if (access) headers.set("Authorization", `Bearer ${access}`);
-    for (const name of ["content-type", "idempotency-key"]) {
+    for (const name of ["content-type", "idempotency-key", "user-agent"]) {
       const value = req.headers.get(name);
       if (value) headers.set(name, value);
     }

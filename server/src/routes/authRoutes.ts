@@ -25,6 +25,7 @@ import {
   replaceTwoFactor,
   confirmTwoFactorReplacement,
 } from "../controllers/twoFactorController";
+import { listSessions, revokeSessionById } from "../controllers/sessionController";
 import { requireInternalSecret } from "../middleware/internalAuth";
 import { protect } from "../middleware/auth";
 import { authLimiter, authTargetLimiter, profileUploadLimiter, twoFactorManagementLimiter, sessionRefreshLimiter } from "../middleware/rateLimit";
@@ -49,6 +50,8 @@ router.post("/login", authLimiter, authTargetLimiter, login);
 router.post("/refresh", sessionRefreshLimiter, refreshSession);
 router.post("/logout", protect, logoutSession);
 router.post("/logout-all", protect, auditAccount("sessions", undefined, "Signed out on all devices"), logoutAllSessions);
+router.get("/sessions", protect, listSessions);
+router.delete("/sessions/:sid", protect, auditAccount("sessions", undefined, "Signed out one device"), revokeSessionById);
 router.get("/me", protect, getMe);
 router.patch("/profile", protect, profileUploadLimiter, upload.single("image"), auditProfile, updateProfile);
 router.patch("/password", protect, auditAccount("password", undefined, "Changed"), changePassword);

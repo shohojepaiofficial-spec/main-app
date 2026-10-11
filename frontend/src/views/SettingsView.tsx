@@ -17,6 +17,8 @@ import { toUploadUrl } from "@/lib/api";
 import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
 import { BANGLADESH_ZILAS } from "@/lib/bangladeshGeo";
 import { useTranslations } from "@/controllers/useTranslations";
+import { useActiveSessions } from "@/controllers/useActiveSessions";
+import { ActiveSessionsView } from "@/views/ActiveSessionsView";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -652,6 +654,7 @@ function PasswordSection() {
 export function SettingsView() {
   const { user, logoutAll } = useAuthController();
   const [endingSessions, setEndingSessions] = useState(false);
+  const activeSessions = useActiveSessions();
   const { t } = useTranslations();
   if (!user) return null;
 
@@ -666,13 +669,16 @@ export function SettingsView() {
         <ProfileSection />
         <DeliveryLocationSection />
         <MarketingSection />
-        <button
-          disabled={endingSessions}
-          onClick={async () => { setEndingSessions(true); try { await logoutAll(); } finally { setEndingSessions(false); } }}
-          className="self-start rounded-md border border-border px-3 py-2 text-sm disabled:opacity-50"
-        >
-          {t("settings.logoutAll", "Sign out on all devices")}
-        </button>
+        <ActiveSessionsView
+          sessions={activeSessions.sessions}
+          isLoading={activeSessions.isLoading}
+          loadFailed={activeSessions.loadFailed}
+          revokingId={activeSessions.revokingId}
+          endingAll={endingSessions}
+          onRevoke={activeSessions.revoke}
+          onRetry={activeSessions.reload}
+          onSignOutAll={async () => { setEndingSessions(true); try { await logoutAll(); } finally { setEndingSessions(false); } }}
+        />
         {(user.role === "admin" || user.role === "coadmin") && <TwoFactorSection key={user.id} />}
         {user.provider === "google" ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted">

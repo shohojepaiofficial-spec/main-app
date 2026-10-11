@@ -38,7 +38,7 @@ const publicRoutes = new Set([
 const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, stats, auditLogs, returns, payments };
 const protectedRoutes: { name: string; method: string; path: string }[] = [];
 const customerRoutes = new Set([
-  "auth POST /logout", "auth POST /logout-all", "auth GET /me", "auth PATCH /profile", "auth PATCH /password", "auth PATCH /delivery-location",
+  "auth POST /logout", "auth POST /logout-all", "auth GET /sessions", "auth DELETE /sessions/:sid", "auth GET /me", "auth PATCH /profile", "auth PATCH /password", "auth PATCH /delivery-location",
   "auth PATCH /marketing-opt-in", "auth POST /resend-verification", "auth POST /2fa/setup",
   "auth POST /2fa/confirm", "auth POST /2fa/disable", "orders POST /", "orders POST /delivery-quote",
   "auth POST /2fa/replace", "auth POST /2fa/replace/confirm",

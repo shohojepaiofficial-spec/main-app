@@ -4,7 +4,7 @@ import { User } from "../models/User";
 import { sendEmail } from "../utils/sendEmail";
 import { generateRawAndHash, hashToken } from "../utils/authTokens";
 import bcrypt from "bcryptjs";
-import { createSession, revokeSession, rotateSession, SessionError } from "../utils/sessions";
+import { createSession, revokeSession, rotateSession, sessionDevice, SessionError, type SessionDevice } from "../utils/sessions";
 import { verifyUnsubscribeToken } from "../utils/campaignTokens";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { signTwoFactorChallenge } from "../utils/twoFactor";
@@ -39,12 +39,12 @@ export const shapeUser = (user: InstanceType<typeof User>) => ({
 // real session (login, oauth-sync, password reset) routes through here
 // instead of signing a token directly, so a 2FA-enabled admin/coadmin gets
 // challenged at all three, not just the one path someone remembered to gate.
-async function respondWithSessionOrChallenge(res: Response, user: InstanceType<typeof User>, authenticatedAt?: number) {
+async function respondWithSessionOrChallenge(res: Response, user: InstanceType<typeof User>, authenticatedAt?: number, device?: SessionDevice) {
   res.setHeader("Cache-Control", "no-store");
   if ((user.role === "admin" || user.role === "coadmin") && user.twoFactor?.enabled) {
     return res.json({ twoFactorRequired: true, tempToken: signTwoFactorChallenge(user.id, authenticatedAt, user.sessionVersion ?? 0) });
   }
-  return res.json({ ...await createSession(user, authenticatedAt), user: shapeUser(user) });
+  return res.json({ ...await createSession(user, authenticatedAt, device), user: shapeUser(user) });
 }
 
 // Fire-and-forget, same convention as the existing "welcome" email — a
@@ -90,7 +90,7 @@ export const register = async (req: Request, res: Response) => {
 
   if (!validNewPassword(password)) return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   const user = await User.create({ name, email: normalizedEmail, password });
-  const credentials = await createSession(user);
+  const credentials = await createSession(user, undefined, sessionDevice(req));
 
   sendVerificationEmail(user).catch((err) => console.error("Verification email failed:", err.message));
 
@@ -114,7 +114,7 @@ export const login = async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Invalid email or password" });
   }
 
-  await respondWithSessionOrChallenge(res, user, Math.floor(Date.now() / 1000));
+  await respondWithSessionOrChallenge(res, user, Math.floor(Date.now() / 1000), sessionDevice(req));
 };
 
 // Lets an already-logged-in client refresh its cached `user` (role/
@@ -438,7 +438,7 @@ export const resetPassword = async (req: Request, res: Response) => {
   }, { returnDocument: "after" });
   if (!updated) return res.status(400).json({ message: "This reset link is invalid or has expired" });
 
-  await respondWithSessionOrChallenge(res, updated);
+  await respondWithSessionOrChallenge(res, updated, undefined, sessionDevice(req));
 };
 
 export const refreshSession = async (req: Request, res: Response) => {
@@ -448,7 +448,7 @@ export const refreshSession = async (req: Request, res: Response) => {
   }
   res.setHeader("Cache-Control", "no-store");
   try {
-    const { user, ...credentials } = await rotateSession(req.body.refreshToken);
+    const { user, ...credentials } = await rotateSession(req.body.refreshToken, sessionDevice(req));
     res.json({ ...credentials, user: shapeUser(user) });
   } catch (error) {
     if (error instanceof SessionError) return res.status(401).json({ code: error.code, message: error.message });

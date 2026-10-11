@@ -761,3 +761,15 @@ export interface RecheckResult {
   outcome: "success" | "failed" | "pending" | "error" | "unchanged";
   bkash: { transactionStatus?: string; trxID?: string; amount?: string; statusMessage?: string };
 }
+
+// One signed-in browser/device on the account (Settings → Active sessions).
+export interface ActiveSession {
+  id: string;
+  browser: string | null;
+  os: string | null;
+  mobile: boolean;
+  ip: string | null;
+  signedInAt: string;
+  lastActiveAt: string;
+  current: boolean;
+}
