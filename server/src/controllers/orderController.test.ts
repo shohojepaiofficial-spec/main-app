@@ -444,7 +444,7 @@ describe("pre-orders", () => {
     expect(result.preorderDiscount).toBe(200); // 10% of 2000
   });
 
-  it("only discounts the pre-order lines, and stacks with a promo code", async () => {
+  it("only discounts the pre-order lines, and keeps only the bigger promo discount", async () => {
     vi.mocked(Product.find).mockReturnValue(
       queryResult([preorderProduct(), fakeProduct({ id: "p2", name: "Towel", price: 200 })]) as never
     );
@@ -463,9 +463,25 @@ describe("pre-orders", () => {
     );
 
     expect(result.orderItems[1].isPreorder).toBeUndefined();
-    expect(result.preorderDiscount).toBe(50); // 5% of 1000, not of the towel
-    expect(result.discount).toBe(120); // promo: 10% of 1200
-    expect(result.totalAmount).toBe(1200 + 20 - 120 - 50);
+    // Pre-order would be 5% of 1000 (not the towel) = 50; the promo's 10% of 1200 = 120 wins.
+    expect(result.preorderDiscount).toBe(0);
+    expect(result.discount).toBe(120);
+    expect(result.appliedCode).toBe("SAVE10");
+    expect(result.totalAmount).toBe(1200 + 20 - 120);
+  });
+
+  it("drops a smaller promo code when the pre-order discount is bigger", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([preorderProduct()]) as never);
+    vi.mocked(PromoCode.findOne).mockReturnValue(
+      queryResult({ code: "TAKA20", discountType: "flat", value: 20, scope: "all", isActive: true }) as never
+    );
+
+    const result = await computeOrderTotals([{ productId: "p1", quantity: 2 }], STORE_CITY_ZILA, TEST_UPAZILA, "taka20");
+
+    expect(result.preorderDiscount).toBe(100); // 5% of 2000 beats the 20 taka code
+    expect(result.discount).toBe(0);
+    expect(result.appliedCode).toBeUndefined();
+    expect(result.totalAmount).toBe(1910);
   });
 
   it("rejects more units than the pre-order cap has left, counting every line of the product", async () => {

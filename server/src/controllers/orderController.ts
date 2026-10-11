@@ -123,8 +123,8 @@ async function resolveDeliveryFee(
 //
 // A product on pre-order (Product.preorder.enabled) skips the stock check —
 // there's no stock yet — and is checked against its pre-order cap instead.
-// Its lines get the pre-order discount for `paymentMethod`, on top of any
-// promo code (the two are reported separately).
+// Its lines get the pre-order discount for `paymentMethod`; if a promo code
+// also applies, only the bigger of the two is kept.
 export async function computeOrderTotals(
   items: CheckoutItemInput[],
   zila: string,
@@ -241,6 +241,16 @@ export async function computeOrderTotals(
   // Whole taka, so the receipt never shows a fraction for it — the
   // storefront's preview (lib/preorder.ts) rounds the same way.
   preorderDiscount = Math.round(preorderDiscount);
+  // The two discounts don't stack (WORK-14): the bigger one wins, ties go
+  // to the pre-order discount and the promo code isn't recorded as used.
+  if (discount > 0 && preorderDiscount > 0) {
+    if (discount > preorderDiscount) {
+      preorderDiscount = 0;
+    } else {
+      discount = 0;
+      appliedCode = undefined;
+    }
+  }
   const isPreorder = orderItems.some((i) => i.isPreorder);
   const totalAmount = Math.max(0, itemsTotal + deliveryFee - discount - preorderDiscount);
 

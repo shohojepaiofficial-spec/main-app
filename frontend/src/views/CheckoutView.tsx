@@ -374,13 +374,18 @@ export function CheckoutView({
   }, [zila, upazila, items]);
 
   const itemsTotal = totalPrice();
-  const discount = discountAmount();
+  const promoDiscount = discountAmount();
   const flatDeliveryFee = calculateDeliveryTotal(items, zila, storeCity);
   const hasLiveQuote = !!liveQuote && liveQuote.zila === zila && liveQuote.upazila === upazila;
   const deliveryFee = hasLiveQuote ? liveQuote!.deliveryFee : flatDeliveryFee;
   // Preview only — computeOrderTotals on the server decides the real one,
   // from the product's current pre-order settings.
-  const preorderDiscount = calculatePreorderDiscount(items, paymentMethod);
+  const fullPreorderDiscount = calculatePreorderDiscount(items, paymentMethod);
+  // The two don't stack — the bigger wins, ties go to pre-order (same rule
+  // as computeOrderTotals).
+  const promoWins = promoDiscount > fullPreorderDiscount;
+  const discount = promoWins ? promoDiscount : fullPreorderDiscount > 0 ? 0 : promoDiscount;
+  const preorderDiscount = promoWins ? 0 : fullPreorderDiscount;
   const hasPreorder = items.some((i) => i.preorder);
   const preorderShipDate = latestShipDate(items);
   const preorderPercents = bestPreorderPercents(items);

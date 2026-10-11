@@ -60,7 +60,7 @@ the user deferred them on 2026-10-09.
 | WORK-11 | **Done locally** | Payment reconciliation at `/admin/payments` (2026-10-11): bKash/COD collected, refunds, net; flagged and stuck bKash orders with "Re-check with bKash" and a required-note resolve (mark paid / cancel / close). Left: deploy; can only be truly exercised once SEC-05 is verified live and bKash is live. |
 | WORK-12 | Proposed | "Active sessions" list with revoke + security-alert emails. |
 | WORK-13 | Proposed | Email the customer when the store replies to their review. |
-| WORK-14 | Decision | Pre-order and promo-code discounts currently stack — decide whether one should win. |
+| WORK-14 | **Done locally** | Promo code and pre-order discounts no longer stack (2026-10-11): the bigger one wins, ties go to pre-order, and a losing promo code is not recorded on the order. Checkout preview matches. Left: deploy. |
 | WORK-15 | Later | Upgrade Atlas off the shared/Flex tier before a real sales event (storage cap, throttling). |
 | — | Deferred | "Remember this device for 30 days" for 2FA — after the session work is verified live. |
 
