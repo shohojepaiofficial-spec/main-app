@@ -1192,3 +1192,4 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Decision: dashboard only, no alert emails (owner picked it).
 - Verified: backend `tsc` + 399 tests (new `stockLedger.test.ts`; ledger assertions added to cancellation and return tests). Frontend `tsc`, eslint on changed files, 90 tests. **Not tried in a browser yet.**
 - Left: deploy; edit a product's stock, place and cancel an order, and check the history. No backfill: history starts at deployment.
+- Catalog clean-up: deleted all 25 test orders (Sep 18 – Oct 5, from the owner's own accounts, against already-deleted test products) and 2 shared-cart links from the live database. The owner chose not to keep a copy. Left in place: 8 users, 1 banner.
