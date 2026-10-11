@@ -3,7 +3,7 @@ import { Inter, JetBrains_Mono, Fraunces } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "react-hot-toast";
 import { Providers } from "./providers";
-import { WhatsAppButton } from "@/views/WhatsAppButton";
+import { ChatButtons } from "@/views/ChatButtons";
 import { ConfirmDialog } from "@/views/ConfirmDialog";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { GTM_ID, isGtmConfigured } from "@/lib/gtm";
@@ -91,7 +91,7 @@ export default function RootLayout({
         )}
         <Providers>
           {children}
-          <WhatsAppButton />
+          <ChatButtons />
           <ConfirmDialog />
           <Toaster position="top-center" />
         </Providers>

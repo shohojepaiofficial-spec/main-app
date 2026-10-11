@@ -51,7 +51,8 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "language.english", en: "English", bn: "ইংরেজি" },
   { key: "language.bangla", en: "বাংলা", bn: "বাংলা" },
 
-  // --- WhatsApp button ---
+  // --- Chat buttons (WhatsApp / Messenger) ---
+  { key: "messenger.openInbox", en: "Open Messenger inbox", bn: "মেসেঞ্জার ইনবক্স খুলুন" },
   { key: "whatsapp.chatWithUs", en: "Chat with us on WhatsApp", bn: "হোয়াটসঅ্যাপে আমাদের সাথে চ্যাট করুন" },
   {
     key: "whatsapp.defaultMessage",
