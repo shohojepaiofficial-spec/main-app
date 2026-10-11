@@ -4,6 +4,8 @@ import { Banner, CtaLink } from "../models/Banner";
 import { PromoCode, IPromoCode } from "../models/PromoCode";
 import { AuthRequest } from "../middleware/auth";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
+import mongoose from "mongoose";
+import { recordAuditEvent } from "../utils/auditLog";
 
 // Matches a product id out of a CTA href like "/shop/<id>" or
 // "https://site.com/shop/<id>?promo=X" — how a banner "points at" a product.
@@ -96,7 +98,7 @@ const parseCta = (raw: unknown): CtaLink | undefined => {
   return { label: parsed.label, href: parsed.href };
 };
 
-export const createBanner = async (req: Request, res: Response) => {
+export const createBanner = async (req: AuthRequest, res: Response) => {
   validateControllerInput("createBanner", req);
   const file = req.file as Express.Multer.File | undefined;
   if (!file) return res.status(400).json({ message: "Image is required" });
@@ -111,25 +113,42 @@ export const createBanner = async (req: Request, res: Response) => {
   }
   if (!primaryCta) return res.status(400).json({ message: "primaryCta is required" });
 
-  const highestOrder = await Banner.findOne().sort({ order: -1 });
+  const image = await storeUploadedFile(file);
+  const session = await mongoose.startSession();
+  const result: { banner?: InstanceType<typeof Banner> } = {};
+  try {
+    await session.withTransaction(async () => {
+      const highestOrder = await Banner.findOne().sort({ order: -1 }).session(session);
+      const [created] = await Banner.create([{
+        image,
+        eyebrow: req.body.eyebrow ?? "",
+        accentColor: req.body.accentColor ?? "#000000",
+        title: req.body.title,
+        subtitle: req.body.subtitle ?? "",
+        primaryCta,
+        secondaryCta,
+        promoCode: req.body.promoCodeId || undefined,
+        isActive: req.body.isActive !== "false",
+        order: (highestOrder?.order ?? -1) + 1,
+      }], { session });
+      await recordAuditEvent({
+        actorId: req.userId!, action: "created", entityType: "banner",
+        entityId: created.id, entityName: created.title, after: created.toObject(),
+      }, session);
+      result.banner = created;
+    });
+  } catch (error) {
+    await deleteUploadedFile(image);
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+  if (!result.banner) throw new Error("Banner creation did not complete");
 
-  const banner = await Banner.create({
-    image: await storeUploadedFile(file),
-    eyebrow: req.body.eyebrow ?? "",
-    accentColor: req.body.accentColor ?? "#000000",
-    title: req.body.title,
-    subtitle: req.body.subtitle ?? "",
-    primaryCta,
-    secondaryCta,
-    promoCode: req.body.promoCodeId || undefined,
-    isActive: req.body.isActive !== "false",
-    order: (highestOrder?.order ?? -1) + 1,
-  });
-
-  res.status(201).json(shapeBanner(banner));
+  res.status(201).json(shapeBanner(result.banner));
 };
 
-export const updateBanner = async (req: Request, res: Response) => {
+export const updateBanner = async (req: AuthRequest, res: Response) => {
   validateControllerInput("updateBanner", req);
   const file = req.file as Express.Multer.File | undefined;
 
@@ -162,17 +181,51 @@ export const updateBanner = async (req: Request, res: Response) => {
   // that's succeeded — never the other way around, so a failed upload or
   // DB write can't leave a banner with no image at all.
   let previousImage: string | undefined;
+  let uploadedImage: string | undefined;
+  const current = await Banner.findById(req.params.id);
+  if (!current) return res.status(404).json({ message: "Banner not found" });
   if (file) {
-    previousImage = (await Banner.findById(req.params.id).select("image"))?.image;
-    update.image = await storeUploadedFile(file);
+    previousImage = current.image;
+    uploadedImage = await storeUploadedFile(file);
+    update.image = uploadedImage;
   }
 
-  const banner = await Banner.findByIdAndUpdate(req.params.id, update, {
-    returnDocument: "after",
-    runValidators: true,
-  });
-  if (!banner) return res.status(404).json({ message: "Banner not found" });
-  res.json(shapeBanner(banner));
+  const session = await mongoose.startSession();
+  const result: { banner: InstanceType<typeof Banner> | null } = { banner: null };
+  let concurrentEdit = false;
+  try {
+    await session.withTransaction(async () => {
+      const updated = await Banner.findOneAndUpdate(
+        { _id: req.params.id, updatedAt: current.get("updatedAt") },
+        update,
+        { session, returnDocument: "after", runValidators: true }
+      );
+      if (!updated) {
+        concurrentEdit = true;
+        return;
+      }
+      await recordAuditEvent({
+        actorId: req.userId!, action: "updated", entityType: "banner",
+        entityId: updated.id, entityName: updated.title,
+        before: current.toObject(), after: updated.toObject(),
+      }, session);
+      result.banner = updated;
+    });
+  } catch (error) {
+    if (uploadedImage) await deleteUploadedFile(uploadedImage);
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+  if (concurrentEdit) {
+    if (uploadedImage) await deleteUploadedFile(uploadedImage);
+    return res.status(409).json({ message: "Banner changed; refresh and try again" });
+  }
+  if (!result.banner) {
+    if (uploadedImage) await deleteUploadedFile(uploadedImage);
+    return res.status(404).json({ message: "Banner not found" });
+  }
+  res.json(shapeBanner(result.banner));
 
   if (previousImage) await deleteUploadedFile(previousImage);
 };
@@ -184,31 +237,69 @@ export const moveBanner = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: "direction must be 'up' or 'down'" });
   }
 
-  const banners = await Banner.find().sort({ order: 1 });
-  const index = banners.findIndex((b) => b.id === req.params.id);
-  if (index === -1) return res.status(404).json({ message: "Banner not found" });
+  const session = await mongoose.startSession();
+  const reordered: { banners: InstanceType<typeof Banner>[] | null } = { banners: null };
+  let missing = false;
+  let boundary = false;
+  try {
+    await session.withTransaction(async () => {
+      const banners = await Banner.find().sort({ order: 1, _id: 1 }).session(session);
+      const index = banners.findIndex((banner) => banner.id === req.params.id);
+      if (index === -1) {
+        missing = true;
+        return;
+      }
+      const swapIndex = direction === "up" ? index - 1 : index + 1;
+      if (swapIndex < 0 || swapIndex >= banners.length) {
+        boundary = true;
+        return;
+      }
 
-  const swapIndex = direction === "up" ? index - 1 : index + 1;
-  if (swapIndex < 0 || swapIndex >= banners.length) {
-    return res.status(400).json({ message: "Can't move further in that direction" });
+      const first = banners[index];
+      const second = banners[swapIndex];
+      const firstBefore = first.toObject();
+      const secondBefore = second.toObject();
+      [first.order, second.order] = [second.order, first.order];
+      await first.save({ session });
+      await second.save({ session });
+      await recordAuditEvent({
+        actorId: req.userId!, action: "reordered", entityType: "banner",
+        entityId: first.id, entityName: first.title, before: firstBefore, after: first.toObject(),
+      }, session);
+      await recordAuditEvent({
+        actorId: req.userId!, action: "reordered", entityType: "banner",
+        entityId: second.id, entityName: second.title, before: secondBefore, after: second.toObject(),
+      }, session);
+      reordered.banners = banners.sort((a, b) => a.order - b.order);
+    });
+  } finally {
+    await session.endSession();
   }
-
-  const a = banners[index];
-  const b = banners[swapIndex];
-  const aOrder = a.order;
-  a.order = b.order;
-  b.order = aOrder;
-  await a.save();
-  await b.save();
-
-  res.json(banners.sort((x, y) => x.order - y.order).map(shapeBanner));
+  if (missing) return res.status(404).json({ message: "Banner not found" });
+  if (boundary) return res.status(400).json({ message: "Can't move further in that direction" });
+  if (!reordered.banners) throw new Error("Banner reorder did not complete");
+  res.json(reordered.banners.map(shapeBanner));
 };
 
-export const deleteBanner = async (req: Request, res: Response) => {
+export const deleteBanner = async (req: AuthRequest, res: Response) => {
   validateControllerInput("deleteBanner", req);
-  const banner = await Banner.findByIdAndDelete(req.params.id);
-  if (!banner) return res.status(404).json({ message: "Banner not found" });
+  const session = await mongoose.startSession();
+  const result: { banner: InstanceType<typeof Banner> | null } = { banner: null };
+  try {
+    await session.withTransaction(async () => {
+      const current = await Banner.findById(req.params.id).session(session);
+      if (!current) return;
+      await recordAuditEvent({
+        actorId: req.userId!, action: "deleted", entityType: "banner",
+        entityId: current.id, entityName: current.title, before: current.toObject(),
+      }, session);
+      result.banner = await Banner.findOneAndDelete({ _id: current._id }, { session });
+    });
+  } finally {
+    await session.endSession();
+  }
+  if (!result.banner) return res.status(404).json({ message: "Banner not found" });
   res.json({ message: "Banner deleted" });
 
-  await deleteUploadedFile(banner.image);
+  await deleteUploadedFile(result.banner.image);
 };

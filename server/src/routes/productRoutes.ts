@@ -11,6 +11,7 @@ import {
 } from "../controllers/productController";
 import { getProductReviews, submitReview, deleteReview } from "../controllers/reviewController";
 import { protect, authorize } from "../middleware/auth";
+import { auditTrail } from "../middleware/auditTrail";
 import { upload } from "../utils/upload";
 import { adminUploadLimiter, reviewLimiter } from "../middleware/rateLimit";
 
@@ -25,7 +26,7 @@ router.get("/option-suggestions", protect, canManageProducts, getOptionSuggestio
 router.get("/:id", getProductById);
 router.get("/:id/reviews", getProductReviews);
 router.post("/:id/reviews", protect, reviewLimiter, submitReview);
-router.delete("/:id/reviews/:reviewId", protect, canManageReviews, deleteReview);
+router.delete("/:id/reviews/:reviewId", protect, canManageReviews, auditTrail({ entityType: "review", action: "deleted", target: { from: "param", param: "reviewId" } }), deleteReview);
 router.post("/", protect, canManageProducts, adminUploadLimiter, upload.array("images", 5), createProduct);
 router.put("/:id", protect, canManageProducts, adminUploadLimiter, upload.array("images", 5), updateProduct);
 router.delete("/:id", protect, canManageProducts, deleteProduct);

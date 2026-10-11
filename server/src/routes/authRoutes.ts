@@ -29,6 +29,18 @@ import { requireInternalSecret } from "../middleware/internalAuth";
 import { protect } from "../middleware/auth";
 import { authLimiter, authTargetLimiter, profileUploadLimiter, twoFactorManagementLimiter, sessionRefreshLimiter } from "../middleware/rateLimit";
 import { upload } from "../utils/upload";
+import { auditTrail } from "../middleware/auditTrail";
+
+// Staff account-security events for the change history. Customers pass
+// through untouched; nothing secret (codes, passwords) is recorded.
+const auditAccount = (field: string, before: string | undefined, after: string) =>
+  auditTrail({
+    entityType: "account",
+    action: "updated",
+    target: { from: "self" },
+    changes: () => [{ field, ...(before ? { before } : {}), after }],
+  });
+const auditProfile = auditTrail({ entityType: "account", action: "updated", target: { from: "self" } });
 
 const router = Router();
 
@@ -36,10 +48,10 @@ router.post("/register", authLimiter, authTargetLimiter, register);
 router.post("/login", authLimiter, authTargetLimiter, login);
 router.post("/refresh", sessionRefreshLimiter, refreshSession);
 router.post("/logout", protect, logoutSession);
-router.post("/logout-all", protect, logoutAllSessions);
+router.post("/logout-all", protect, auditAccount("sessions", undefined, "Signed out on all devices"), logoutAllSessions);
 router.get("/me", protect, getMe);
-router.patch("/profile", protect, profileUploadLimiter, upload.single("image"), updateProfile);
-router.patch("/password", protect, changePassword);
+router.patch("/profile", protect, profileUploadLimiter, upload.single("image"), auditProfile, updateProfile);
+router.patch("/password", protect, auditAccount("password", undefined, "Changed"), changePassword);
 router.patch("/delivery-location", protect, updateDeliveryLocation);
 router.patch("/marketing-opt-in", protect, updateMarketingOptIn);
 router.post("/oauth-sync", requireInternalSecret, oauthSync);
@@ -54,10 +66,10 @@ router.get("/unsubscribe", unsubscribeFromMarketing);
 // itself: it's the second half of signing in, called before a real session
 // exists, authenticated by the short-lived tempToken in its body instead.
 router.post("/2fa/setup", protect, twoFactorManagementLimiter, setupTwoFactor);
-router.post("/2fa/confirm", protect, twoFactorManagementLimiter, confirmTwoFactor);
+router.post("/2fa/confirm", protect, twoFactorManagementLimiter, auditAccount("twoStepVerification", "Off", "On"), confirmTwoFactor);
 router.post("/2fa/replace", protect, twoFactorManagementLimiter, replaceTwoFactor);
-router.post("/2fa/replace/confirm", protect, twoFactorManagementLimiter, confirmTwoFactorReplacement);
-router.post("/2fa/disable", protect, twoFactorManagementLimiter, disableTwoFactor);
+router.post("/2fa/replace/confirm", protect, twoFactorManagementLimiter, auditAccount("authenticatorApp", undefined, "Replaced"), confirmTwoFactorReplacement);
+router.post("/2fa/disable", protect, twoFactorManagementLimiter, auditAccount("twoStepVerification", "On", "Off"), disableTwoFactor);
 router.post("/2fa/verify-login", authLimiter, verifyTwoFactorLogin);
 
 export default router;

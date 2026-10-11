@@ -19,6 +19,7 @@ import campaignRoutes from "./routes/campaignRoutes";
 import translationRoutes from "./routes/translationRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
 import statsRoutes from "./routes/statsRoutes";
+import auditLogRoutes from "./routes/auditLogRoutes";
 import { notFound, errorHandler, twoFactorUnavailableResponse } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
 import { liveOnlinePaymentMethods } from "./utils/paymentMethods";
@@ -99,6 +100,7 @@ app.use("/api/campaigns", campaignRoutes);
 app.use("/api/translations", translationRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

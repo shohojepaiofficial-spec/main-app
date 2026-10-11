@@ -569,3 +569,40 @@ export interface CampaignAudiencePreview {
   smsCount: number;
   smsConfigured: boolean;
 }
+
+// Admin change history (GET /api/audit-logs, full admin only).
+export const AUDIT_ENTITY_TYPES = [
+  "product", "banner", "order", "user", "promo", "ad", "campaign",
+  "message", "review", "translation", "analytics", "account",
+] as const;
+export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
+
+export const AUDIT_ACTIONS = [
+  "created", "updated", "deleted", "reordered", "published", "sent", "booked", "reset",
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export interface AuditChange {
+  field: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+export interface AuditEntry {
+  _id: string;
+  actorId: string;
+  actorName: string;
+  actorRole: "admin" | "coadmin";
+  action: AuditAction;
+  entityType: AuditEntityType;
+  entityId: string;
+  entityName: string;
+  changes: AuditChange[];
+  createdAt: string;
+}
+
+export interface AuditActor {
+  id: string;
+  name: string;
+  role: "admin" | "coadmin";
+}

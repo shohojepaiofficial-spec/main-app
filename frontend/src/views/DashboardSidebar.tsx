@@ -21,6 +21,7 @@ import {
   LogOut,
   ArrowLeft,
   Menu,
+  History,
 } from "lucide-react";
 import { useAuthController } from "@/controllers/useAuthController";
 import { Modal } from "@/components/ui/Modal";
@@ -86,6 +87,7 @@ export function DashboardSidebar() {
       title: "Site",
       links: [
         hasPermission("translations:manage") && { href: "/admin/translations", label: "Translations", Icon: Languages },
+        user?.role === "admin" && { href: "/admin/audit-log", label: "Change History", Icon: History },
       ],
     },
   ]

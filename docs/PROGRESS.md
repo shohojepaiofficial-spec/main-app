@@ -1,5 +1,7 @@
 # Progress Log
 
+Dated history of what was built and how it was verified, newest at the bottom. For what is open right now, see [STATUS.md](STATUS.md). Older entries mention `REMAINING_WORK.md` item numbers, `docs/security/` and `docs/remaining-works/`: those files were merged into STATUS.md and ARCHITECTURE.md on 2026-10-11 (they remain in git history).
+
 ## 2026-09-13
 - Scaffolded `server/` (Express 5 + TypeScript + MongoDB/Mongoose, MVC folders: models/controllers/routes/middleware/utils). Auth (register/login + JWT), Product CRUD, Order endpoints.
 - Scaffolded `frontend/` (Next.js 16 App Router + TypeScript + Tailwind). Added axios client, zustand auth store, example login page.
@@ -1044,13 +1046,13 @@ Details and rules: `ARCHITECTURE.md`'s "Product options & variants" section.
 - The only place customers saw it was the "Pathao live rate" tag beside Delivery in the checkout summary (`CheckoutView.tsx`). Removed it. The live quote still sets the fee; the `checkout.pathaoLiveRate` key is now unused. Pathao still appears in admin screens (order courier panel, product weight hint), which customers can't see.
 - Shipping page (`/shipping`): now says we deliver across all of Bangladesh and that the delivery fee is estimated at checkout from the courier's live rates for the customer's zila/upazila and order weight. The old text said fees were set by hand per product, which stopped being true once live quotes went in. The courier isn't named. Meta description updated to match.
 
-## 2026-10-07 � Security and remaining-work documentation
+## 2026-10-07 — Security and remaining-work documentation
 
 Created docs/security/README.md with SEC-01 through SEC-13 and docs/security/INJECTION_AND_DDOS.md with proposed database-injection and layered DDoS defenses. Created docs/remaining-works/README.md with WORK-01 through WORK-13, separating existing operational gaps from proposed features. Preserved the original backlog and linked the new queues from it. Tasks include acceptance checks and distinguish local verification from production settings that have not been inspected. This change documents work only; no security fixes or infrastructure changes were applied.
 
 Verification: checked new Markdown files and their relative local links. No application tests required for this documentation-only change.
 
-## 2026-10-07 � SEC-01: reject 2FA challenges as sessions
+## 2026-10-07 — SEC-01: reject 2FA challenges as sessions
 
 Centralized access-token signing in server/src/utils/authTokens.ts with purpose access. Registration, login, OAuth sync, password reset and completed 2FA now use that issuer. protect and optionalAuth verify access purpose, HS256, required expiry, valid MongoDB user ID and recognized role. Challenge verification also validates purpose, ID and expiry. Legacy tokens without access purpose deliberately fail after deployment; users must sign in again. Existing admin/coadmin-only enrollment guards remain intact and are now regression-tested. Existing demoted accounts retain their enrolled factor; no database migration or production changes were performed.
 
@@ -1121,3 +1123,18 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - User ran `npm.cmd --prefix server run security:encrypt-totp` and reported `Updated 2 factor records; no secrets logged.` Localhost and Railway use the same dummy/test database and matching validated keys. User subsequently confirmed that the admin authenticator code worked; a regular account signed in locally without a 2FA prompt, as expected.
 - Remaining SEC-12 check: disable `TOTP_ALLOW_LEGACY_PLAINTEXT` in Railway and localhost, restart each backend, and retest the admin authenticator. A separate production database, if any, remains unverified.
 - Replaced all 15 deprecated Mongoose `new: true` options across 11 backend files with `returnDocument: 'after'`. Previously completed verification: 331 backend tests and TypeScript build passed. Current push contains this change and updated security tracking.
+
+## 2026-10-10 - WORK-10 first slice: product and banner change history
+
+- Added append-only audit records for product and banner creation, edits and deletion. Banner reordering records both banners whose positions changed. Entity changes and audit entries share a MongoDB transaction.
+- Added full-admin-only `GET /api/audit-logs` and `/admin/audit-log` with filters and pagination. Existing product/banner permissions still control who may edit; only the full admin may read combined history.
+- Records include actor name/role, time, item name and changed fields with before/after values. Uploaded image URLs are redacted. The API has no edit/delete routes for audit records.
+- Tests cover changed fields and image redaction. Backend build passed. Backend tests currently show two slow failures in existing 2FA pending-setup confirmation cases; final details are being checked. Frontend build and lint are running.
+- Remaining WORK-10 coverage: users/roles/permissions, orders, promotions and campaigns. Production verification is pending; logs begin after deployment and do not backfill older changes.
+- Final verification update: backend suite passed all 336 tests across 20 files with one worker; the earlier timeout failures were load-related. Backend TypeScript build, frontend production build (network access allowed for existing Google Fonts), changed-file ESLint, frontend TypeScript, focused audit/redaction plus route-protection tests (127 passed), and `git diff --check` all passed.
+## 2026-10-11 — Change History fixed, now covers every admin/co-admin change (WORK-10)
+- **Why the page never loaded:** the browser proxy (`app/api/backend/[...path]/route.ts`) has an allowlist of API prefixes and `audit-logs` wasn't on it, so every request got 404 and the page showed its error. Added it.
+- **Coverage:** new route middleware `middleware/auditTrail.ts` + snapshot loaders in `utils/auditTargets.ts`. Mounted after `protect`/`authorize` on every staff write route: orders (manual create, status, bulk status, note, courier, Pathao booking), user access, promo codes, ads (create/publish/delete), campaigns, contact messages, reviews and replies, translations, analytics reset, and the staff member's own profile/password/2FA/sign-out-everywhere. It snapshots the target before the handler, again after a 2xx, and stores only changed tracked fields. Customers pass through untouched; recording failures go to `reportError` and never block the action. Products and banners keep their in-transaction logging.
+- `AuditLog` entity types/actions widened; `GET /api/audit-logs` gained `actorId`, `from`, `to` filters and `GET /api/audit-logs/actors` feeds the "Who" filter.
+- **Frontend rebuilt MVC-style** (`services/auditLogService.ts`, `controllers/useAdminAuditLog.ts`, view): the fixed 720px-wide table is replaced by cards that stack on phones, filters in a 2→3→6 column grid, long values (variants, campaign text) collapse behind "Show value", shared `Pagination`.
+- Verified: backend 343 tests (new `auditTrail.test.ts`: staff diff, customers/failed requests ignored, created-ID lookup, no secrets on password events, recording failure doesn't fail the request) and build; frontend 87 tests, type-check, lint on changed files, production build. **Not yet tried in a browser** with a real admin session.

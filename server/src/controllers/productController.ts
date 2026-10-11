@@ -6,6 +6,9 @@ import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { escapeRegex } from "../utils/regex";
 import { normalizeVariantInput, presetOptionsForCategory, summarizeVariants } from "../utils/productVariants";
 import { normalizePreorderInput, preorderUpdate } from "../utils/preorder";
+import mongoose from "mongoose";
+import { AuthRequest } from "../middleware/auth";
+import { recordAuditEvent } from "../utils/auditLog";
 
 const DEFAULT_PAGE_SIZE = 12;
 
@@ -128,7 +131,7 @@ function variantFields(body: Record<string, unknown>, finalImages: string[], new
   return variants.length > 0 ? { options, variants, ...summarizeVariants(variants) } : { options, variants };
 }
 
-export const createProduct = async (req: Request, res: Response) => {
+export const createProduct = async (req: AuthRequest, res: Response) => {
   validateControllerInput("createProduct", req);
   req.body = productInput(req.body);
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
@@ -148,11 +151,31 @@ export const createProduct = async (req: Request, res: Response) => {
     return res.status(status ?? 400).json({ message: message ?? "Invalid options" });
   }
 
-  const product = await Product.create({ ...fields, images, ...variantData, ...(preorder ? { preorder } : {}) });
-  res.status(201).json(product);
+  const session = await mongoose.startSession();
+  const result: { product?: InstanceType<typeof Product> } = {};
+  try {
+    await session.withTransaction(async () => {
+      const [created] = await Product.create(
+        [{ ...fields, images, ...variantData, ...(preorder ? { preorder } : {}) }],
+        { session }
+      );
+      await recordAuditEvent({
+        actorId: req.userId!, action: "created", entityType: "product",
+        entityId: created.id, entityName: created.name, after: created.toObject(),
+      }, session);
+      result.product = created;
+    });
+  } catch (error) {
+    await Promise.all(images.map((img) => deleteUploadedFile(img)));
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+  if (!result.product) throw new Error("Product creation did not complete");
+  res.status(201).json(result.product);
 };
 
-export const updateProduct = async (req: Request, res: Response) => {
+export const updateProduct = async (req: AuthRequest, res: Response) => {
   validateControllerInput("updateProduct", req);
   req.body = productInput(req.body);
   // Edits arrive as multipart/form-data (to allow adding new image files
@@ -174,7 +197,7 @@ export const updateProduct = async (req: Request, res: Response) => {
   // Read the old image list before it's overwritten — the only way to know
   // which URLs are being dropped, so they can be cleaned up from
   // Cloudinary/disk afterward instead of accumulating forever.
-  const current = await Product.findById(req.params.id).select("images preorder");
+  const current = await Product.findById(req.params.id);
   if (!current) {
     await Promise.all(newImages.map((img) => deleteUploadedFile(img)));
     return res.status(404).json({ message: "Product not found" });
@@ -200,31 +223,72 @@ export const updateProduct = async (req: Request, res: Response) => {
     return res.status(status ?? 400).json({ message: message ?? "Invalid options" });
   }
 
-  const product = await Product.findByIdAndUpdate(req.params.id, update, {
-    returnDocument: "after",
-    runValidators: true,
-  });
-  if (!product) return res.status(404).json({ message: "Product not found" });
-  res.json(product);
+  const session = await mongoose.startSession();
+  const result: { product: InstanceType<typeof Product> | null } = { product: null };
+  let concurrentEdit = false;
+  try {
+    await session.withTransaction(async () => {
+      const updated = await Product.findOneAndUpdate(
+        { _id: req.params.id, updatedAt: current.get("updatedAt") },
+        update,
+        { session, returnDocument: "after", runValidators: true }
+      );
+      if (!updated) {
+        concurrentEdit = true;
+        return;
+      }
+      await recordAuditEvent({
+        actorId: req.userId!, action: "updated", entityType: "product",
+        entityId: updated.id, entityName: updated.name,
+        before: current.toObject(), after: updated.toObject(),
+      }, session);
+      result.product = updated;
+    });
+  } catch (error) {
+    await Promise.all(newImages.map((img) => deleteUploadedFile(img)));
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+  if (concurrentEdit) {
+    await Promise.all(newImages.map((img) => deleteUploadedFile(img)));
+    return res.status(409).json({ message: "Product changed; refresh and try again" });
+  }
+  if (!result.product) return res.status(404).json({ message: "Product not found" });
+  res.json(result.product);
 
   // After responding: cleanup is maintenance, not something the client
   // should wait on. New images are already saved and the DB already points
   // at them, so only images that are no longer referenced anywhere in the
   // updated product get removed here.
   if (imagesChanging) {
-    const stillUsed = new Set(product.images);
+    const stillUsed = new Set(result.product.images);
     const removed = previousImages.filter((img) => !stillUsed.has(img));
     await Promise.all(removed.map((img) => deleteUploadedFile(img)));
   }
 };
 
-export const deleteProduct = async (req: Request, res: Response) => {
+export const deleteProduct = async (req: AuthRequest, res: Response) => {
   validateControllerInput("deleteProduct", req);
-  const product = await Product.findByIdAndDelete(req.params.id);
-  if (!product) return res.status(404).json({ message: "Product not found" });
+  const session = await mongoose.startSession();
+  const result: { product: InstanceType<typeof Product> | null } = { product: null };
+  try {
+    await session.withTransaction(async () => {
+      const current = await Product.findById(req.params.id).session(session);
+      if (!current) return;
+      await recordAuditEvent({
+        actorId: req.userId!, action: "deleted", entityType: "product",
+        entityId: current.id, entityName: current.name, before: current.toObject(),
+      }, session);
+      result.product = await Product.findOneAndDelete({ _id: current._id }, { session });
+    });
+  } finally {
+    await session.endSession();
+  }
+  if (!result.product) return res.status(404).json({ message: "Product not found" });
   res.json({ message: "Product deleted" });
 
-  await Promise.all(product.images.map((img) => deleteUploadedFile(img)));
+  await Promise.all(result.product.images.map((img) => deleteUploadedFile(img)));
 };
 
 // Suggested options for the admin product form when a category is picked:

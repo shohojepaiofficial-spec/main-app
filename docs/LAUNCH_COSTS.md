@@ -31,7 +31,7 @@ What you pay every month whether or not anything sells.
 
 - **Stage 1 — Launch.** Cheapest setup that is fully working. The one real
   risk: the $8 database tier has **no backups**. Fix that for ~$0 with a
-  nightly backup script (item 3.8 in `REMAINING_WORK.md`) — strongly
+  nightly backup script (SEC-13 in `STATUS.md`) — strongly
   recommended before taking real orders.
 - **Stage 2 — Safe.** Move the database to M10 as soon as orders are coming in
   regularly: automatic backups and point-in-time restore, so a mistake or
@@ -89,8 +89,8 @@ Assumes 30% pay by bKash, 70% cash on delivery, 60% same-city delivery, and
 |---|---|---|
 | Domain registration | Already paid | Done |
 | bKash merchant account | Usually no setup fee — needs trade license and bank details | Open (currently on bKash's sandbox) |
-| Pathao merchant account + Store ID | Free | Open — item 2.8 |
-| SMS gateway | Prepaid top-up, ~৳500 to start | Open — item 2.6 |
+| Pathao merchant account + Store ID | Free | Done (real Store ID); first booking is WORK-03 in `STATUS.md` |
+| SMS gateway | Prepaid top-up, ~৳500 to start | Open — WORK-02 in `STATUS.md` |
 | Trade license / business registration | Varies by city corporation | Your side, not tech |
 
 ---
