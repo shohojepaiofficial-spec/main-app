@@ -1,9 +1,10 @@
-import mongoose, { ClientSession } from "mongoose";
+import mongoose, { ClientSession, Types } from "mongoose";
 import { Order, IOrder } from "../models/Order";
 import { Product } from "../models/Product";
 import { SharedCart } from "../models/SharedCart";
+import { orderStockMovements, recordStockMovements } from "./stockLedger";
 
-export async function restoreInventory(order: Pick<IOrder, "items">, session: ClientSession) {
+export async function restoreInventory(order: Pick<IOrder, "_id" | "items">, session: ClientSession) {
   // Operations on one transaction session must be sequential.
   for (const item of order.items) {
     const filter = item.isPreorder
@@ -14,6 +15,7 @@ export async function restoreInventory(order: Pick<IOrder, "items">, session: Cl
     const result = await Product.updateOne(filter, { $inc: increments }, { session });
     if (result.matchedCount !== 1) throw Object.assign(new Error("Inventory needs review before cancellation"), { status: 409 });
   }
+  await recordStockMovements(orderStockMovements(order.items, "cancellation", { order: order._id as Types.ObjectId }), session);
 }
 
 export async function transitionOrder(

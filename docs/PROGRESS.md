@@ -1184,3 +1184,11 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - WORK-13: new `utils/reviewReplyEmail.ts` (`notifyReviewReply`, fire-and-forget, HTML-escaped). `replyToReview` now reads the review as it was before the update, so only the first reply emails the customer and edits don't. The email links to the product page.
 - Verified: backend `tsc` clean, 391 tests (new `reviewReply.test.ts`: email on first reply, none on edit, escaping).
 - Left: deploy, `npm run sync-translations`, post a real reply and check the email arrives.
+
+## 2026-10-11 (WORK-09 per-variant low stock + stock history)
+
+- **Stock history**: new `StockMovement` model + `utils/stockLedger.ts`. Every stock change writes a line in the same transaction: sales (checkout and manual orders), cancellations, return restocks, and staff create/edit (diffed per variant, with who made it). Pre-order lines take no stock and aren't logged. `GET /api/products/:id/stock-history` (products:manage); a history icon in Manage Products opens `StockHistoryModal`.
+- **Low stock per variant**: `utils/lowStock.ts` (threshold 5) replaces the per-product checks in the dashboard stats, the Manage Products filter and the analytics tile. The dashboard's "Running low" list shows the variant ("Hoodie · White / L"); product rows also say "N variants running low".
+- Decision: dashboard only, no alert emails (owner picked it).
+- Verified: backend `tsc` + 399 tests (new `stockLedger.test.ts`; ledger assertions added to cancellation and return tests). Frontend `tsc`, eslint on changed files, 90 tests. **Not tried in a browser yet.**
+- Left: deploy; edit a product's stock, place and cancel an order, and check the history. No backfill: history starts at deployment.

@@ -3,6 +3,7 @@ import {
   getProducts,
   getProductCategories,
   getProductStats,
+  getStockHistory,
   getOptionSuggestions,
   getProductById,
   createProduct,
@@ -25,6 +26,7 @@ router.get("/stats", protect, canManageProducts, getProductStats);
 router.get("/option-suggestions", protect, canManageProducts, getOptionSuggestions);
 router.get("/:id", getProductById);
 router.get("/:id/reviews", getProductReviews);
+router.get("/:id/stock-history", protect, canManageProducts, getStockHistory);
 router.post("/:id/reviews", protect, reviewLimiter, submitReview);
 router.delete("/:id/reviews/:reviewId", protect, canManageReviews, auditTrail({ entityType: "review", action: "deleted", target: { from: "param", param: "reviewId" } }), deleteReview);
 router.post("/", protect, canManageProducts, adminUploadLimiter, upload.array("images", 5), createProduct);

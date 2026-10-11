@@ -7,6 +7,7 @@ import { Order } from "../models/Order";
 import { classifyReferrer } from "../utils/referrer";
 import { resolveAnalyticsRange } from "../utils/analyticsRange";
 import { AuthRequest } from "../middleware/auth";
+import { lowStockFilter, lowStockRows } from "../utils/lowStock";
 
 // Public (optionalAuth) — fires from every page load and every product
 // detail view on the storefront. Never blocks the page: the frontend calls
@@ -70,7 +71,7 @@ export const getAnalyticsOverview = async (req: AuthRequest, res: Response) => {
   ] = await Promise.all([
     Product.countDocuments(),
     Product.aggregate([{ $group: { _id: null, total: { $sum: "$stock" } } }]),
-    Product.countDocuments({ stock: { $lte: 5 } }),
+    Product.find(lowStockFilter).select("name stock variants._id variants.stock variants.selections").lean().then((p) => lowStockRows(p).length),
     Product.aggregate([
       { $group: { _id: "$category", count: { $sum: 1 } } },
       { $sort: { count: -1 } },

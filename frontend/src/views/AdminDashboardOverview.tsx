@@ -127,8 +127,11 @@ export function AdminDashboardOverview() {
                   <p className="mb-2 text-xs font-medium uppercase text-muted">Running low</p>
                   <div className="flex flex-col gap-2">
                     {productStats.lowStockProducts.map((p) => (
-                      <div key={p._id} className="flex items-center justify-between text-sm">
-                        <span className="truncate">{p.name}</span>
+                      <div key={p.variantId ?? p._id} className="flex items-center justify-between text-sm">
+                        <span className="truncate">
+                          {p.name}
+                          {p.variantLabel && <span className="text-muted"> · {p.variantLabel}</span>}
+                        </span>
                         <span className="shrink-0 font-medium text-yellow-700">{p.stock} left</span>
                       </div>
                     ))}

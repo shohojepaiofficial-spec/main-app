@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+vi.mock("../models/StockMovement", () => ({ StockMovement: { insertMany: vi.fn() } }));
 vi.mock("../models/Product", () => ({ Product: { updateOne: vi.fn() } }));
 import { Types } from "mongoose";
 import { Product } from "../models/Product";
+import { StockMovement } from "../models/StockMovement";
 import {
   buildReturnItems, canTransition, claimedQuantities, isWithinReturnWindow, itemsValue, restockReturnItems, returnWindowEndsAt,
 } from "./returns";
@@ -70,9 +72,13 @@ describe("restockReturnItems", () => {
   it("returns variant units to the variant and the total, and reports deleted variants", async () => {
     vi.mocked(Product.updateOne).mockResolvedValueOnce({ matchedCount: 1 } as never).mockResolvedValueOnce({ matchedCount: 0 } as never);
     const items = buildReturnItems(order, [{ orderItemIndex: 0, quantity: 2 }, { orderItemIndex: 1, quantity: 1 }], new Map());
-    const skipped = await restockReturnItems(items, {} as never);
+    const skipped = await restockReturnItems(items, {} as never, { order: "o1", returnRequest: "r1" });
     expect(Product.updateOne).toHaveBeenNthCalledWith(1, { _id: productA, "variants._id": variantA }, { $inc: { "variants.$.stock": 2, stock: 2 } }, { session: {} });
     expect(skipped).toBe(1);
+    // The skipped (deleted-variant) line isn't written to the ledger.
+    expect(vi.mocked(StockMovement.insertMany).mock.calls[0][0]).toEqual([
+      expect.objectContaining({ product: productA, variant: variantA, change: 2, reason: "return", order: "o1", returnRequest: "r1" }),
+    ]);
     expect(itemsValue(items)).toBe(2700);
   });
 });

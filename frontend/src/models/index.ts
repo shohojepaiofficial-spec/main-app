@@ -315,7 +315,25 @@ export interface OrderStats {
 export interface ProductStats {
   totalProducts: number;
   lowStockCount: number;
-  lowStockProducts: { _id: string; name: string; stock: number }[];
+  // One row per low item: the product, or each of its low variants.
+  lowStockProducts: { _id: string; name: string; variantId?: string; variantLabel?: string; stock: number }[];
+}
+
+// One line of a product's stock ledger (WORK-09) — see server's
+// models/StockMovement.ts. `actor` is set for staff edits only.
+export type StockMovementReason = "sale" | "cancellation" | "return" | "adjustment";
+
+export interface StockMovement {
+  _id: string;
+  product: string;
+  variant?: string;
+  variantLabel?: string;
+  change: number;
+  reason: StockMovementReason;
+  order?: string;
+  returnRequest?: string;
+  actor?: { _id: string; name: string } | null;
+  createdAt: string;
 }
 
 export interface ContactMessage {

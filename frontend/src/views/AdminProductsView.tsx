@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2, Loader2, Plus, Star, X, Megaphone } from "lucide-react";
+import { Pencil, Trash2, Loader2, Plus, Star, X, Megaphone, History } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useAdminProducts, ProductFilters } from "@/controllers/useAdminProducts";
 import { useDebouncedValue } from "@/controllers/useDebouncedValue";
 import { ProductFormModal } from "@/views/ProductFormModal";
+import { StockHistoryModal } from "@/views/StockHistoryModal";
 import { Pagination } from "@/views/Pagination";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
@@ -18,14 +19,25 @@ import { Product } from "@/models";
 const inputClass =
   "rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-foreground";
 
+// Same "running low" line the server uses (utils/lowStock.ts).
+const LOW_STOCK_THRESHOLD = 5;
+
 // A product's total stock can look healthy while individual sizes/colors
-// have run out — this flags those under the total.
-function VariantStockNote({ soldOut }: { soldOut: number }) {
-  if (soldOut === 0) return null;
+// have run out or are running low — this flags those under the total.
+function VariantStockNote({ soldOut, low }: { soldOut: number; low: number }) {
   return (
-    <span className="block text-xs text-red-600">
-      {soldOut} variant{soldOut === 1 ? "" : "s"} sold out
-    </span>
+    <>
+      {soldOut > 0 && (
+        <span className="block text-xs text-red-600">
+          {soldOut} variant{soldOut === 1 ? "" : "s"} sold out
+        </span>
+      )}
+      {low > 0 && (
+        <span className="block text-xs text-yellow-700">
+          {low} variant{low === 1 ? "" : "s"} running low
+        </span>
+      )}
+    </>
   );
 }
 
@@ -163,6 +175,7 @@ export function AdminProductsView() {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
 
   if (isChecking || !isAllowed) {
     return (
@@ -268,7 +281,10 @@ export function AdminProductsView() {
                   <td className="py-3 pr-4 align-top text-sm">
                     {product.stock}
                     {hasVariants(product) && (
-                      <VariantStockNote soldOut={product.variants!.filter((v) => v.stock === 0).length} />
+                      <VariantStockNote
+                        soldOut={product.variants!.filter((v) => v.stock === 0).length}
+                        low={product.variants!.filter((v) => v.stock > 0 && v.stock <= LOW_STOCK_THRESHOLD).length}
+                      />
                     )}
                     {product.preorder?.enabled && (
                       <p className="text-xs font-medium text-primary">
@@ -289,6 +305,14 @@ export function AdminProductsView() {
                           <Megaphone size={16} />
                         </Link>
                       )}
+                      <button
+                        onClick={() => setHistoryProduct(product)}
+                        aria-label={`Stock history for ${product.name}`}
+                        title="Stock history"
+                        className="text-muted hover:text-foreground"
+                      >
+                        <History size={16} />
+                      </button>
                       <button
                         onClick={() => openEditForm(product)}
                         aria-label={`Edit ${product.name}`}
@@ -326,6 +350,8 @@ export function AdminProductsView() {
         categories={categories}
         onSaved={upsert}
       />
+
+      <StockHistoryModal product={historyProduct} onClose={() => setHistoryProduct(null)} />
     </main>
   );
 }

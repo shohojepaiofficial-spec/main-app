@@ -1,6 +1,7 @@
 import mongoose, { ClientSession, Types } from "mongoose";
 import type { IOrder } from "../models/Order";
 import { Product } from "../models/Product";
+import { orderStockMovements, recordStockMovements } from "./stockLedger";
 import {
   ReturnRequest, IReturnItem, IReturnRequest, ReturnStatus,
 } from "../models/ReturnRequest";
@@ -104,8 +105,13 @@ export async function refundedForOrder(orderId: Types.ObjectId | string, session
 // physical stock too, so it goes to stock, not back to preorder.reserved.
 // A deleted variant has nowhere to go and is skipped (same reasoning as
 // order cancellation); the count of skipped lines is returned so staff see it.
-export async function restockReturnItems(items: IReturnItem[], session: ClientSession): Promise<number> {
+export async function restockReturnItems(
+  items: IReturnItem[],
+  session: ClientSession,
+  refs: { order?: Types.ObjectId | string; returnRequest?: Types.ObjectId | string } = {},
+): Promise<number> {
   let skipped = 0;
+  const restocked: IReturnItem[] = [];
   for (const item of items) {
     const result = item.variant
       ? await Product.updateOne(
@@ -115,7 +121,10 @@ export async function restockReturnItems(items: IReturnItem[], session: ClientSe
       )
       : await Product.updateOne({ _id: item.product }, { $inc: { stock: item.quantity } }, { session });
     if (result.matchedCount !== 1) skipped += 1;
+    else restocked.push(item);
   }
+  // Returned pre-order units are physical now, so they count like any other.
+  await recordStockMovements(orderStockMovements(restocked, "return", refs, true), session);
   return skipped;
 }
 
@@ -144,7 +153,7 @@ export async function transitionReturn(
       if (fields.staffNote !== undefined) set.staffNote = fields.staffNote;
       if (to === "completed" && fields.replacementOrder) set.replacementOrder = fields.replacementOrder;
       if (to === "received" && fields.restock && !current.restocked) {
-        skipped = await restockReturnItems(current.items, session);
+        skipped = await restockReturnItems(current.items, session, { order: current.order, returnRequest: current._id as Types.ObjectId });
         set.restocked = true;
       }
       const result = await ReturnRequest.findOneAndUpdate(

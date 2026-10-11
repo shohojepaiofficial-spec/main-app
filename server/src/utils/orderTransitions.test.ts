@@ -19,9 +19,11 @@ vi.mock("../models/Product", () => ({ Product: { updateOne: vi.fn(async (_filter
   state.inventory += update.$inc.stock ?? 0;
   return { matchedCount: 1 };
 }) } }));
+vi.mock("../models/StockMovement", () => ({ StockMovement: { insertMany: vi.fn() } }));
 vi.mock("../models/SharedCart", () => ({ SharedCart: { updateOne: vi.fn().mockResolvedValue({ matchedCount: 1 }) } }));
 import { transitionOrder } from "./orderTransitions";
 import { Product } from "../models/Product";
+import { StockMovement } from "../models/StockMovement";
 
 beforeEach(() => { vi.clearAllMocks(); state.order = { _id: "order", id: "order", status: "pending", user: "buyer", items: [{ product: "product", quantity: 2 }] }; state.inventory = 3; state.writes = []; state.fail = false; });
 describe("transactional order transitions", () => {
@@ -52,6 +54,11 @@ describe("transactional order transitions", () => {
     state.order.items = [{ product: "p", variant: "v", quantity: 2 }, { product: "p2", isPreorder: true, quantity: 3 }];
     await transitionOrder("order", "cancelled");
     expect(state.writes).toEqual([{ $inc: { "variants.$.stock": 2, stock: 2 } }, { $inc: { "preorder.reserved": -3 } }]);
+    // Only the line that took real stock lands in the stock ledger.
+    expect(StockMovement.insertMany).toHaveBeenCalledWith(
+      [{ product: "p", variant: "v", variantLabel: undefined, change: 2, reason: "cancellation", order: "order" }],
+      { session },
+    );
   });
   it("refuses fulfillment of an unverified online payment", async () => {
     Object.assign(state.order, { source: "online", paymentMethod: "bkash" });

@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { Paginated, Product, ProductCategory, ProductOption, ProductStats } from "@/models";
+import { Paginated, Product, ProductCategory, ProductOption, ProductStats, StockMovement } from "@/models";
 
 export type StockStatus = "in_stock" | "low_stock" | "out_of_stock";
 export type DeliveryType = "free" | "paid";
@@ -30,6 +30,11 @@ export const getProductCategories = async (): Promise<ProductCategory[]> => {
 // Admin ("products:manage") only — quick-glance dashboard numbers.
 export const getProductStats = async (): Promise<ProductStats> => {
   const { data } = await api.get<ProductStats>("/products/stats");
+  return data;
+};
+
+export const getStockHistory = async (productId: string, page = 1): Promise<Paginated<StockMovement>> => {
+  const { data } = await api.get<Paginated<StockMovement>>(`/products/${productId}/stock-history`, { params: { page } });
   return data;
 };
 

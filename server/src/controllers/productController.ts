@@ -9,13 +9,11 @@ import { normalizePreorderInput, preorderUpdate } from "../utils/preorder";
 import mongoose from "mongoose";
 import { AuthRequest } from "../middleware/auth";
 import { recordAuditEvent } from "../utils/auditLog";
+import { recordStockMovements, stockAdjustments } from "../utils/stockLedger";
+import { LOW_STOCK_THRESHOLD, lowStockFilter, lowStockRows } from "../utils/lowStock";
+import { StockMovement } from "../models/StockMovement";
 
 const DEFAULT_PAGE_SIZE = 12;
-
-// Same threshold the admin dashboard overview and analytics report use for
-// "running low" — shared here too so the Manage Products stock filter means
-// the same thing everywhere it appears.
-const LOW_STOCK_THRESHOLD = 5;
 
 export const getProducts = async (req: Request, res: Response) => {
   validateControllerInput("getProducts", req);
@@ -38,9 +36,12 @@ export const getProducts = async (req: Request, res: Response) => {
   if (stockStatus === "out_of_stock") {
     filter.stock = 0;
   } else if (stockStatus === "low_stock") {
-    filter.stock = { $gt: 0, $lte: LOW_STOCK_THRESHOLD };
+    // Per variant: a product whose one size is low counts, even with a big total.
+    filter.stock = { $gt: 0 };
+    filter.$and = [lowStockFilter];
   } else if (stockStatus === "in_stock") {
     filter.stock = { $gt: LOW_STOCK_THRESHOLD };
+    filter.$nor = lowStockFilter.$or;
   }
 
   if (deliveryType === "free") {
@@ -79,17 +80,36 @@ export const getProducts = async (req: Request, res: Response) => {
 // Lightweight, quick-glance numbers for the admin dashboard overview — this
 // only needs products:manage, not analytics:manage, so a products-only
 // coadmin still gets a useful home screen without the full analytics grant.
+// Low stock is counted per variant (utils/lowStock.ts): each low variant is
+// its own row, so "Hoodie, Black / L: 2 left" shows even if other sizes are full.
 export const getProductStats = async (_req: Request, res: Response) => {
-  const [totalProducts, lowStockCount, lowStockProducts] = await Promise.all([
+  const [totalProducts, candidates] = await Promise.all([
     Product.countDocuments(),
-    Product.countDocuments({ stock: { $lte: LOW_STOCK_THRESHOLD } }),
-    Product.find({ stock: { $lte: LOW_STOCK_THRESHOLD } })
-      .select("name stock")
-      .sort({ stock: 1 })
-      .limit(5),
+    Product.find(lowStockFilter).select("name stock variants._id variants.selections variants.stock").lean(),
   ]);
+  const rows = lowStockRows(candidates);
 
-  res.json({ totalProducts, lowStockCount, lowStockProducts });
+  res.json({ totalProducts, lowStockCount: rows.length, lowStockProducts: rows.slice(0, 5) });
+};
+
+const HISTORY_PAGE_SIZE = 20;
+
+// Stock ledger for one product (WORK-09), newest first. Staff edits show who
+// made them; sales, cancellations and returns link to their order.
+export const getStockHistory = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getStockHistory", req);
+  const page = Math.max(1, Math.min(1000, Number.parseInt(String(req.query.page ?? "1"), 10) || 1));
+  const filter = { product: req.params.id };
+  const [items, total] = await Promise.all([
+    StockMovement.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * HISTORY_PAGE_SIZE)
+      .limit(HISTORY_PAGE_SIZE)
+      .populate("actor", "name")
+      .lean(),
+    StockMovement.countDocuments(filter),
+  ]);
+  res.json({ items, total, page, totalPages: Math.max(1, Math.ceil(total / HISTORY_PAGE_SIZE)) });
 };
 
 // Distinct categories with a product count each — backs the /categories page
@@ -163,6 +183,7 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
         actorId: req.userId!, action: "created", entityType: "product",
         entityId: created.id, entityName: created.name, after: created.toObject(),
       }, session);
+      await recordStockMovements(stockAdjustments(created._id, null, created, req.userId!), session);
       result.product = created;
     });
   } catch (error) {
@@ -242,6 +263,7 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
         entityId: updated.id, entityName: updated.name,
         before: current.toObject(), after: updated.toObject(),
       }, session);
+      await recordStockMovements(stockAdjustments(updated._id, current, updated, req.userId!), session);
       result.product = updated;
     });
   } catch (error) {

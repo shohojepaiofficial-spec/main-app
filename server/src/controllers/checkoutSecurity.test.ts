@@ -25,6 +25,7 @@ vi.mock("../models/Order", () => ({ Order: {
     state.orders.push(order); return [order];
   },
 } }));
+vi.mock("../models/StockMovement", () => ({ StockMovement: { insertMany: vi.fn() } }));
 vi.mock("../models/SharedCart", () => ({ SharedCart: {
   findOne: () => ({ session: async () => state.cart && !state.cart.claimedOrder && !state.cart.fulfilledOrder && state.cart.expiresAt > new Date() ? state.cart : null }),
   findOneAndUpdate: async (_filter: unknown, update: { $set: Record<string, unknown> }) => {

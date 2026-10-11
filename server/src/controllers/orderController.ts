@@ -15,6 +15,7 @@ import { AuthRequest } from "../middleware/auth";
 import { liveOnlinePaymentMethods } from "../utils/paymentMethods";
 import { preorderDiscountPercent, preorderSpotsLeft } from "../utils/preorder";
 import { transitionOrder } from "../utils/orderTransitions";
+import { orderStockMovements, recordStockMovements } from "../utils/stockLedger";
 import { checkoutSchema, parseInput, cartFingerprint, cartItems } from "../utils/checkoutValidation";
 import { createHash } from "node:crypto";
 import { reconcilePayment } from "../utils/paymentReconciliation";
@@ -487,6 +488,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         { session }
       );
       order = created;
+      await recordStockMovements(orderStockMovements(totals.orderItems, "sale", { order: created._id }), session);
 
       if (sharedCartId) {
         const claimed = await SharedCart.findOneAndUpdate(
@@ -596,6 +598,7 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
         { session }
       );
       order = created;
+      await recordStockMovements(orderStockMovements(totals.orderItems, "sale", { order: created._id }), session);
     });
 
     res.status(201).json(order);
