@@ -1158,3 +1158,10 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
   - "Re-check with bKash" uses the worker's own `reconcilePayment`. "Resolve" needs a note (and the trxID for "mark paid") and goes through `transitionOrder`, so cancelling restores stock exactly once. New `paymentReviewNote/ResolvedAt/ResolvedBy` on `Order`, tracked in Change History.
 - Verified: backend 379 tests (new `returns.test.ts`, `paymentIssues.test.ts`, `returnController.test.ts`; route-protection coverage for the new routes) and `tsc`. Frontend 90 tests (new `lib/returns.test.ts`), `tsc`, lint on changed files. **Not tried in a browser yet.**
 - Release: run `npm run sync-translations`. New indexes: ReturnRequest `{order}`, `{user}`, `{status, createdAt}`; Order partial `{createdAt}` where `paymentReviewRequired`.
+
+## 2026-10-11 (SEC-13 database backups)
+
+- `.github/workflows/db-backup.yml`: nightly (02:00 BD) `mongodump` of the app database (`test`), gzip, AES-256 (openssl, PBKDF2 600k) streamed so no plaintext dump touches disk, stored as a GitHub Actions artifact for 30 days. Fails loudly on missing secrets or a suspiciously small file; GitHub emails on failed runs.
+- `.github/workflows/db-restore-test.yml` (run by hand): downloads the newest backup, decrypts, restores into a scratch `restore_test` database, compares per-collection counts with live, drops the scratch copy. Never writes to the live database.
+- Verified: download URLs for MongoDB tools/mongosh resolve; the encrypt → decrypt round trip works locally. **Not run on GitHub yet**: needs the secrets below.
+- Setup owed: Atlas users `backup` (read on `test`) and `restore-test` (readWrite on `restore_test`, read on `test`); GitHub secrets `MONGODB_BACKUP_URI`, `MONGODB_RESTORE_URI`, `BACKUP_PASSPHRASE` (keep a copy outside GitHub).

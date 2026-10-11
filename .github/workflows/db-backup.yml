@@ -1,0 +1,71 @@
+name: Database backup
+
+# Nightly encrypted MongoDB backup (SEC-13). The store's Atlas tier has no
+# backups of its own. See docs/ARCHITECTURE.md → "Database backups".
+#
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   MONGODB_BACKUP_URI   connection string for a READ-ONLY Atlas user
+#   BACKUP_PASSPHRASE    long random passphrase; keep a copy outside GitHub,
+#                        a backup can't be opened without it
+# Optional repository variable:
+#   MONGODB_DB_NAME      defaults to "test" (the app's database today)
+
+on:
+  schedule:
+    - cron: "0 20 * * *" # 02:00 Bangladesh time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DB_NAME: ${{ vars.MONGODB_DB_NAME || 'test' }}
+    steps:
+      - name: Check secrets
+        env:
+          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ -n "$MONGODB_BACKUP_URI" ] || { echo "::error::MONGODB_BACKUP_URI secret is missing"; exit 1; }
+          [ ${#BACKUP_PASSPHRASE} -ge 20 ] || { echo "::error::BACKUP_PASSPHRASE secret is missing or shorter than 20 characters"; exit 1; }
+
+      - name: Install MongoDB Database Tools
+        run: |
+          curl -fsSL -o tools.deb https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2404-x86_64-100.10.0.deb
+          sudo apt-get install -y ./tools.deb
+          mongodump --version
+
+      - name: Dump and encrypt
+        env:
+          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stamp=$(date -u +%Y-%m-%dT%H%MZ)
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+          # Streams straight into openssl: the unencrypted dump never touches disk.
+          mongodump --uri="$MONGODB_BACKUP_URI" --db="$DB_NAME" --archive --gzip --quiet \
+            | openssl enc -aes-256-cbc -salt -pbkdf2 -iter 600000 -pass env:BACKUP_PASSPHRASE \
+            > "backup-$stamp.archive.gz.enc"
+          size=$(stat -c %s "backup-$stamp.archive.gz.enc")
+          echo "Backup size: $size bytes"
+          # An empty or tiny file means the dump silently failed.
+          [ "$size" -gt 1024 ] || { echo "::error::Backup is suspiciously small ($size bytes)"; exit 1; }
+
+      - name: Store backup (kept 30 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ env.STAMP }}
+          path: backup-*.archive.gz.enc
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error

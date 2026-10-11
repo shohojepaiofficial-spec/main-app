@@ -356,3 +356,12 @@ Full-admin-only `/admin/audit-log` (`GET /api/audit-logs`, `/actors`). Records a
 - Every open item regardless of range: `paymentReviewRequired` orders, plus pending bKash orders 5+ minutes past their reservation.
 
 `utils/paymentIssues.ts#describePaymentIssue` turns an order's state into an explanation and the allowed resolutions. A pending order can be marked paid (needs the trxID) or cancelled (restocks through `transitionOrder`). Anything else can only be closed with a note: a paid-but-cancelled order is refunded by hand, never reopened. `POST /:id/recheck` runs bKash Query + `reconcilePayment` (a pending order only; otherwise it just reports bKash's answer). Resolutions store `paymentReviewNote/ResolvedAt/ResolvedBy` and are in Change History.
+
+## Database backups (SEC-13)
+
+The Atlas tier has no backups, so GitHub Actions makes them. `db-backup.yml` runs nightly at 02:00 Bangladesh time (and on demand). It streams `mongodump --archive --gzip` of the app database (variable `MONGODB_DB_NAME`, default `test`) straight through `openssl enc -aes-256-cbc -pbkdf2 -iter 600000` and keeps the encrypted file as an artifact for 30 days. `db-restore-test.yml` proves a backup restores: it puts the newest one into a scratch `restore_test` database, compares collection counts with live, and drops it.
+
+- The backup user is read-only. The restore user can write only to `restore_test`. Neither can change the live data.
+- `BACKUP_PASSPHRASE` is the only way to open a backup. Keep a copy outside GitHub.
+- Restoring for real (after data loss) is a manual decision: download the artifact, then `openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:BACKUP_PASSPHRASE -in <file> | mongorestore --uri=<target> --archive --gzip`.
+- Moving storage off GitHub (e.g. Cloudflare R2, for longer retention) only changes the upload step.

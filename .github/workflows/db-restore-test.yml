@@ -1,0 +1,88 @@
+name: Database restore test
+
+# Proves the latest backup can actually be restored (SEC-13): decrypts it,
+# restores into a separate scratch database, compares document counts with
+# the live database, then drops the scratch copy. Never writes to the live
+# database. Run by hand (Actions → Database restore test → Run workflow),
+# once now and after any change to the backup setup.
+#
+# Extra secret:
+#   MONGODB_RESTORE_URI  an Atlas user with readWrite on ONLY the
+#                        "restore_test" database, and read on the app database
+#                        (for the count comparison)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DB_NAME: ${{ vars.MONGODB_DB_NAME || 'test' }}
+      SCRATCH_DB: restore_test
+    steps:
+      - name: Check secrets
+        env:
+          MONGODB_RESTORE_URI: ${{ secrets.MONGODB_RESTORE_URI }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ -n "$MONGODB_RESTORE_URI" ] || { echo "::error::MONGODB_RESTORE_URI secret is missing"; exit 1; }
+          [ -n "$BACKUP_PASSPHRASE" ] || { echo "::error::BACKUP_PASSPHRASE secret is missing"; exit 1; }
+          [ "$SCRATCH_DB" != "$DB_NAME" ] || { echo "::error::Scratch database must differ from the live one"; exit 1; }
+
+      - name: Download the latest backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          read -r name run_id < <(gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.name | startswith("db-backup-")) | select(.expired | not)] | sort_by(.created_at) | last | "\(.name) \(.workflow_run.id)"')
+          [ -n "${name:-}" ] && [ "$name" != "null" ] || { echo "::error::No backup found. Run the Database backup workflow first."; exit 1; }
+          echo "Restoring $name"
+          gh run download "$run_id" --repo "${{ github.repository }}" --name "$name"
+
+      - name: Install MongoDB tools
+        run: |
+          curl -fsSL -o tools.deb https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2404-x86_64-100.10.0.deb
+          sudo apt-get install -y ./tools.deb
+          curl -fsSL -o mongosh.deb https://downloads.mongodb.com/compass/mongodb-mongosh_2.3.8_amd64.deb
+          sudo apt-get install -y ./mongosh.deb
+
+      - name: Decrypt and restore into the scratch database
+        env:
+          MONGODB_RESTORE_URI: ${{ secrets.MONGODB_RESTORE_URI }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          file=$(ls backup-*.archive.gz.enc | head -1)
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:BACKUP_PASSPHRASE -in "$file" \
+            | mongorestore --uri="$MONGODB_RESTORE_URI" --archive --gzip --drop \
+                --nsInclude="$DB_NAME.*" --nsFrom="$DB_NAME.*" --nsTo="$SCRATCH_DB.*" --quiet
+
+      - name: Compare document counts, then drop the scratch copy
+        env:
+          MONGODB_RESTORE_URI: ${{ secrets.MONGODB_RESTORE_URI }}
+        run: |
+          mongosh "$MONGODB_RESTORE_URI" --quiet --eval '
+            const live = db.getSiblingDB(process.env.DB_NAME);
+            const copy = db.getSiblingDB(process.env.SCRATCH_DB);
+            let problems = 0;
+            for (const name of live.getCollectionNames().sort()) {
+              const a = live.getCollection(name).estimatedDocumentCount();
+              const b = copy.getCollection(name).estimatedDocumentCount();
+              // The live store keeps taking orders after the backup ran, so a
+              // restored count may trail a little; zero means it is missing.
+              const ok = b > 0 || a === 0;
+              if (!ok) problems++;
+              print(`${ok ? "OK " : "MISSING"}  ${name}: live ${a}, restored ${b}`);
+            }
+            copy.dropDatabase();
+            print("Scratch database dropped.");
+            if (problems) { print(`${problems} collection(s) missing from the backup`); quit(1); }
+            print("Restore test passed.");
+          '
