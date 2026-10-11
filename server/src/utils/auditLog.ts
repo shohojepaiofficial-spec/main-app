@@ -12,7 +12,7 @@ const TRACKED_FIELDS: Record<AuditEntityType, readonly string[]> = {
   banner: ["title", "subtitle", "eyebrow", "accentColor", "primaryCta", "secondaryCta", "promoCode", "isActive", "order", "image"],
   order: [
     "status", "totalAmount", "paymentMethod", "internalNote", "courierConsignmentId",
-    "courierTrackingStatus", "courierNote", "courierBookedAt",
+    "courierTrackingStatus", "courierNote", "courierBookedAt", "paymentReviewRequired", "paymentReviewNote",
   ],
   user: ["role", "permissions"],
   promo: ["code", "discountType", "value", "scope", "product", "isActive", "expiresAt"],
@@ -25,6 +25,7 @@ const TRACKED_FIELDS: Record<AuditEntityType, readonly string[]> = {
   // changes rather than document snapshots (see auditTargets.ts).
   analytics: [],
   account: ["name", "phone", "image"],
+  return: ["status", "customerMessage", "staffNote", "restocked", "refund", "replacementOrder"],
 };
 
 const SENSITIVE_KEY = /password|secret|token|credential|authorization|backup.?code|private.?key/i;

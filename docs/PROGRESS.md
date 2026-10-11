@@ -1138,3 +1138,23 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - `AuditLog` entity types/actions widened; `GET /api/audit-logs` gained `actorId`, `from`, `to` filters and `GET /api/audit-logs/actors` feeds the "Who" filter.
 - **Frontend rebuilt MVC-style** (`services/auditLogService.ts`, `controllers/useAdminAuditLog.ts`, view): the fixed 720px-wide table is replaced by cards that stack on phones, filters in a 2→3→6 column grid, long values (variants, campaign text) collapse behind "Show value", shared `Pagination`.
 - Verified: backend 343 tests (new `auditTrail.test.ts`: staff diff, customers/failed requests ignored, created-ID lookup, no secrets on password events, recording failure doesn't fail the request) and build; frontend 87 tests, type-check, lint on changed files, production build. **Not yet tried in a browser** with a real admin session.
+
+## 2026-10-11 (SEC-12 rollout)
+
+- Owner turned off `TOTP_ALLOW_LEGACY_PLAINTEXT` in Railway and local `server/.env` and restarted both. SEC-12 marked done in STATUS.md (reported by the owner).
+
+## 2026-10-11 (WORK-08 returns/refunds, WORK-11 payment reconciliation)
+
+- **Returns, exchanges & refunds (WORK-08).** New `ReturnRequest` model (`requested → approved | rejected → received → completed`), `utils/returns.ts` for the rules (7-day window from the new `Order.deliveredAt`, set once in `transitionOrder`; older orders fall back to `updatedAt`), `controllers/returnController.ts`, `routes/returnRoutes.ts` at `/api/returns`.
+  - Customers: "Return or exchange" on delivered orders in My Orders (`views/ReturnRequestModal.tsx`, `controllers/useReturnRequestForm.ts`), request status, staff message and refund shown under the order (`views/OrderReturnsList.tsx`). They can't claim more units than were bought or are already claimed. Status emails on approve/reject/complete (fire-and-forget).
+  - Staff (`orders:manage`): `/admin/returns` (`views/AdminReturnsView.tsx`, `controllers/useAdminReturns.ts`). Marking received can restock in the same transaction (a deleted variant is skipped and reported). Refunds record amount/method/reference, are capped at what the order still has left, and complete a received return in one conditional write. "Log return / exchange" on delivered orders in Manage Orders (no window limit). Every staff action is in Change History (new `return` entity).
+  - bKash refunds: `integrations/bkash.ts#refundBkashPayment` + `POST /api/returns/:id/refund/bkash`. Returns 503 `BKASH_REFUND_UNAVAILABLE` and shows "Coming soon" until `isBkashLive()`. A `bkashRefundStartedAt` claim prevents double refunds; a timeout keeps the claim so staff check the merchant portal first. **Not verified against the bKash sandbox.**
+  - Exchanges: staff create the replacement through Manage Orders → New order and can paste its ID when marking it sent.
+  - `/returns` policy page rewritten for the self-service flow, with canonical/OG/Twitter metadata. 41 Bangla strings added to `translationSeed.ts`.
+  - Not built: customer photo uploads on a request.
+- **Payment reconciliation (WORK-11).** `controllers/paymentController.ts`, `routes/paymentRoutes.ts` at `/api/payments` (`orders:manage`), `/admin/payments` (`views/AdminPaymentsView.tsx`, `controllers/useAdminPayments.ts`).
+  - Summary for today / 7d / 30d / all: bKash collected (confirmed payments), COD collected (delivered), refunds by method, net.
+  - "Needs a decision": orders flagged `paymentReviewRequired`, plus pending bKash orders 5+ minutes past their reservation. `utils/paymentIssues.ts` explains each one and limits the resolutions to ones that fit (a paid-but-cancelled order can only be closed after a manual refund, never reopened).
+  - "Re-check with bKash" uses the worker's own `reconcilePayment`. "Resolve" needs a note (and the trxID for "mark paid") and goes through `transitionOrder`, so cancelling restores stock exactly once. New `paymentReviewNote/ResolvedAt/ResolvedBy` on `Order`, tracked in Change History.
+- Verified: backend 379 tests (new `returns.test.ts`, `paymentIssues.test.ts`, `returnController.test.ts`; route-protection coverage for the new routes) and `tsc`. Frontend 90 tests (new `lib/returns.test.ts`), `tsc`, lint on changed files. **Not tried in a browser yet.**
+- Release: run `npm run sync-translations`. New indexes: ReturnRequest `{order}`, `{user}`, `{status, createdAt}`; Order partial `{createdAt}` where `paymentReviewRequired`.

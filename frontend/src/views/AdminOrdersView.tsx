@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
-import { Plus, Printer, ChevronDown, ChevronUp, Search, Phone, MessageCircle } from "lucide-react";
+import { Plus, Printer, ChevronDown, ChevronUp, Search, Phone, MessageCircle, RotateCcw } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAdminOrders } from "@/controllers/useAdminOrders";
 import { AdminOrderFormModal } from "@/views/AdminOrderFormModal";
 import { OrderCourierPanel } from "@/views/OrderCourierPanel";
+import { ReturnRequestModal } from "@/views/ReturnRequestModal";
 import * as orderService from "@/services/orderService";
 import { toUploadUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
@@ -97,6 +98,7 @@ function OrderRow({
   onBookPathao,
   pathaoRefreshingId,
   onRefreshPathao,
+  onLogReturn,
 }: {
   order: Order;
   isUpdating: boolean;
@@ -111,6 +113,7 @@ function OrderRow({
   onBookPathao: (input: orderService.BookPathaoOrderInput) => Promise<boolean>;
   pathaoRefreshingId: string | null;
   onRefreshPathao: () => void;
+  onLogReturn: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -282,11 +285,24 @@ function OrderRow({
             <span className="text-xs text-muted">
               Payment: {PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}
             </span>
-            {order.paymentReviewRequired && <span className="text-xs font-semibold text-amber-700">Payment needs review before fulfillment or refund</span>}
+            {order.paymentReviewRequired && (
+              <Link href="/admin/payments" className="text-xs font-semibold text-amber-700 hover:underline">
+                Payment needs review before fulfillment or refund
+              </Link>
+            )}
+            {order.status === "delivered" && (
+              <button
+                type="button"
+                onClick={onLogReturn}
+                className="ml-auto flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
+              >
+                <RotateCcw size={13} /> Log return / exchange
+              </button>
+            )}
             <Link
               href={`/admin/orders/${order._id}/print`}
               target="_blank"
-              className="ml-auto flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
+              className={`${order.status === "delivered" ? "" : "ml-auto "}flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background`}
             >
               <Printer size={13} /> Print
             </Link>
@@ -340,6 +356,7 @@ export function AdminOrdersView() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [bulkStatus, setBulkStatus] = useState<OrderStatus>("shipped");
+  const [returnOrder, setReturnOrder] = useState<Order | null>(null);
 
   const filteredOrders = useMemo(() => {
     const fromTime = dateFrom ? new Date(dateFrom).getTime() : null;
@@ -532,6 +549,7 @@ export function AdminOrdersView() {
               onBookPathao={(input) => bookWithPathao(order._id, input)}
               pathaoRefreshingId={pathaoRefreshingId}
               onRefreshPathao={() => refreshPathaoStatus(order._id)}
+              onLogReturn={() => setReturnOrder(order)}
             />
           ))}
         </div>
@@ -541,6 +559,15 @@ export function AdminOrdersView() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onCreated={reload}
+      />
+
+      <ReturnRequestModal
+        order={returnOrder}
+        // The server subtracts units already claimed by other requests.
+        remaining={returnOrder?.items.map((item) => item.quantity) ?? []}
+        asStaff
+        onClose={() => setReturnOrder(null)}
+        onSubmitted={() => setReturnOrder(null)}
       />
     </main>
   );

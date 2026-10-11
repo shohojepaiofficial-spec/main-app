@@ -27,6 +27,7 @@ const ENTITY_LABELS: Record<AuditEntityType, string> = {
   translation: "Translation",
   analytics: "Analytics",
   account: "Own account",
+  return: "Return / exchange",
 };
 
 const ACTION_LABELS: Record<AuditAction, string> = {

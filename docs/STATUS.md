@@ -18,11 +18,10 @@ the code and tests are finished but a live/staging check is still owed.
 
 | ID | Task | What's left |
 | --- | --- | --- |
-| SEC-12 | Finish the 2FA secret-encryption rollout | Turn off `TOTP_ALLOW_LEGACY_PLAINTEXT` in Railway and local `server/.env`, restart both, sign in as admin with the authenticator again. If a separate production database exists, back it up and migrate it too (so far only the shared test database was migrated, 2026-10-10). |
 | WORK-03 | First real Pathao booking | "Book with Pathao" on a genuine order; confirm pickup, tracking and the COD amount. Don't create test pickups. 22 of 494 upazilas (mostly Rangamati) have no Pathao zone and use the flat fee. |
-| WORK-05 | Clean the catalog | Delete leftover test products with garbage delivery fees (e.g. ৳455454) and set real `weightKg` values; delete the test ad `6ab6b04ed7da1a6fc6e8c291` that still lists `x`. |
+| WORK-05 | Clean the catalog | Test products deleted (2026-10-11). Left: add the real launch products with real `weightKg` values; delete the test ad `6ab6b04ed7da1a6fc6e8c291` that still lists `x` if it's still there. |
 | WORK-04 | Click-through checks on the live site | User pagination (needs >1 page of users); post/edit/remove a store reply on `/admin/reviews`; Google sign-in from a link opened inside Facebook/Instagram; pre-orders end to end (never tried in a browser); Meta pixel ViewContent / AddToCart / InitiateCheckout / Purchase arriving (needs a real product). |
-| SEC-13 | Infrastructure accounts and backups | Atlas Network Access not "anywhere"; MFA on Atlas, Railway, Vercel, GitHub, Cloudinary, Resend, Namecheap; least-privilege DB user; a backup you have actually restored once (the $8 Atlas tier has none — nightly script or M10); an alert that reaches you (`SENTRY_DSN` is still blank). Run `npm.cmd --prefix server run security:preflight`. Only the account owner can close this. |
+| SEC-13 | Infrastructure accounts and backups | Account hardening done by the owner (2026-10-11). Left: (1) a MongoDB backup you have actually restored once (the $8 Atlas tier has none — nightly script or M10); (2) Sentry: DSN verified with a test event and the alert email arrived (2026-10-11); just confirm the same `SENTRY_DSN` is set in Railway. Run `npm.cmd --prefix server run security:preflight`. |
 | — | Release checklist after each deploy | Run `npm run sync-translations` (new keys from 2FA, sessions, pre-orders, login toasts). Provision indexes listed in ARCHITECTURE.md → "Security design". |
 
 ## 2. Open — needs an outside account (no code)
@@ -54,11 +53,11 @@ the user deferred them on 2026-10-09.
 | ID | Status | Task |
 | --- | --- | --- |
 | WORK-10 | **Done locally** | Change History at `/admin/audit-log` (full admin only) logs every admin/co-admin change — products, banners, orders, user access, promo codes, ads, campaigns, messages, reviews, translations, analytics resets, own password/2FA/profile — with before → after values; works on phones (2026-10-11). Left: deploy, make a change as a co-admin and check it shows. History starts at deployment (no backfill); sign-ins aren't logged. |
-| WORK-06 | Open | Bangla text for the 9 two-step-verification strings (add to `translationSeed.ts`, sync). |
+| WORK-06 | Deferred | Bangla text for the 9 two-step-verification strings (add to `translationSeed.ts`, sync). |
 | WORK-07 | Proposed | Customer delivery timeline + status notifications. |
-| WORK-08 | Proposed | Returns, exchanges and refunds. |
+| WORK-08 | **Done locally** | Returns, exchanges and refunds (2026-10-11). Customers request from My Orders within 7 days of delivery; staff handle them at `/admin/returns` (approve/reject, mark received with optional restock, record refund, mark exchange sent) and can log phone requests from Manage Orders. Refunds are recorded by hand; the bKash Refund API is built but shows "Coming soon" until bKash is live (and is not sandbox-verified). Left: deploy, `npm run sync-translations`, try a full return and an exchange in a browser.|
 | WORK-09 | Proposed | Per-variant low-stock alerts + stock ledger (dashboard "running low" is per product today; ad captions use the lowest variant price). |
-| WORK-11 | Proposed | Payment reconciliation dashboard (after SEC-05 is verified). |
+| WORK-11 | **Done locally** | Payment reconciliation at `/admin/payments` (2026-10-11): bKash/COD collected, refunds, net; flagged and stuck bKash orders with "Re-check with bKash" and a required-note resolve (mark paid / cancel / close). Left: deploy; can only be truly exercised once SEC-05 is verified live and bKash is live. |
 | WORK-12 | Proposed | "Active sessions" list with revoke + security-alert emails. |
 | WORK-13 | Proposed | Email the customer when the store replies to their review. |
 | WORK-14 | Decision | Pre-order and promo-code discounts currently stack — decide whether one should win. |
@@ -104,5 +103,6 @@ Dates point to the matching entries in [PROGRESS.md](PROGRESS.md).
 - Rate limits, helmet, Vitest + CI, crash handling, Sentry wiring (09-15, 09-28).
 - NoSQL-injection fix across auth, JSON-LD / contact-email injection fixes, JWT algorithm pinned (09-26).
 - SEC-01 token purposes; SEC-02 safe 2FA changes; SEC-03 revocable sessions; SEC-04 transactional cancellation; SEC-05 idempotent checkout + reservations; SEC-06 authoritative shared carts; SEC-08 HttpOnly cookies via proxy; SEC-09 image re-encoding; SEC-10 input validation; SEC-11 shared rate limits + signed client IP; SEC-12 generic errors, 12-char passwords, email verification at checkout, encrypted 2FA secrets — all done locally, see section 3 for live checks (10-07…10-10).
+- SEC-12 rollout finished: legacy plaintext 2FA fallback turned off in Railway and local (reported done by the owner, 10-11). Migrating a separate production database, if one exists, is deferred — owner will decide later.
 - SEC-07: PM2 removed, production `npm audit` zero findings, deployed as `19423ab` (10-09).
 - Deprecated Mongoose `new: true` options replaced (10-09).

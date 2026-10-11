@@ -336,3 +336,23 @@ Full-admin-only `/admin/audit-log` (`GET /api/audit-logs`, `/actors`). Records a
 - **Products/banners** record inside their own controller transactions (`recordAuditEvent(..., session)`).
 - **Everything else** uses `middleware/auditTrail.ts` on the route, after `protect`/`authorize`: `auditTrail({ entityType, action, target })`. `target` is `param` (default `:id`), `self`, `bulk` (`body.ids`), `created` (`_id`/`id` of the JSON response) or `none` with explicit `changes`. Snapshots come from `utils/auditTargets.ts`, which projects only tracked fields. Recorded after the response, so it never blocks or rolls back the action.
 - **Adding a new staff write route:** add `auditTrail(...)` to it; for a new entity also add the type to `AUDIT_ENTITY_TYPES` (server model + frontend `models`), its tracked fields in `auditLog.ts`, and a loader in `auditTargets.ts`.
+
+## Returns & refunds (WORK-08)
+
+`ReturnRequest` (`models/ReturnRequest.ts`) belongs to one delivered order and snapshots the lines coming back (`orderItemIndex`, variant, name, unit price). Status: `requested → approved | rejected → received → completed`. The transitions are strict (`utils/returns.ts#RETURN_TRANSITIONS`) and every move is a conditional write, so a refund or restock can't happen twice.
+
+- **Window:** 7 days from `Order.deliveredAt` (set once by `transitionOrder` when an order first reaches `delivered`; older orders fall back to `updatedAt`). Customers are held to it; staff logging a request (`POST /api/returns/admin`) are not.
+- **Quantities:** units already claimed by non-rejected requests are subtracted (`claimedQuantities`). `GET /api/returns/my` sends each eligible order's remaining units, so the frontend has no second copy of the rules.
+- **Restock** happens only on `received` with `restock: true`, in the same transaction. Returned pre-order units go to `stock` (they're physical now), and a deleted variant is skipped and reported.
+- **Refunds:** one per request, capped at `order.totalAmount` minus earlier refunds on that order. Manual methods (personal bKash/Nagad, cash, bank, other) are recorded with a reference. `method: "bkash"` calls `integrations/bkash.ts#refundBkashPayment` against the order's own payment. It's gated by `isBkashLive()` (503 `BKASH_REFUND_UNAVAILABLE`, shown as "Coming soon"), claims the request with `bkashRefundStartedAt` first, and keeps the claim if bKash doesn't answer. Not sandbox-verified yet.
+- **Exchanges** aren't refunded. Staff send the replacement as a manual order and may link it (`replacementOrder`).
+- **Who:** customers create and read their own (staff notes and staff ids are stripped). Everything else needs `orders:manage` and is audited (`return` entity).
+
+## Payment reconciliation (WORK-11)
+
+`/admin/payments` (`orders:manage`) is where a person settles what the reservation worker (`utils/paymentReconciliation.ts`) couldn't. `GET /api/payments/reconciliation?range=` returns:
+
+- Money totals for the range: confirmed bKash payments, delivered COD orders, refunds by method, and net.
+- Every open item regardless of range: `paymentReviewRequired` orders, plus pending bKash orders 5+ minutes past their reservation.
+
+`utils/paymentIssues.ts#describePaymentIssue` turns an order's state into an explanation and the allowed resolutions. A pending order can be marked paid (needs the trxID) or cancelled (restocks through `transitionOrder`). Anything else can only be closed with a note: a paid-but-cancelled order is refunded by hand, never reopened. `POST /:id/recheck` runs bKash Query + `reconcilePayment` (a pending order only; otherwise it just reports bKash's answer). Resolutions store `paymentReviewNote/ResolvedAt/ResolvedBy` and are in Change History.

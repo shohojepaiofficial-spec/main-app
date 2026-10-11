@@ -22,6 +22,8 @@ import {
   ArrowLeft,
   Menu,
   History,
+  RotateCcw,
+  Wallet,
 } from "lucide-react";
 import { useAuthController } from "@/controllers/useAuthController";
 import { Modal } from "@/components/ui/Modal";
@@ -57,6 +59,8 @@ export function DashboardSidebar() {
       title: "Sales",
       links: [
         hasPermission("orders:manage") && { href: "/admin/orders", label: "Orders", Icon: ClipboardList },
+        hasPermission("orders:manage") && { href: "/admin/returns", label: "Returns", Icon: RotateCcw },
+        hasPermission("orders:manage") && { href: "/admin/payments", label: "Payments", Icon: Wallet },
         hasPermission("analytics:manage") && { href: "/admin/analytics", label: "Analytics", Icon: BarChart3 },
       ],
     },

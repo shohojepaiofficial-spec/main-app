@@ -5,17 +5,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { Package, Wallet, XCircle } from "lucide-react";
+import { Package, RotateCcw, Wallet, XCircle } from "lucide-react";
 import { useMyOrders } from "@/controllers/useMyOrders";
+import { useMyReturns } from "@/controllers/useMyReturns";
 import * as orderService from "@/services/orderService";
 import { formatCurrency } from "@/lib/currency";
 import { toUploadUrl } from "@/lib/api";
 import { confirmDialog } from "@/lib/confirm";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentMethodPicker, PAYMENT_METHODS } from "@/views/PaymentMethodPicker";
-import { OrderStatus } from "@/models";
+import { Order, OrderStatus } from "@/models";
 import { useTranslations } from "@/controllers/useTranslations";
 import { PreorderLineTag } from "@/views/PreorderLineTag";
+import { ReturnRequestModal } from "@/views/ReturnRequestModal";
+import { OrderReturnsList } from "@/views/OrderReturnsList";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -56,6 +59,8 @@ export function OrdersView() {
   const { orders, isLoading, reload } = useMyOrders();
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [returnOrder, setReturnOrder] = useState<Order | null>(null);
+  const { requestsByOrder, eligibilityByOrder, windowDays, reload: reloadReturns } = useMyReturns();
   const { t } = useTranslations();
 
   const onCancel = async (orderId: string) => {
@@ -183,6 +188,8 @@ export function OrdersView() {
                 </div>
               </div>
 
+              <OrderReturnsList requests={requestsByOrder.get(order._id) ?? []} />
+
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border p-4 text-xs text-muted">
                 <span>
                   {t(
@@ -210,6 +217,14 @@ export function OrdersView() {
                         : t("orders.cancelOrder", "Cancel order")}
                     </button>
                   )}
+                  {eligibilityByOrder.has(order._id) && (
+                    <button
+                      onClick={() => setReturnOrder(order)}
+                      className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-background"
+                    >
+                      <RotateCcw size={13} /> {t("returns.requestButton", "Return or exchange")}
+                    </button>
+                  )}
                   {order.paymentMethod === "cod" && AWAITING_DELIVERY.has(order.status) && (
                     <button
                       onClick={() => setPayOrderId(order._id)}
@@ -224,6 +239,17 @@ export function OrdersView() {
           ))}
         </div>
       )}
+
+      <ReturnRequestModal
+        order={returnOrder}
+        remaining={returnOrder ? eligibilityByOrder.get(returnOrder._id)?.remaining ?? [] : []}
+        windowDays={windowDays}
+        onClose={() => setReturnOrder(null)}
+        onSubmitted={() => {
+          setReturnOrder(null);
+          reloadReturns();
+        }}
+      />
 
       <Modal
         isOpen={payOrderId !== null}

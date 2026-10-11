@@ -77,6 +77,16 @@ export interface IOrder extends Document {
   reservationExpiresAt?: Date;
   paymentReviewRequired?: boolean;
   lastPaymentCheckAt?: Date;
+  // How staff closed a payment review on /admin/payments (see
+  // paymentController.ts#resolvePaymentReview): the cleared flag plus this
+  // note is the record of why.
+  paymentReviewNote?: string;
+  paymentReviewResolvedAt?: Date;
+  paymentReviewResolvedBy?: Types.ObjectId;
+  // When the order first reached "delivered" — starts the return window
+  // (see utils/returns.ts). Orders delivered before this field existed
+  // fall back to updatedAt.
+  deliveredAt?: Date;
   source: OrderSource;
   shippingAddress: IShippingDetails;
   // Set when this order was placed by fulfilling someone else's shared-cart
@@ -98,6 +108,7 @@ export interface IOrder extends Document {
   courierNote?: string;
   courierBookedAt?: Date;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const shippingDetailsSchema = new Schema<IShippingDetails>(
@@ -156,6 +167,10 @@ const orderSchema = new Schema<IOrder>(
     reservationExpiresAt: { type: Date },
     paymentReviewRequired: { type: Boolean, default: false },
     lastPaymentCheckAt: { type: Date },
+    paymentReviewNote: { type: String, trim: true, maxlength: 1000 },
+    paymentReviewResolvedAt: { type: Date },
+    paymentReviewResolvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    deliveredAt: { type: Date },
     source: {
       type: String,
       enum: ["online", "manual"],
@@ -175,4 +190,5 @@ const orderSchema = new Schema<IOrder>(
 
 orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } } });
 orderSchema.index({ status: 1, reservationExpiresAt: 1 });
+orderSchema.index({ createdAt: -1 }, { partialFilterExpression: { paymentReviewRequired: true } });
 export const Order = model<IOrder>("Order", orderSchema);

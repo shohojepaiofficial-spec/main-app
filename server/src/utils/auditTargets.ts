@@ -7,6 +7,7 @@ import { Campaign } from "../models/Campaign";
 import { ContactMessage } from "../models/ContactMessage";
 import { Review } from "../models/Review";
 import { Translation } from "../models/Translation";
+import { ReturnRequest } from "../models/ReturnRequest";
 import type { AuditEntityType } from "../models/AuditLog";
 
 // Plain snapshots of the fields that buildAuditChanges tracks, plus a
@@ -25,9 +26,13 @@ const orderNumber = (id: string) => `Order #${id.slice(-6).toUpperCase()}`;
 const loaders: Partial<Record<AuditEntityType, Loader>> = {
   order: async (id) => {
     const order = await Order.findById(id)
-      .select("status totalAmount paymentMethod internalNote courierConsignmentId courierTrackingStatus courierNote courierBookedAt")
+      .select("status totalAmount paymentMethod internalNote courierConsignmentId courierTrackingStatus courierNote courierBookedAt paymentReviewRequired paymentReviewNote")
       .lean();
     return order ? { name: orderNumber(id), data: order } : null;
+  },
+  return: async (id) => {
+    const request = await ReturnRequest.findById(id).select("type status customerMessage staffNote restocked refund.amount refund.method refund.reference replacementOrder").lean();
+    return request ? { name: `${request.type === "exchange" ? "Exchange" : "Return"} #${id.slice(-6).toUpperCase()}`, data: request } : null;
   },
   user: async (id) => {
     const user = await User.findById(id).select("name role permissions").lean();

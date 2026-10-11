@@ -20,6 +20,8 @@ import translationRoutes from "./routes/translationRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
 import statsRoutes from "./routes/statsRoutes";
 import auditLogRoutes from "./routes/auditLogRoutes";
+import returnRoutes from "./routes/returnRoutes";
+import paymentRoutes from "./routes/paymentRoutes";
 import { notFound, errorHandler, twoFactorUnavailableResponse } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
 import { liveOnlinePaymentMethods } from "./utils/paymentMethods";
@@ -101,6 +103,8 @@ app.use("/api/translations", translationRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/returns", returnRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

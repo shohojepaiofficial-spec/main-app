@@ -2,6 +2,7 @@ import type { Request } from "express";
 import { z } from "zod";
 import { assertSafeInput, productInput } from "./requestValidation";
 import { cartItems, objectId, checkoutSchema, parseInput } from "../utils/checkoutValidation";
+import { returnInputs } from "../utils/returnValidation";
 
 const fields: Record<string, string> = {
   register: "name email password", login: "email password", updateProfile: "name phone",
@@ -35,6 +36,10 @@ export function validateControllerInput(name: string, req: Request) {
   assertSafeInput(req.body);
   if (["createProduct", "updateProduct"].includes(name)) { productInput(req.body); return; }
   if (name === "createOrder" || name === "adminCreateOrder") { parseInput(name === "createOrder" ? checkoutSchema : checkoutSchema.omit({ sharedCartId: true }), req.body); return; }
+  if (name in returnInputs) {
+    if (!["GET", "HEAD"].includes(req.method ?? "GET")) parseInput(returnInputs[name], req.body ?? {});
+    return;
+  }
   if (!(name in fields)) {
     if (req.body !== undefined && !["GET", "HEAD"].includes(req.method ?? "GET")) parseInput(z.object({}).strict(), req.body);
     return;

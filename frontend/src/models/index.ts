@@ -276,6 +276,8 @@ export interface Order {
   // present on an order read back later (getMyOrders/getOrderById/etc).
   bkashRedirectUrl?: string;
   paymentReviewRequired?: boolean;
+  // Set when the order first reached "delivered"; starts the return window.
+  deliveredAt?: string;
   // Admin-only fields — absent from the customer's own getMyOrders response.
   internalNote?: string;
   courierProvider?: "pathao";
@@ -573,7 +575,7 @@ export interface CampaignAudiencePreview {
 // Admin change history (GET /api/audit-logs, full admin only).
 export const AUDIT_ENTITY_TYPES = [
   "product", "banner", "order", "user", "promo", "ad", "campaign",
-  "message", "review", "translation", "analytics", "account",
+  "message", "review", "translation", "analytics", "account", "return",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
@@ -605,4 +607,157 @@ export interface AuditActor {
   id: string;
   name: string;
   role: "admin" | "coadmin";
+}
+
+// --- Returns, exchanges & refunds (WORK-08) — see server's ReturnRequest ---
+
+export const RETURN_REASONS = [
+  "damaged", "wrong_item", "size_fit", "not_as_described", "changed_mind", "other",
+] as const;
+export type ReturnReason = (typeof RETURN_REASONS)[number];
+export type ReturnType = "return" | "exchange";
+export type ReturnStatus = "requested" | "approved" | "rejected" | "received" | "completed";
+// "bkash" = sent through bKash's Refund API; the rest are recorded by hand.
+export type RefundMethod = "bkash" | "bkash_personal" | "nagad_personal" | "cash" | "bank" | "other";
+export type ManualRefundMethod = Exclude<RefundMethod, "bkash">;
+
+export interface ReturnItem {
+  orderItemIndex: number;
+  product: string;
+  variant?: string;
+  name: string;
+  variantLabel?: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Refund {
+  amount: number;
+  method: RefundMethod;
+  reference?: string;
+  note?: string;
+  refundedAt: string;
+  // Admin API only (populated).
+  refundedBy?: { name: string } | null;
+}
+
+export interface ReturnRequest {
+  _id: string;
+  order: string;
+  type: ReturnType;
+  status: ReturnStatus;
+  items: ReturnItem[];
+  reason: ReturnReason;
+  details?: string;
+  exchangeFor?: string;
+  createdBy: "customer" | "staff";
+  customerMessage?: string;
+  restocked: boolean;
+  refund?: Refund;
+  replacementOrder?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// For each delivered order still inside its window: units left to return
+// per order line (same index as Order.items).
+export interface ReturnEligibility {
+  orderId: string;
+  windowEndsAt: string;
+  remaining: number[];
+}
+
+export interface MyReturns {
+  requests: ReturnRequest[];
+  eligibility: ReturnEligibility[];
+  windowDays: number;
+}
+
+export interface ReturnRequestInput {
+  orderId: string;
+  type: ReturnType;
+  reason: ReturnReason;
+  details?: string;
+  exchangeFor?: string;
+  items: { orderItemIndex: number; quantity: number }[];
+}
+
+export interface AdminReturnRequest extends Omit<ReturnRequest, "order"> {
+  order: {
+    _id: string;
+    totalAmount: number;
+    paymentMethod: PaymentMethod;
+    status: OrderStatus;
+    shippingAddress?: { fullName: string; phone: string };
+    createdAt: string;
+  } | null;
+  user?: { name: string; email: string } | null;
+  staffNote?: string;
+  bkashRefundStartedAt?: string;
+  itemsValue: number;
+  refundableRemaining: number;
+  canRefundWithBkash: boolean;
+}
+
+export interface AdminReturnList extends Paginated<AdminReturnRequest> {
+  counts: Record<ReturnStatus, number>;
+  bkashRefundsAvailable: boolean;
+}
+
+export interface ReturnStatusUpdate {
+  status: Exclude<ReturnStatus, "requested">;
+  customerMessage?: string;
+  staffNote?: string;
+  restock?: boolean;
+  replacementOrderId?: string;
+}
+
+// --- Payment reconciliation (WORK-11) — see server's paymentController ---
+
+export type PaymentResolution = "paid" | "cancelled" | "dismiss";
+export type PaymentIssueKind = "paid_but_cancelled" | "unknown_outcome" | "stale_reservation" | "needs_check";
+
+export interface ReconciliationOrder {
+  _id: string;
+  status: OrderStatus;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+  bkashPaymentID?: string;
+  bkashTrxID?: string;
+  reservationExpiresAt?: string;
+  lastPaymentCheckAt?: string;
+  paymentReviewRequired?: boolean;
+  paymentReviewNote?: string;
+  paymentReviewResolvedAt?: string;
+  paymentReviewResolvedBy?: { name: string } | null;
+  createdAt: string;
+  shippingAddress?: { fullName: string; phone: string };
+  user?: { name: string; email: string } | null;
+  issue?: { kind: PaymentIssueKind; message: string; allowed: PaymentResolution[] };
+}
+
+export interface MoneyTotal {
+  total: number;
+  count: number;
+}
+
+export interface Reconciliation {
+  range: { preset: AnalyticsRangePreset; from: string | null; to: string };
+  summary: {
+    onlineCollected: MoneyTotal;
+    codCollected: MoneyTotal;
+    refunded: MoneyTotal & { byMethod: (MoneyTotal & { method: RefundMethod })[] };
+    net: number;
+    needsReviewCount: number;
+    staleCount: number;
+  };
+  needsReview: ReconciliationOrder[];
+  stale: ReconciliationOrder[];
+  resolved: ReconciliationOrder[];
+  bkashConnected: boolean;
+}
+
+export interface RecheckResult {
+  outcome: "success" | "failed" | "pending" | "error" | "unchanged";
+  bkash: { transactionStatus?: string; trxID?: string; amount?: string; statusMessage?: string };
 }

@@ -164,3 +164,42 @@ export async function queryBkashPayment(paymentID: string): Promise<BkashPayment
   if (!config) throw new Error("bKash isn't configured");
   return authedPost<BkashPaymentResult>(config, QUERY_PATH, { paymentID });
 }
+
+// Refund (part or all of) a completed payment back to the customer's bKash
+// wallet — used by returns (controllers/returnController.ts#refundWithBkash).
+// Shape from bKash's Tokenized Checkout "Refund Transaction" docs; unlike
+// create/execute/query this has NOT been verified against the sandbox yet,
+// so treat the first real refund as the smoke test (only this function's
+// parsing should need to change). Only offered while isBkashLive().
+const REFUND_PATH = "/tokenized/checkout/payment/refund";
+
+export interface BkashRefundInput {
+  paymentID: string;
+  trxID: string;
+  amount: number;
+  // bKash requires both; they show up in the merchant portal.
+  sku: string;
+  reason: string;
+}
+
+export interface BkashRefundResult {
+  transactionStatus?: string;
+  refundTrxID?: string;
+  originalTrxID?: string;
+  amount?: string;
+  statusCode?: string;
+  statusMessage?: string;
+  errorMessage?: string;
+}
+
+export async function refundBkashPayment(input: BkashRefundInput): Promise<BkashRefundResult> {
+  const config = readConfig();
+  if (!config) throw new Error("bKash isn't configured");
+  return authedPost<BkashRefundResult>(config, REFUND_PATH, {
+    paymentID: input.paymentID,
+    trxID: input.trxID,
+    amount: input.amount.toFixed(2),
+    sku: input.sku.slice(0, 255),
+    reason: input.reason.slice(0, 255),
+  });
+}
