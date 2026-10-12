@@ -19,6 +19,8 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci
+      # Fails on a known high/critical vulnerability in a package the live server uses.
+      - run: npm audit --omit=dev --audit-level=high
       - run: npx tsc --noEmit
       - run: npm test
 
@@ -39,6 +41,7 @@ jobs:
       # itself pulls in yet, and npm's strict (non-legacy) resolver treats
       # that as a hard error rather than a warning.
       - run: npm ci --legacy-peer-deps
+      - run: npm audit --omit=dev --audit-level=high
       - run: npx tsc --noEmit
       - run: npm run lint
       - run: npm test

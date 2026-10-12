@@ -1257,3 +1257,15 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Pushed as `dd97e04` (SEC-15 backend) and `547b349` (WORK-16). The owner checked the live site and reports it working.
 - SEC-15 verified live: direct requests to `api.shohojepai.com/api/products` and `/api/categories` return 403 "Forbidden"; `/api/health` returns 200. (Checked by IP, because the mobile hotspot in use could not resolve the API's hostname.)
 - Still to confirm for categories: the Bangla tile name, rename carrying over to products, delete refused while products exist, and the Change History entries.
+
+## 2026-10-12 (WORK-16 verified live; dependency checks in CI)
+
+- WORK-16 checked on `shohojepai.com` as the signed-in admin, with a test category and test product that were deleted afterwards (the store is back to 0 products, 0 categories):
+  - New category with a photo and Bangla name: created, and absent from the public category list while empty. Same name in other capitals: 409.
+  - Product with a category not on the list: 400. Product with the category typed in different capitals: saved with the listed spelling.
+  - `/categories` shows the photo tile, and the Bangla name after switching language. The page is cached for 60 seconds, so a new category can take about a minute to appear.
+  - Rename: the product's category followed. Delete with a product in it: 409. Delete when empty: 200.
+  - Change History lists the create, the rename (before → after) and the delete, with the image shown only as "Image set".
+- Seen in passing: with Bangla selected, the nav and the "1 product" label stayed in English on `/categories`. Not investigated; may be the translations not synced.
+- The stock history panel "does not close on Escape" note from earlier today could not be reproduced from the code: it uses the shared `Modal`, which closes on Escape for every drawer. Needs a product on the live store to retry.
+- Added `.github/dependabot.yml` (weekly npm updates for `server/` and `frontend/`, plus GitHub Actions) and an `npm audit --omit=dev --audit-level=high` step in both CI jobs. Both audits report 0 vulnerabilities today.
