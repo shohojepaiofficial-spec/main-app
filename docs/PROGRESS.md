@@ -1279,3 +1279,12 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Verified: backend `tsc`, build, 438 tests (9 new: email content, sending, history + notify in `transitionOrder`); frontend `tsc`, eslint on changed files, 103 tests (6 new for the timeline). **Not tried in a browser; no email actually sent.**
 - Found while reading the order code, not fixed (logged as SEC-16): the customer's own order responses include staff-only fields such as `internalNote`.
 - Left: deploy, `npm run sync-translations`, then place an order, move it through the statuses and check the timeline and each email.
+
+## 2026-10-12 (WORK-07 deployed; Railway healthcheck)
+
+- WORK-07 pushed as `96ff434`. Railway deployed it; the Vercel build failed after 29 seconds.
+- Cause, from the Vercel build log: while prerendering `/`, the request to `api.shohojepai.com/api/products?limit=8` got `502 "Application failed to respond"`. Railway was swapping instances for the same push and reported its own deploy successful one second later. Nothing wrong in the commit: the frontend compiles and type-checks.
+- Fix: Healthcheck Path `/api/health` set on the Railway service (dashboard setting, noted in ARCHITECTURE.md next to "Process supervision"). The owner applied it and redeployed both sides; GitHub shows Railway and Vercel both successful for `96ff434`, and the site and `/api/health` return 200.
+- Not yet seen: a push that changes both `server/` and `frontend/` building cleanly with the healthcheck on. No retry was added to the frontend's build-time requests.
+- Seen in passing: the Railway dashboard shows "5 days or $3.80 left" of credit. `npm run lint` in `frontend/` reports 6 errors, several in `views/OrderCourierPanel.tsx`; the build does not run lint. Neither was acted on.
+- Left for WORK-07: `npm run sync-translations`, then place an order, move it through the statuses and check the timeline and each email.
