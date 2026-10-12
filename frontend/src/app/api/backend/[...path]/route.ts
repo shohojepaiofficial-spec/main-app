@@ -56,6 +56,8 @@ async function proxy(req: NextRequest, context: { params: Promise<{ path: string
       headers.set("X-Client-IP-Time", timestamp);
       headers.set("X-Client-IP-Signature", createHmac("sha256", process.env.INTERNAL_API_SECRET).update(`client-ip:${timestamp}:${clientIp}`).digest("hex"));
     }
+    // The API refuses requests that don't carry this (see the server's storefrontOnly).
+    if (process.env.INTERNAL_API_SECRET) headers.set("X-Internal-Secret", process.env.INTERNAL_API_SECRET);
     if (access) headers.set("Authorization", `Bearer ${access}`);
     for (const name of ["content-type", "idempotency-key", "user-agent"]) {
       const value = req.headers.get(name);

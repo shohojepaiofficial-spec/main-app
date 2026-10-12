@@ -34,6 +34,13 @@ describe("server-managed browser credentials", () => {
     await POST(request("auth/refresh", { cookie: `backend-refresh=${refreshToken}` }), context("auth/refresh"));
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ refreshToken });
   });
+  it("proves to the API that the request came through the storefront", async () => {
+    vi.stubEnv("INTERNAL_API_SECRET", "test-internal-secret");
+    fetchMock.mockResolvedValue(Response.json({}));
+    await GET(request("products", { "x-internal-secret": "forged" }, "GET"), context("products"));
+    expect(fetchMock.mock.calls[0][1].headers.get("x-internal-secret")).toBe("test-internal-secret");
+    vi.unstubAllEnvs();
+  });
   it("ignores a browser-supplied Authorization header", async () => {
     fetchMock.mockResolvedValue(Response.json({ id: "user" }));
     await GET(request("auth/me", { cookie: `backend-access=${token}`, authorization: "Bearer forged" }, "GET"), context("auth/me"));

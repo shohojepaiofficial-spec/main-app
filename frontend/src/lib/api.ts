@@ -12,7 +12,9 @@ export const toUploadUrl = (path: string) => (path.startsWith("http") ? path : `
 
 export const api = axios.create({
   baseURL: typeof window === "undefined" ? API_BASE_URL : "/api/backend",
-  headers: { "X-Requested-With": "ecommerce" },
+  // Server-side rendering calls the API directly, so it proves it is the
+  // storefront the same way the proxy does. Never set in the browser.
+  headers: { "X-Requested-With": "ecommerce", ...(typeof window === "undefined" && process.env.INTERNAL_API_SECRET ? { "X-Internal-Secret": process.env.INTERNAL_API_SECRET } : {}) },
 });
 
 const transport = axios.getAdapter(api.defaults.adapter);
