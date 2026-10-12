@@ -26,6 +26,7 @@ import { notFound, errorHandler, twoFactorUnavailableResponse } from "./middlewa
 import { STORE_CITY } from "./utils/store";
 import { liveOnlinePaymentMethods } from "./utils/paymentMethods";
 import { apiLimiter } from "./middleware/rateLimit";
+import { storefrontOnly } from "./middleware/storefrontOnly";
 import { requestValidation, boundMultipart } from "./middleware/requestValidation";
 
 const app = express();
@@ -54,6 +55,7 @@ app.use(
     credentials: true,
   })
 );
+app.use("/api", storefrontOnly);
 app.use("/api", apiLimiter);
 app.use(express.json({ limit: "128kb" }));
 app.use(requestValidation);

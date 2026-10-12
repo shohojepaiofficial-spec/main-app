@@ -1231,3 +1231,12 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Not included on purpose: `script-src` (needs a per-request nonce, which would make every prerendered page dynamic, and GTM loads tags from other hosts) and `form-action` (Google sign-in redirects off-site after a form POST).
 - Verified: frontend `tsc`, eslint on the changed files, 96 tests (3 new), production build; `next start` returns the headers on a page, a 404, an API route and a static file. **Not checked on the live site yet.**
 - Left: deploy, check the headers on `shohojepai.com`, confirm Google sign-in, GTM / Meta pixel and the copy-link buttons still work.
+
+## 2026-10-12 (SEC-15: API answers the storefront only)
+
+- `api.shohojepai.com` could be called directly by anyone, bypassing Vercel, and every such request cost a database write in the rate limiter.
+- New `server/src/middleware/storefrontOnly.ts`, mounted on `/api` before the rate limiter: in production, a request without the shared `INTERNAL_API_SECRET` (header `X-Internal-Secret`) gets 403. `/health` and `/orders/bkash/callback` stay open; `/uploads` is not under `/api`. Off outside production.
+- Frontend sends the secret from the proxy route and from server-side `lib/api.ts` (server-side rendering calls the API directly).
+- Verified: backend `tsc` + 404 tests (5 new), frontend `tsc`, eslint on changed files, 97 tests (1 new), production build. A build with a dummy secret left no trace of it or the header name in `.next/static`. **Not run against a production-mode server; not deployed.**
+- Rollout: deploy the frontend first, the backend once it is live, otherwise the store errors until both are up. Vercel needs `INTERNAL_API_SECRET` at build time as well as run time.
+- Limit: a large flood still reaches Railway. An edge/WAF in front of the API (SEC-11) is still owed.
