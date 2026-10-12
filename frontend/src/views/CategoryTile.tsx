@@ -1,8 +1,11 @@
 import { createElement } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { icons, Tag, type LucideIcon } from "lucide-react";
 import Fuse from "fuse.js";
 import { T } from "@/components/ui/T";
+import { CategoryName } from "@/views/CategoryName";
+import { toUploadUrl } from "@/lib/api";
 
 // This file has no "use client" — it's a Server Component, so importing
 // the full ~1800-icon lucide map and Fuse.js here costs nothing in the
@@ -93,13 +96,19 @@ function iconFor(category: string): LucideIcon {
   return (name && icons[name as keyof typeof icons]) || Tag;
 }
 
+// With a photo (set by staff at /admin/categories) the tile shows it under a
+// dark gradient; without one it falls back to the generated colour and icon.
 export function CategoryTile({
   category,
   count,
+  nameBn,
+  image,
   className = "h-40",
 }: {
   category: string;
   count: number;
+  nameBn?: string;
+  image?: string;
   className?: string;
 }) {
   const Icon = iconFor(category);
@@ -111,19 +120,31 @@ export function CategoryTile({
       className={`group relative block overflow-hidden rounded-2xl p-5 text-white ${className}`}
       style={{ background: theme.background }}
     >
+      {image && (
+        <>
+          <Image
+            src={toUploadUrl(image)}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          />
+          <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/65 via-black/25 to-black/10" />
+        </>
+      )}
       {/* Concentric rings behind the icon — subtle depth instead of a flat
           fill, same idea as the reference's rippled background. */}
-      <span
+      {!image && <span
         className="pointer-events-none absolute -right-10 -bottom-10 h-36 w-36 rounded-full opacity-[0.14] transition-transform duration-500 ease-out group-hover:scale-110"
         style={{ background: theme.glow }}
-      />
-      <span
+      />}
+      {!image && <span
         className="pointer-events-none absolute -right-4 -bottom-4 h-24 w-24 rounded-full opacity-[0.18] transition-transform duration-500 ease-out group-hover:scale-110"
         style={{ background: theme.glow }}
-      />
+      />}
 
       <div className="relative z-10">
-        <p className="truncate text-lg font-bold">{category}</p>
+        <p className="truncate text-lg font-bold"><CategoryName name={category} nameBn={nameBn} /></p>
         <p className="text-sm text-white/75">
           <T k={count === 1 ? "category.productCount.one" : "category.productCount.other"} vars={{ count }}>
             {count === 1 ? "{count} product" : "{count} products"}
@@ -131,13 +152,13 @@ export function CategoryTile({
         </p>
       </div>
 
-      <div className="absolute -right-2 -bottom-2 z-10 transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110">
+      {!image && <div className="absolute -right-2 -bottom-2 z-10 transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110">
         {createElement(Icon, {
           size: 72,
           strokeWidth: 1.5,
           className: "text-white drop-shadow-md",
         })}
-      </div>
+      </div>}
     </Link>
   );
 }

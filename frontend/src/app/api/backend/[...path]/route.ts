@@ -9,7 +9,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const secure = process.env.NODE_ENV === "production";
 const accessName = secure ? "__Host-backend-access" : "backend-access";
 const refreshName = secure ? "__Host-backend-refresh" : "backend-refresh";
-const allowed = new Set(["auth", "products", "orders", "users", "banners", "promo-codes", "analytics", "contact", "wishlist", "shared-carts", "ads", "campaigns", "translations", "reviews", "stats", "config", "audit-logs", "returns", "payments"]);
+const allowed = new Set(["auth", "products", "orders", "users", "banners", "promo-codes", "analytics", "contact", "wishlist", "shared-carts", "ads", "campaigns", "translations", "reviews", "stats", "config", "audit-logs", "returns", "payments", "categories"]);
 const fail = (message: string, status: number) => NextResponse.json({ message }, { status, headers: { "Cache-Control": "no-store" } });
 
 async function boundedBody(req: NextRequest) {

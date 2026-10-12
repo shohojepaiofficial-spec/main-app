@@ -6,6 +6,7 @@ import { connectDB } from "./config/db";
 import { initErrorMonitoring, reportError } from "./utils/errorMonitoring";
 import { isCloudinaryConfigured } from "./utils/cloudinary";
 import { startReservationWorker } from "./utils/paymentReconciliation";
+import { ensureCategoriesFromProducts } from "./utils/categories";
 
 initErrorMonitoring();
 
@@ -50,6 +51,8 @@ const PORT = process.env.PORT || 5000;
 const start = async () => {
   await connectDB();
   startReservationWorker();
+  // Never blocks startup: a failure only means the list misses a legacy name.
+  void ensureCategoriesFromProducts().catch((err) => reportError(err, { source: "categorySync" }));
   const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

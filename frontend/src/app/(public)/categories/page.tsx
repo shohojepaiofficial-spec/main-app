@@ -31,8 +31,8 @@ export default async function CategoriesPage() {
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {categories.map(({ category, count }) => (
-            <CategoryTile key={category} category={category} count={count} />
+          {categories.map(({ category, count, nameBn, image }) => (
+            <CategoryTile key={category} category={category} count={count} nameBn={nameBn} image={image} />
           ))}
         </div>
       )}

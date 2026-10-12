@@ -26,6 +26,7 @@ const TRACKED_FIELDS: Record<AuditEntityType, readonly string[]> = {
   analytics: [],
   account: ["name", "phone", "image"],
   return: ["status", "customerMessage", "staffNote", "restocked", "refund", "replacementOrder"],
+  category: ["name", "nameBn", "order", "image"],
 };
 
 const SENSITIVE_KEY = /password|secret|token|credential|authorization|backup.?code|private.?key/i;

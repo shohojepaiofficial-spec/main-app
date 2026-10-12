@@ -22,6 +22,7 @@ const fields: Record<string, string> = {
   validatePromoCode: "code productId", trackEvent: "type path productId sessionId referrer",
   submitReview: "rating comment", replyToReview: "text", updateReviewReply: "text",
   updateUserAccess: "role permissions", updateTranslation: "bn", moveBanner: "direction",
+  createCategory: "name nameBn", updateCategory: "name nameBn removeImage", moveCategory: "direction",
   submitContactMessage: "name email subject message", markMessageRead: "isRead",
 };
 const numeric = new Set(["rating", "value", "cityId", "zoneId", "areaId", "weightKg"]);

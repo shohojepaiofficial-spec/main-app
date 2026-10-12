@@ -2,6 +2,8 @@ import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { productInput } from "../middleware/requestValidation";
 import { Product } from "../models/Product";
+import { Category } from "../models/Category";
+import { productCountsByCategory, resolveCategoryName } from "../utils/categories";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { escapeRegex } from "../utils/regex";
 import { normalizeVariantInput, presetOptionsForCategory, summarizeVariants } from "../utils/productVariants";
@@ -118,20 +120,27 @@ export const getStockHistory = async (req: AuthRequest, res: Response) => {
 // category instead of showing as two — the display label is whichever
 // casing the oldest product in that group used, for a deterministic pick
 // rather than whatever order Mongo happens to return documents in.
+//
+// Only categories with at least one product are returned, so an empty one on
+// the staff list (see categoryController.ts) never reaches the storefront.
+// Listed categories come first in the order staff set, with their photo and
+// Bangla name; a name not on the list (only possible before the startup
+// sync has run) follows alphabetically.
 export const getProductCategories = async (_req: Request, res: Response) => {
-  const categories = await Product.aggregate([
-    { $sort: { createdAt: 1 } },
-    {
-      $group: {
-        _id: { $toLower: "$category" },
-        label: { $first: "$category" },
-        count: { $sum: 1 },
-      },
-    },
-    { $sort: { label: 1 } },
+  const [counts, listed] = await Promise.all([productCountsByCategory(), Category.find().sort({ order: 1, _id: 1 }).lean()]);
+  const known = new Set(listed.map((c) => c.key));
+  res.json([
+    ...listed
+      .filter((c) => counts.has(c.key))
+      .map((c) => ({ category: c.name, count: counts.get(c.key)!.count, nameBn: c.nameBn || undefined, image: c.image })),
+    ...[...counts]
+      .filter(([key]) => !known.has(key))
+      .map(([, { label, count }]) => ({ category: label, count }))
+      .sort((a, b) => a.category.localeCompare(b.category)),
   ]);
-  res.json(categories.map((c) => ({ category: c.label as string, count: c.count as number })));
 };
+
+const UNLISTED_CATEGORY = "Pick a category from the list. Add new ones under Categories first.";
 
 export const getProductById = async (req: Request, res: Response) => {
   validateControllerInput("getProductById", req);
@@ -154,6 +163,9 @@ function variantFields(body: Record<string, unknown>, finalImages: string[], new
 export const createProduct = async (req: AuthRequest, res: Response) => {
   validateControllerInput("createProduct", req);
   req.body = productInput(req.body);
+  const category = await resolveCategoryName(req.body.category);
+  if (!category) return res.status(400).json({ message: UNLISTED_CATEGORY });
+  req.body.category = category;
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const images = await Promise.all(files.map((file) => storeUploadedFile(file)));
 
@@ -199,6 +211,11 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
 export const updateProduct = async (req: AuthRequest, res: Response) => {
   validateControllerInput("updateProduct", req);
   req.body = productInput(req.body);
+  if (req.body.category !== undefined) {
+    const category = await resolveCategoryName(req.body.category);
+    if (!category) return res.status(400).json({ message: UNLISTED_CATEGORY });
+    req.body.category = category;
+  }
   // Edits arrive as multipart/form-data (to allow adding new image files
   // alongside text fields), so the client sends which existing images to
   // keep as a JSON-stringified array under `existingImages`, separate from

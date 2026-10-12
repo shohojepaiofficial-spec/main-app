@@ -23,6 +23,7 @@ import stats from "./statsRoutes";
 import auditLogs from "./auditLogRoutes";
 import returns from "./returnRoutes";
 import payments from "./paymentRoutes";
+import categories from "./categoryRoutes";
 
 // Explicit exceptions: catalog reads, public submissions, signed email/payment
 // links, login entry points, and the shared-secret OAuth exchange. Every other
@@ -35,7 +36,7 @@ const publicRoutes = new Set([
   "orders GET /bkash/callback", "banners GET /", "promos POST /validate", "promos GET /active",
   "analytics POST /track", "contact POST /", "shared GET /:id", "translations GET /", "stats GET /",
 ]);
-const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, stats, auditLogs, returns, payments };
+const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, stats, auditLogs, returns, payments, categories };
 const protectedRoutes: { name: string; method: string; path: string }[] = [];
 const customerRoutes = new Set([
   "auth POST /logout", "auth POST /logout-all", "auth GET /sessions", "auth DELETE /sessions/:sid", "auth GET /me", "auth PATCH /profile", "auth PATCH /password", "auth PATCH /delivery-location",

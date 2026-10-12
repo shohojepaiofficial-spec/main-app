@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import * as productService from "@/services/productService";
+import * as categoryService from "@/services/categoryService";
 import { DeliveryType, StockStatus } from "@/services/productService";
 import { Product } from "@/models";
 
@@ -29,6 +30,10 @@ function cleanFilters(filters: ProductFilters): ProductFilters {
 export function useAdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  // Every category on the staff list, including ones with no products yet —
+  // what the product form offers. `categories` above is only the ones in
+  // use, for the filter bar.
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [filters, setFiltersState] = useState<ProductFilters>({});
   const [page, setPageState] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -90,6 +95,12 @@ export function useAdminProducts() {
         if (!ignore) setCategories(data.map((c) => c.category));
       })
       .catch(() => {});
+    categoryService
+      .getAllCategories()
+      .then((data) => {
+        if (!ignore) setCategoryOptions(data.map((c) => c.name));
+      })
+      .catch(() => {});
     return () => {
       ignore = true;
     };
@@ -129,6 +140,7 @@ export function useAdminProducts() {
   return {
     products,
     categories,
+    categoryOptions,
     filters,
     setFilters,
     page,

@@ -21,8 +21,8 @@ export function CategoryShowcase({ categories }: { categories: ProductCategory[]
         </Link>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-        {categories.slice(0, 6).map(({ category, count }) => (
-          <CategoryTile key={category} category={category} count={count} />
+        {categories.slice(0, 6).map(({ category, count, nameBn, image }) => (
+          <CategoryTile key={category} category={category} count={count} nameBn={nameBn} image={image} />
         ))}
       </div>
     </section>

@@ -166,6 +166,7 @@ export function AdminProductsView() {
     remove,
     upsert,
     categories,
+    categoryOptions,
     filters,
     setFilters,
     page,
@@ -347,7 +348,7 @@ export function AdminProductsView() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         editingProduct={editingProduct}
-        categories={categories}
+        categories={categoryOptions}
         onSaved={upsert}
       />
 

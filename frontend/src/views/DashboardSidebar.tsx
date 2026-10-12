@@ -9,6 +9,7 @@ import {
   Settings,
   ShieldCheck,
   Boxes,
+  Shapes,
   ClipboardList,
   GalleryHorizontal,
   Tag,
@@ -68,6 +69,7 @@ export function DashboardSidebar() {
       title: "Catalog",
       links: [
         hasPermission("products:manage") && { href: "/admin/products", label: "Products", Icon: Boxes },
+        hasPermission("products:manage") && { href: "/admin/categories", label: "Categories", Icon: Shapes },
         hasPermission("reviews:manage") && { href: "/admin/reviews", label: "Reviews", Icon: MessageSquareReply },
       ],
     },

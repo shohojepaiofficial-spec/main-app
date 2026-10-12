@@ -159,9 +159,23 @@ export interface Paginated<T> {
   totalPages: number;
 }
 
+// A category as the storefront sees it: only ones with at least one product.
 export interface ProductCategory {
   category: string;
   count: number;
+  nameBn?: string;
+  image?: string;
+}
+
+// A category as staff manage it at /admin/categories, including ones with
+// no products yet (those stay hidden from the storefront).
+export interface ManagedCategory {
+  id: string;
+  name: string;
+  nameBn: string;
+  image?: string;
+  order: number;
+  productCount: number;
 }
 
 export interface Review {
@@ -593,7 +607,7 @@ export interface CampaignAudiencePreview {
 // Admin change history (GET /api/audit-logs, full admin only).
 export const AUDIT_ENTITY_TYPES = [
   "product", "banner", "order", "user", "promo", "ad", "campaign",
-  "message", "review", "translation", "analytics", "account", "return",
+  "message", "review", "translation", "analytics", "account", "return", "category",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

@@ -181,6 +181,19 @@ const HELP: Record<string, PageHelp> = {
       { term: "Scope", meaning: "Where the code works: the whole store or one product." },
     ],
   },
+  "/admin/categories": {
+    title: "Manage categories",
+    summary: "The list of categories products can be put in.",
+    expect: [
+      "Add a category with a name, an optional Bangla name and an optional photo.",
+      "A category shows on the storefront only once it has at least one product.",
+      "Use the arrows to change the order categories appear in.",
+      "Renaming a category renames it on all its products. A category can be deleted only when it has no products.",
+    ],
+    terms: [
+      { term: "Hidden", meaning: "The category has no products yet, so shoppers don't see it." },
+    ],
+  },
   "/admin/banners": {
     title: "Manage banners",
     summary: "The sliding banners at the top of the homepage.",

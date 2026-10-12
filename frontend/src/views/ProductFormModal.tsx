@@ -5,6 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import Link from "next/link";
 import { IMAGE_ACCEPT, MAX_IMAGE_MB, splitValidImages } from "@/lib/imageUpload";
 import { X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
@@ -305,17 +306,18 @@ function ProductForm({ editingProduct, categories, onSaved, onClose }: ProductFo
 
       <div>
         <label className="text-sm font-medium">Category</label>
-        <input
+        <select
           {...register("category")}
-          list="product-categories"
-          placeholder="e.g. Footwear"
           className="w-full border border-border rounded px-3 py-2 bg-background mt-1"
-        />
-        <datalist id="product-categories">
+        >
+          <option value="">Choose a category</option>
           {categories.map((c) => (
-            <option key={c} value={c} />
+            <option key={c} value={c}>{c}</option>
           ))}
-        </datalist>
+        </select>
+        <p className="text-xs text-muted mt-1">
+          Not in the list? Add it under <Link href="/admin/categories" className="underline">Categories</Link> first.
+        </p>
         {errors.category && (
           <p className="text-red-600 text-sm mt-1">{errors.category.message}</p>
         )}
