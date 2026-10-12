@@ -1201,3 +1201,25 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - `lib/pageHelp.test.ts` fails if a dashboard page has no help text.
 - Verified: frontend `tsc`, eslint on changed files, 92 tests; backend `tsc` + 399 tests. **Not tried in a browser yet.**
 - Left: deploy, `npm run sync-translations`, open a few pages and check the panel (also in Bangla).
+
+## 2026-10-12 (SEC-05 / SEC-08 live checks — partial)
+
+- **SEC-08, passed on `shohojepai.com` (no login needed):** POST through `/api/backend` is refused with 403 when the Origin is missing, is another site, when the `X-Requested-With` header is missing, or when the browser marks the request cross-site; a correct same-site POST reaches the API (401 for wrong password, no cookie set). A forged `Authorization` header is ignored (401 "no token"). `auth/oauth-sync`, `orders/bkash/callback` and `health` are 404 through the proxy; direct `oauth-sync` without the internal secret is 403. The API's CORS only ever names `https://shohojepai.com`.
+- **SEC-05, passed (read-only look at the live database):** the unique `user + idempotencyKey` index and the `status + reservationExpiresAt` index exist; the database is a replica set (transactions work). There are 0 orders, so no old pending online orders to review and no duplicate keys.
+- **Not done:** the signed-in cookie check for SEC-08 (the Chrome extension wasn't connected, and there are no test login details). The duplicate-submit order test for SEC-05 (the live store has 0 products and it needs a signed-in, email-verified customer). The 30-minute reservation worker only acts on bKash orders, so it waits on WORK-01.
+- Seen in passing: the storefront home page sends HSTS but no `Content-Security-Policy` or `X-Frame-Options` header. Not checked further.
+- No code changes; nothing was written to the live site or database.
+
+## 2026-10-12 (Live browser checks; Returns/Payments proxy fix)
+
+- Checked on `shohojepai.com` in the owner's signed-in Chrome, using one test product ("TEST product - please do not order").
+- **Bug found and fixed (not deployed yet):** the frontend proxy allowlist (`app/api/backend/[...path]/route.ts`) was missing `returns` and `payments`, so every Returns (WORK-08) and Payments (WORK-11) request returned 404 on the live site and the "Return or exchange" button never showed. Added both. New test in `route.test.ts` reads every `services/*.ts` file and fails if any API area it calls is not forwarded. Frontend `tsc` + 93 tests pass.
+- **SEC-08 passed:** the `token` / `refreshToken` cookies JavaScript can read hold only `ui.….not-a-credential` markers, no JWT in localStorage, requests work through the hidden cookies, and the API answers 401 to the marker. The access token expired after 15 minutes and the app refreshed it on reload.
+- **SEC-05 passed:** two simultaneous order requests plus a retry with one Idempotency-Key gave a single order (201, 200, 200) and stock fell by exactly 1; the same key with a different cart got 409.
+- **WORK-09 passed:** stock history shows the staff edit (+10), sales (−3, −1) and the cancellation (+1); stock returned to 7 after cancelling. Variant low-stock label shows.
+- **SEC-09 / SEC-10 passed (normal path):** product created with a photo; edited to add Size S/M variants and pre-order in one multipart save.
+- **WORK-14 passed (checkout preview):** with a 10% promo code applied and a 20% pre-order discount, checkout shows only the pre-order discount.
+- **WORK-04:** store reply on a review works (owner did it); Meta pixel PageView, ViewContent, AddToCart, InitiateCheckout fire. Purchase event and a placed pre-order not checked.
+- **WORK-10:** Change History lists the admin's product and promo changes with before → after. Co-admin check still owed.
+- "About this page" panel opens. Small thing: the stock history panel does not close on Escape.
+- Test data left on the live store: the test product (now pre-order, 2 variants), orders #692541 (delivered) and #692552 (cancelled), one review + reply, promo code TESTQA10 (set inactive because an active storewide code shows in the public top banner).

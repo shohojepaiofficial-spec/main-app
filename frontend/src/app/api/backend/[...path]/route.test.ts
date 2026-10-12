@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 vi.mock("next-auth/jwt", () => ({ getToken: vi.fn() }));
 import { getToken } from "next-auth/jwt";
 import { POST, GET } from "./route";
@@ -36,6 +38,18 @@ describe("server-managed browser credentials", () => {
     fetchMock.mockResolvedValue(Response.json({ id: "user" }));
     await GET(request("auth/me", { cookie: `backend-access=${token}`, authorization: "Bearer forged" }, "GET"), context("auth/me"));
     expect(fetchMock.mock.calls[0][1].headers.get("authorization")).toBe(`Bearer ${token}`);
+  });
+  it("forwards every API area the frontend services call", async () => {
+    const dir = join(process.cwd(), "src/services");
+    const areas = new Set<string>();
+    for (const file of readdirSync(dir).filter(f => f.endsWith(".ts") && !f.includes(".test."))) {
+      for (const match of readFileSync(join(dir, file), "utf8").matchAll(/api\.(?:get|post|put|patch|delete)(?:<[^(]*>)?\(\s*["`]\/([\w-]+)/g)) areas.add(match[1]);
+    }
+    expect(areas.size).toBeGreaterThan(10);
+    for (const area of areas) {
+      fetchMock.mockResolvedValue(Response.json({}));
+      expect((await GET(request(`${area}/x`, {}, "GET"), context(`${area}/x`))).status, area).toBe(200);
+    }
   });
   it("blocks the internal OAuth exchange", async () => {
     expect((await POST(request("auth/oauth-sync"), context("auth/oauth-sync"))).status).toBe(404);
