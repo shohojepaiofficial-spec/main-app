@@ -1288,3 +1288,11 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Not yet seen: a push that changes both `server/` and `frontend/` building cleanly with the healthcheck on. No retry was added to the frontend's build-time requests.
 - Seen in passing: the Railway dashboard shows "5 days or $3.80 left" of credit. `npm run lint` in `frontend/` reports 6 errors, several in `views/OrderCourierPanel.tsx`; the build does not run lint. Neither was acted on.
 - Left for WORK-07: `npm run sync-translations`, then place an order, move it through the statuses and check the timeline and each email.
+
+## 2026-10-12 (About Us page)
+
+- `/about` was still the "Coming soon" `PlaceholderPage`. It is now a real page (`app/(public)/about/page.tsx`), a server component in the same layout as `/shipping` and `/returns`: who we are, how shopping works (nationwide delivery, cash on delivery, order emails, 7-day returns), where to find us, and links to Shop and Categories.
+- SEO: its own description, canonical `/about`, Open Graph and Twitter tags, one `<h1>`, and `AboutPage` + `BreadcrumbList` JSON-LD. It was already in `sitemap.ts`. The Organization is still declared once, on the homepage.
+- Decisions: only facts already stated elsewhere on the site are used (contact details from `lib/contact.ts`, policies from the shipping, returns and FAQ copy). No founding story, year, team or product range, because none has been given. English only, like the other policy pages; no new translation keys. No API call, so the page cannot fail a build when the API is down.
+- Verified: frontend `tsc`, eslint on the file, `git diff --check`; fetched from the local dev server (200, title "About Us | Shohoje Pai", canonical tag, both JSON-LD blocks present). Not looked at in a browser, and not deployed.
+- Left: the owner's own words for "Who we are" (how the shop started, what it sells) if wanted, and a Bangla version.
