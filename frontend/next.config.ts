@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
+import { securityHeaders } from "./src/lib/securityHeaders";
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  headers: async () => [{ source: "/:path*", headers: securityHeaders }],
   images: {
     // Dev-only: the backend that serves /uploads is our own localhost:5000.
     // Next 16's image optimizer refuses to fetch any hostname that resolves

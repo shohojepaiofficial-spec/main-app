@@ -1223,3 +1223,11 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - **WORK-10:** Change History lists the admin's product and promo changes with before → after. Co-admin check still owed.
 - "About this page" panel opens. Small thing: the stock history panel does not close on Escape.
 - Test data left on the live store: the test product (now pre-order, 2 variants), orders #692541 (delivered) and #692552 (cancelled), one review + reply, promo code TESTQA10 (set inactive because an active storewide code shows in the public top banner).
+
+## 2026-10-12 (SEC-14: storefront security headers)
+
+- The live checks found the storefront sent HSTS but no `Content-Security-Policy` or `X-Frame-Options`, so the site could be put inside a frame on another site (clickjacking).
+- New `frontend/src/lib/securityHeaders.ts`, applied to every path from `next.config.ts`: CSP `frame-ancestors 'none'; base-uri 'self'; object-src 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (camera, microphone, geolocation off). `X-Powered-By` turned off.
+- Not included on purpose: `script-src` (needs a per-request nonce, which would make every prerendered page dynamic, and GTM loads tags from other hosts) and `form-action` (Google sign-in redirects off-site after a form POST).
+- Verified: frontend `tsc`, eslint on the changed files, 96 tests (3 new), production build; `next start` returns the headers on a page, a 404, an API route and a static file. **Not checked on the live site yet.**
+- Left: deploy, check the headers on `shohojepai.com`, confirm Google sign-in, GTM / Meta pixel and the copy-link buttons still work.

@@ -47,6 +47,7 @@ the user deferred them on 2026-10-09.
 | SEC-09 | Image re-encoding | Product photo upload verified live (2026-10-12). Left: banner/profile uploads; corrupt/animated/oversized files rejected. |
 | SEC-10 | Input validation | Verified live 2026-10-12: a product edited to add variants + pre-order saved correctly. Nothing left. |
 | SEC-11 | Rate limits / DDoS | Edge/WAF in front of the API, direct-origin access, spoofed IP headers, limits shared across instances. Small agreed staging load only — never load-test the live store. |
+| SEC-14 | Storefront security headers | **Done locally** (2026-10-12): every page and route now sends `Content-Security-Policy` (`frame-ancestors`, `base-uri`, `object-src` only), `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`; `X-Powered-By` removed. Left: deploy, check the headers on `shohojepai.com`, and confirm Google sign-in, GTM / Meta pixel and "copy link" still work. No `script-src` (see ARCHITECTURE.md). |
 
 ## 4. Proposed features (not started unless noted)
 
