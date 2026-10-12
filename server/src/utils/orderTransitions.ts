@@ -3,6 +3,7 @@ import { Order, IOrder } from "../models/Order";
 import { Product } from "../models/Product";
 import { SharedCart } from "../models/SharedCart";
 import { orderStockMovements, recordStockMovements } from "./stockLedger";
+import { notifyOrderStatus } from "./orderStatusEmail";
 
 export async function restoreInventory(order: Pick<IOrder, "_id" | "items">, session: ClientSession) {
   // Operations on one transaction session must be sequential.
@@ -21,11 +22,15 @@ export async function restoreInventory(order: Pick<IOrder, "_id" | "items">, ses
 export async function transitionOrder(
   id: unknown,
   status: IOrder["status"],
-  options: { owner?: string; pendingOnly?: boolean; transactionId?: string; paymentFailed?: boolean } = {},
+  // `silent` skips the customer email, for a change the customer was never
+  // told the first half of (an order whose payment couldn't even be started).
+  options: { owner?: string; pendingOnly?: boolean; transactionId?: string; paymentFailed?: boolean; silent?: boolean } = {},
 ) {
   const session = await mongoose.startSession();
+  let changedFrom: IOrder["status"] | undefined;
   try {
-    return await session.withTransaction(async () => {
+    const result = await session.withTransaction(async () => {
+      changedFrom = undefined;
       const current = await Order.findById(id).session(session);
       if (!current) throw Object.assign(new Error("Order not found"), { status: 404 });
       if (options.owner && current.user?.toString() !== options.owner) {
@@ -46,7 +51,7 @@ export async function transitionOrder(
       }
       const updated = await Order.findOneAndUpdate(
         { _id: current._id, status: current.status },
-        { $set: { status, ...(status === "delivered" && !current.deliveredAt ? { deliveredAt: new Date() } : {}), ...(status === "cancelled" && current.bkashTrxID ? { paymentReviewRequired: true } : {}), ...(options.transactionId ? { bkashTrxID: options.transactionId } : {}) } },
+        { $push: { statusHistory: { status, at: new Date() } }, $set: { status, ...(status === "delivered" && !current.deliveredAt ? { deliveredAt: new Date() } : {}), ...(status === "cancelled" && current.bkashTrxID ? { paymentReviewRequired: true } : {}), ...(options.transactionId ? { bkashTrxID: options.transactionId } : {}) } },
         { session, returnDocument: "after" },
       );
       if (!updated) throw Object.assign(new Error("Order changed; please retry"), { status: 409 });
@@ -66,7 +71,14 @@ export async function transitionOrder(
           { $set: { fulfilledOrder: current._id, fulfilledBy: current.user } }, { session },
         );
       }
+      changedFrom = current.status;
       return updated;
     });
+    // Only after the transaction has committed, and never awaited: the
+    // customer is told about a change that really happened, and a mail
+    // failure can't undo it. Every status change in the app comes through
+    // here, so this one call covers staff, bulk, customer and payment paths.
+    if (changedFrom && status !== "pending" && !options.silent) notifyOrderStatus(String(result._id), status, changedFrom);
+    return result;
   } finally { await session.endSession(); }
 }

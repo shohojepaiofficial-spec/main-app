@@ -19,6 +19,7 @@ import { useTranslations } from "@/controllers/useTranslations";
 import { PreorderLineTag } from "@/views/PreorderLineTag";
 import { ReturnRequestModal } from "@/views/ReturnRequestModal";
 import { OrderReturnsList } from "@/views/OrderReturnsList";
+import { OrderTimeline } from "@/views/OrderTimeline";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -121,6 +122,8 @@ export function OrdersView() {
                   <span className="text-sm font-semibold">{formatCurrency(order.totalAmount)}</span>
                 </div>
               </div>
+
+              <OrderTimeline order={order} />
 
               <div className="flex flex-col gap-3 p-4">
                 {order.items.map((item, index) => (

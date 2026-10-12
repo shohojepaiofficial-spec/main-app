@@ -648,6 +648,12 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "order.status.shipped", en: "Shipped", bn: "পাঠানো হয়েছে" },
   { key: "order.status.delivered", en: "Delivered", bn: "ডেলিভারি সম্পন্ন" },
   { key: "order.status.cancelled", en: "Cancelled", bn: "বাতিল" },
+  { key: "orderTimeline.label", en: "Order progress", bn: "অর্ডারের অগ্রগতি" },
+  { key: "orderTimeline.placed", en: "Order placed", bn: "অর্ডার করা হয়েছে" },
+  { key: "orderTimeline.confirmed", en: "Confirmed", bn: "নিশ্চিত হয়েছে" },
+  { key: "orderTimeline.shipped", en: "On the way", bn: "পথে আছে" },
+  { key: "orderTimeline.delivered", en: "Delivered", bn: "ডেলিভারি সম্পন্ন" },
+  { key: "orderTimeline.cancelled", en: "Cancelled", bn: "বাতিল" },
 
   // --- Dashboard ---
   {

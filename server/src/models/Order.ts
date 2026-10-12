@@ -87,6 +87,12 @@ export interface IOrder extends Document {
   // (see utils/returns.ts). Orders delivered before this field existed
   // fall back to updatedAt.
   deliveredAt?: Date;
+  // When the order entered each status, oldest first — what the customer's
+  // delivery timeline shows. Starts with "pending" at creation; every later
+  // entry is pushed by utils/orderTransitions.ts. Empty on orders placed
+  // before this existed (the timeline then falls back to createdAt and
+  // deliveredAt).
+  statusHistory: { status: IOrder["status"]; at: Date }[];
   source: OrderSource;
   shippingAddress: IShippingDetails;
   // Set when this order was placed by fulfilling someone else's shared-cart
@@ -171,6 +177,18 @@ const orderSchema = new Schema<IOrder>(
     paymentReviewResolvedAt: { type: Date },
     paymentReviewResolvedBy: { type: Schema.Types.ObjectId, ref: "User" },
     deliveredAt: { type: Date },
+    statusHistory: {
+      type: [
+        new Schema(
+          {
+            status: { type: String, enum: ["pending", "paid", "shipped", "delivered", "cancelled"], required: true },
+            at: { type: Date, required: true },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     source: {
       type: String,
       enum: ["online", "manual"],
@@ -187,6 +205,12 @@ const orderSchema = new Schema<IOrder>(
   },
   { timestamps: true }
 );
+
+// A hook rather than a schema default: a default would also invent a
+// "placed just now" entry on every older order read back from the database.
+orderSchema.pre("save", function () {
+  if (this.isNew && this.statusHistory.length === 0) this.statusHistory.push({ status: this.status, at: new Date() });
+});
 
 orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } } });
 orderSchema.index({ status: 1, reservationExpiresAt: 1 });

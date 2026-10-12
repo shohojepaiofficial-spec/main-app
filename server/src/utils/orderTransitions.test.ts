@@ -20,10 +20,12 @@ vi.mock("../models/Product", () => ({ Product: { updateOne: vi.fn(async (_filter
   return { matchedCount: 1 };
 }) } }));
 vi.mock("../models/StockMovement", () => ({ StockMovement: { insertMany: vi.fn() } }));
+vi.mock("./orderStatusEmail", () => ({ notifyOrderStatus: vi.fn() }));
 vi.mock("../models/SharedCart", () => ({ SharedCart: { updateOne: vi.fn().mockResolvedValue({ matchedCount: 1 }) } }));
 import { transitionOrder } from "./orderTransitions";
 import { Product } from "../models/Product";
 import { StockMovement } from "../models/StockMovement";
+import { notifyOrderStatus } from "./orderStatusEmail";
 
 beforeEach(() => { vi.clearAllMocks(); state.order = { _id: "order", id: "order", status: "pending", user: "buyer", items: [{ product: "product", quantity: 2 }] }; state.inventory = 3; state.writes = []; state.fail = false; });
 describe("transactional order transitions", () => {
@@ -64,5 +66,24 @@ describe("transactional order transitions", () => {
     Object.assign(state.order, { source: "online", paymentMethod: "bkash" });
     for (const status of ["paid", "shipped", "delivered"] as const) await expect(transitionOrder("order", status)).rejects.toMatchObject({ status: 409 });
     expect(state.order.status).toBe("pending");
+  });
+  it("records each change in the status history and emails the customer once it has committed", async () => {
+    const { Order } = await import("../models/Order");
+    await transitionOrder("order", "shipped");
+    const update = vi.mocked(Order.findOneAndUpdate).mock.calls[0][1] as { $push: { statusHistory: { status: string; at: Date } } };
+    expect(update.$push.statusHistory.status).toBe("shipped");
+    expect(update.$push.statusHistory.at).toBeInstanceOf(Date);
+    expect(notifyOrderStatus).toHaveBeenCalledExactlyOnceWith("order", "shipped", "pending");
+  });
+  it("sends no email when nothing changed, the change failed, or the caller asked for silence", async () => {
+    Object.assign(state.order, { status: "shipped" });
+    await transitionOrder("order", "shipped");
+    await expect(transitionOrder("order", "paid")).rejects.toMatchObject({ status: 409 });
+    Object.assign(state.order, { status: "pending" });
+    state.fail = true;
+    await expect(transitionOrder("order", "cancelled")).rejects.toThrow("write failed");
+    state.fail = false;
+    await transitionOrder("order", "cancelled", { silent: true });
+    expect(notifyOrderStatus).not.toHaveBeenCalled();
   });
 });

@@ -1269,3 +1269,13 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Seen in passing: with Bangla selected, the nav and the "1 product" label stayed in English on `/categories`. Not investigated; may be the translations not synced.
 - The stock history panel "does not close on Escape" note from earlier today could not be reproduced from the code: it uses the shared `Modal`, which closes on Escape for every drawer. Needs a product on the live store to retry.
 - Added `.github/dependabot.yml` (weekly npm updates for `server/` and `frontend/`, plus GitHub Actions) and an `npm audit --omit=dev --audit-level=high` step in both CI jobs. Both audits report 0 vulnerabilities today.
+
+## 2026-10-12 (WORK-07: delivery timeline and status emails)
+
+- Owner asked for WORK-07 with email only (no SMS).
+- **Backend:** `Order.statusHistory` (`{ status, at }[]`), first entry added by a `pre("save")` hook, later ones pushed by `transitionOrder` inside its transaction. New `utils/orderStatusEmail.ts` builds and sends the emails. `transitionOrder` calls it after the transaction commits, so every status change in the app is covered from one place; `createOrder` sends "we've received your order" for cash on delivery. A bKash order gets its first email when paid. An unpaid online order that is cancelled gets a "we didn't receive a payment" email, except when the payment could not be started at all (`silent`). Sending is fire-and-forget and can't fail or undo the order change.
+- **Frontend:** `lib/orderTimeline.ts` (pure) and `views/OrderTimeline.tsx`, shown in each order on `/orders`. Six new `orderTimeline.*` keys with Bangla in `translationSeed.ts`.
+- Decisions: the courier name is not in the emails (the storefront hides it too). No email for staff-entered orders without an account. Older orders have no history, so their timeline shows only the placed and delivered dates.
+- Verified: backend `tsc`, build, 438 tests (9 new: email content, sending, history + notify in `transitionOrder`); frontend `tsc`, eslint on changed files, 103 tests (6 new for the timeline). **Not tried in a browser; no email actually sent.**
+- Found while reading the order code, not fixed (logged as SEC-16): the customer's own order responses include staff-only fields such as `internalNote`.
+- Left: deploy, `npm run sync-translations`, then place an order, move it through the statuses and check the timeline and each email.

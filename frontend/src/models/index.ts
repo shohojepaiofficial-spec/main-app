@@ -292,6 +292,9 @@ export interface Order {
   paymentReviewRequired?: boolean;
   // Set when the order first reached "delivered"; starts the return window.
   deliveredAt?: string;
+  // When the order entered each status, oldest first (see
+  // lib/orderTimeline.ts). Absent or empty on orders placed before it existed.
+  statusHistory?: { status: OrderStatus; at: string }[];
   // Admin-only fields — absent from the customer's own getMyOrders response.
   internalNote?: string;
   courierProvider?: "pathao";

@@ -1,4 +1,5 @@
 import { validateControllerInput } from "../middleware/controllerInput";
+import { notifyOrderStatus } from "../utils/orderStatusEmail";
 import { Request, Response } from "express";
 import { format } from "date-fns";
 import mongoose, { ClientSession, Types } from "mongoose";
@@ -537,7 +538,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       return res.status(201).json({ ...order.toObject(), bkashRedirectUrl: bkashURL });
     } catch (err) {
       console.error("bKash create payment failed:", err);
-      await transitionOrder(order.id, "cancelled", { pendingOnly: true });
+      await transitionOrder(order.id, "cancelled", { pendingOnly: true, silent: true });
       return res
         .status(502)
         .json({ message: "Couldn't start the bKash payment — please try again or choose Cash on Delivery." });
@@ -545,6 +546,9 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   }
 
   res.status(201).json(order);
+  // Cash on delivery is final at this point. A bKash order is only
+  // confirmed once it is paid, which transitionOrder emails about.
+  notifyOrderStatus(order.id, "placed");
 };
 
 // The admin/coadmin equivalent of createOrder, for a phone or walk-in order
