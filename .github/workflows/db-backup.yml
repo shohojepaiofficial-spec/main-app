@@ -62,7 +62,7 @@ jobs:
           [ "$size" -gt 1024 ] || { echo "::error::Backup is suspiciously small ($size bytes)"; exit 1; }
 
       - name: Store backup (kept 30 days)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: db-backup-${{ env.STAMP }}
           path: backup-*.archive.gz.enc
