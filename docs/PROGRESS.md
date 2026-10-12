@@ -1251,3 +1251,9 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - **Dashboard:** `/admin/categories` (list, add, edit, reorder, delete, "Hidden" badge on empty ones), a Categories link in the sidebar, an "About this page" entry. The product form category field is now a dropdown of the list. `categories` added to the frontend proxy allowlist.
 - Verified: backend `tsc`, build, 429 tests (15 new in `categoryController.test.ts`; the route-protection test now covers `/api/categories`). The compiled API booted without a database: anonymous `GET /api/categories` returned 401. Frontend `tsc`, eslint on changed files, 97 tests, `next build` compiled. Prerendering `/` in that build failed only because no local API was running on port 5000. **Not tried in a browser; not run against a database.**
 - Left: deploy, then the browser checks listed under WORK-16 in STATUS.md.
+
+## 2026-10-12 (SEC-15 and WORK-16 deployed)
+
+- Pushed as `dd97e04` (SEC-15 backend) and `547b349` (WORK-16). The owner checked the live site and reports it working.
+- SEC-15 verified live: direct requests to `api.shohojepai.com/api/products` and `/api/categories` return 403 "Forbidden"; `/api/health` returns 200. (Checked by IP, because the mobile hotspot in use could not resolve the API's hostname.)
+- Still to confirm for categories: the Bangla tile name, rename carrying over to products, delete refused while products exist, and the Change History entries.
