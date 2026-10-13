@@ -19,6 +19,11 @@ export const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61594292297
 export const INSTAGRAM_URL = "https://www.instagram.com/shohoje.pai/";
 export const SOCIAL_PROFILE_URLS = [FACEBOOK_URL, INSTAGRAM_URL];
 
+// Starts a Messenger chat with the Page (the id is the one in FACEBOOK_URL)
+// — what a customer gets from the chat button's Messenger option.
+export const MESSENGER_CHAT_URL = "https://m.me/61594292297060";
+
 // The Page's Meta Business Suite inbox (Messenger + Instagram chats) —
-// the staff-only Messenger button opens this so admins can reply.
+// admin/coadmin get this from the Messenger option instead, so they can
+// reply.
 export const MESSENGER_INBOX_URL = "https://business.facebook.com/latest/inbox/all";

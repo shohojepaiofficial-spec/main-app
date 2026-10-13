@@ -1318,3 +1318,10 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
   - `/about` in Bangla shows every string translated. Reloading `/categories` with Bangla selected showed Bangla at 1.3s while the dictionary request was still in flight (it took 1.9s), so the cache works.
   - `/settings` in Bangla: five hint strings stayed English. They were used in code but had no row in `translationSeed.ts`. A script comparing every key used in `frontend/src` with the seed found only these five; rows added. Needs a deploy and one more `npm run sync-translations`.
 - Not checked: anything needing an order or a product (SEC-16 as a customer, WORK-07, WORK-08, WORK-13, WORK-14), the 2FA setup screens, the Pathao booking form.
+
+## 2026-10-13 (one chat button with WhatsApp and Messenger)
+- The two floating buttons (WhatsApp for everyone, Messenger for staff only) are now one chat button, bottom-right on every page for everyone. Clicking it opens a small menu with Messenger and WhatsApp; Escape, a click outside or choosing an option closes it (`views/ChatButtons.tsx`).
+- Messenger is now offered to customers too: it opens a chat with the Page (`MESSENGER_CHAT_URL` in `lib/contact.ts`, `https://m.me/<page id>`). Admin/coadmin still get the Meta Business Suite inbox from the same option, so they can reply. WhatsApp is unchanged.
+- Five translation keys added (`chat.open`, `chat.close`, `chat.messenger`, `chat.whatsapp`, `messenger.chatWithUs`).
+- Verified: frontend `tsc` and lint, backend `tsc`. In a browser on the local dev server, signed in as staff: the button opens and closes the menu, both links and labels are right, Escape and an outside click close it. `m.me/61594292297060` redirects to a Facebook message thread. Not checked: signed out (the customer's Messenger link), a phone screen, Bangla labels.
+- Left: deploy, `npm run sync-translations`, then tap Messenger as a signed-out visitor and confirm it opens a chat with the right Page.

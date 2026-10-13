@@ -54,6 +54,11 @@ export const translationSeed: TranslationSeedEntry[] = [
   // --- Chat buttons (WhatsApp / Messenger) ---
   { key: "messenger.openInbox", en: "Open Messenger inbox", bn: "মেসেঞ্জার ইনবক্স খুলুন" },
   { key: "whatsapp.chatWithUs", en: "Chat with us on WhatsApp", bn: "হোয়াটসঅ্যাপে আমাদের সাথে চ্যাট করুন" },
+  { key: "messenger.chatWithUs", en: "Chat with us on Messenger", bn: "মেসেঞ্জারে আমাদের সাথে চ্যাট করুন" },
+  { key: "chat.open", en: "Chat with us", bn: "আমাদের সাথে চ্যাট করুন" },
+  { key: "chat.close", en: "Close chat options", bn: "চ্যাটের অপশন বন্ধ করুন" },
+  { key: "chat.messenger", en: "Messenger", bn: "মেসেঞ্জার" },
+  { key: "chat.whatsapp", en: "WhatsApp", bn: "হোয়াটসঅ্যাপ" },
   {
     key: "whatsapp.defaultMessage",
     en: "Hi! I have a question about your products.",
