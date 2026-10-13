@@ -858,6 +858,13 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "returns.next.completed", en: "All done.", bn: "সব সম্পন্ন।" },
   { key: "returns.refunded", en: "Refunded {amount} on {date}", bn: "{date} তারিখে {amount} ফেরত দেওয়া হয়েছে" },
 
+  // --- Settings / sign-in hints that had no seed row (found 2026-10-13) ---
+  { key: "auth.twoFactorInstructions", en: "Enter the 6-digit code from your authenticator app, or one of your backup codes.", bn: "আপনার অথেন্টিকেটর অ্যাপের ৬ সংখ্যার কোড, অথবা আপনার একটি ব্যাকআপ কোড লিখুন।" },
+  { key: "settings.deliveryLocationHint", en: "Used at checkout and to show your dashboard the right delivery fee for products you're looking at.", bn: "চেকআউটে ব্যবহৃত হয় এবং ড্যাশবোর্ডে আপনার দেখা পণ্যের সঠিক ডেলিভারি চার্জ দেখাতে কাজে লাগে।" },
+  { key: "settings.twoFactorHint", en: "Require a code from an authenticator app (Google Authenticator, Authy, etc.) when signing in.", bn: "সাইন ইন করার সময় অথেন্টিকেটর অ্যাপের (Google Authenticator, Authy ইত্যাদি) একটি কোড চাওয়া হবে।" },
+  { key: "settings.twoFactorScanQr", en: "Scan this QR code with your authenticator app, then enter the 6-digit code it shows.", bn: "আপনার অথেন্টিকেটর অ্যাপ দিয়ে এই QR কোডটি স্ক্যান করুন, তারপর অ্যাপে দেখানো ৬ সংখ্যার কোডটি লিখুন।" },
+  { key: "settings.backupCodesWarning", en: "Save these backup codes now — this is the only time they're shown. Each one works once, if you ever lose access to your authenticator app.", bn: "এই ব্যাকআপ কোডগুলো এখনই সংরক্ষণ করুন — এগুলো আর দেখানো হবে না। অথেন্টিকেটর অ্যাপ ব্যবহার করতে না পারলে প্রতিটি কোড একবার করে কাজ করবে।" },
+
   // --- About Us ---
   { key: "about.heading", en: "About {name}", bn: "{name} সম্পর্কে" },
   { key: "about.who.title", en: "Who we are", bn: "আমরা কারা" },

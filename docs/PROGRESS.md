@@ -1308,3 +1308,13 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - `/about` now has a Bangla version: all visible text goes through `<T>` (22 `about.*` keys in `translationSeed.ts`). Links were moved to the end of their sentences so each sentence translates as one string; the English wording changed slightly for that. Title, description and JSON-LD stay English. The owner's own "who we are" story is still not written.
 - Verified: frontend `tsc`, lint and tests; backend `tsc` and 442 tests. In a browser on the local dev server with the API down: `/about` renders in English, and with Bangla selected and a hand-made cached dictionary the cached keys showed in Bangla (heading, nav, a link) while the rest fell back to English. Not verified: the real Bangla About text on a page (needs `npm run sync-translations`), and the courier panel (not opened).
 - Left: deploy, then `npm run sync-translations` so the `about.*` keys exist.
+
+## 2026-10-13 (deploys logged, live checks, five missing Bangla strings)
+- Deployed today: SEC-16 as `0e19289`, and the lint / Bangla cache / About translation work as `a74ebbc`. Railway and Vercel reported success for both; the GitHub Actions `frontend` and `server` jobs passed on `a74ebbc`. The owner ran `npm run sync-translations`; the live dictionary has the 22 `about.*` and 6 `orderTimeline.*` keys. (The two entries above were written before the deploys.)
+- Live checks on shohojepai.com, signed in as the owner, read-only:
+  - SEC-14: `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy` are on `/`, `/about` and `/api/backend/products`; no `X-Powered-By`. GTM and the Meta pixel load and `page_view` fires. Google sign-in and "copy link" not tried.
+  - SEC-15 again: `api.shohojepai.com/api/products` and `/api/orders/my` return 403 directly, `/api/health` 200.
+  - `/admin/returns` and `/admin/payments` load with API 200 (were 404 before the proxy allowlist fix).
+  - `/about` in Bangla shows every string translated. Reloading `/categories` with Bangla selected showed Bangla at 1.3s while the dictionary request was still in flight (it took 1.9s), so the cache works.
+  - `/settings` in Bangla: five hint strings stayed English. They were used in code but had no row in `translationSeed.ts`. A script comparing every key used in `frontend/src` with the seed found only these five; rows added. Needs a deploy and one more `npm run sync-translations`.
+- Not checked: anything needing an order or a product (SEC-16 as a customer, WORK-07, WORK-08, WORK-13, WORK-14), the 2FA setup screens, the Pathao booking form.
