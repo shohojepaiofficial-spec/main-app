@@ -46,7 +46,15 @@ describe("checkout security", () => {
     const first = response(), second = response();
     await Promise.all([createOrder(request(), first as unknown as Response), createOrder(request(), second as unknown as Response)]);
     expect(state.orders).toHaveLength(1); expect(state.stock).toBe(8);
-    expect(first.json.mock.calls[0][0].id).toBe(second.json.mock.calls[0][0].id);
+    expect(first.json.mock.calls[0][0]._id).toBe(second.json.mock.calls[0][0]._id);
+    expect(first.json.mock.calls[0][0]._id).toBe(state.orders[0]._id);
+  });
+  it("leaves the idempotency key and fingerprint out of the reply", async () => {
+    const res = response();
+    await createOrder(request(), res as unknown as Response);
+    expect(state.orders[0].requestFingerprint).toBeTruthy();
+    expect(res.json.mock.calls[0][0]).not.toHaveProperty("idempotencyKey");
+    expect(res.json.mock.calls[0][0]).not.toHaveProperty("requestFingerprint");
   });
   it("rejects key reuse with a different payload", async () => {
     await createOrder(request(), response() as unknown as Response);

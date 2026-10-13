@@ -20,6 +20,7 @@ import { orderStockMovements, recordStockMovements } from "../utils/stockLedger"
 import { checkoutSchema, parseInput, cartFingerprint, cartItems } from "../utils/checkoutValidation";
 import { createHash } from "node:crypto";
 import { reconcilePayment } from "../utils/paymentReconciliation";
+import { customerOrderView } from "../utils/customerOrder";
 import {
   createBkashPayment,
   executeBkashPayment,
@@ -425,6 +426,12 @@ function readShippingAddress(input?: ShippingInput) {
   };
 }
 
+// createOrder's reply: the customer's view of the order plus, for a bKash
+// order, where to send the browser to pay.
+function checkoutResponse(order: InstanceType<typeof Order>) {
+  return { ...customerOrderView(order), ...(order.bkashRedirectUrl ? { bkashRedirectUrl: order.bkashRedirectUrl } : {}) };
+}
+
 // Decrements stock only after every line has been validated, so a bad item
 // further down the cart can't leave earlier ones partially deducted) and,
 // when checking out via a shared "ask someone else to pay" link, marks that
@@ -442,7 +449,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   if (previous) {
     if (previous.requestFingerprint !== requestFingerprint) return res.status(409).json({ message: "Idempotency key was used for a different order" });
     if (previous.paymentMethod === "bkash" && !previous.bkashRedirectUrl && previous.status === "pending") return res.status(409).json({ message: "Payment is being prepared; retry with the same key" });
-    return res.status(200).json(previous);
+    return res.status(200).json(checkoutResponse(previous));
   }
 
   if (!items || items.length === 0) {
@@ -503,7 +510,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   } catch (err) {
     if ((err as { code?: number }).code === 11000) {
       const existing = await Order.findOne({ user: req.userId, idempotencyKey });
-      if (existing?.requestFingerprint === requestFingerprint && (existing.paymentMethod === "cod" || existing.bkashRedirectUrl)) return res.status(200).json(existing);
+      if (existing?.requestFingerprint === requestFingerprint && (existing.paymentMethod === "cod" || existing.bkashRedirectUrl)) return res.status(200).json(checkoutResponse(existing));
       return res.status(409).json({ message: "Order request already exists; retry with the same key" });
     }
     const { status, message } = err as { status?: number; message?: string };
@@ -535,7 +542,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         await Order.updateOne({ _id: order._id }, { $set: { bkashPaymentID: paymentID, paymentReviewRequired: true } });
         return res.status(409).json({ message: "This reservation expired; payment needs review" });
       }
-      return res.status(201).json({ ...order.toObject(), bkashRedirectUrl: bkashURL });
+      return res.status(201).json(checkoutResponse(order));
     } catch (err) {
       console.error("bKash create payment failed:", err);
       await transitionOrder(order.id, "cancelled", { pendingOnly: true, silent: true });
@@ -545,7 +552,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     }
   }
 
-  res.status(201).json(order);
+  res.status(201).json(checkoutResponse(order));
   // Cash on delivery is final at this point. A bKash order is only
   // confirmed once it is paid, which transitionOrder emails about.
   notifyOrderStatus(order.id, "placed");
@@ -662,7 +669,7 @@ export const getMyOrders = async (req: AuthRequest, res: Response) => {
   const orders = await Order.find({ user: req.userId })
     .sort({ createdAt: -1 })
     .populate("items.product", "name images deliveryFeeInsideCity deliveryFeeOutsideCity");
-  res.json(orders);
+  res.json(orders.map(customerOrderView));
 };
 
 // Delivered orders' products the current user hasn't reviewed yet — feeds
@@ -721,7 +728,9 @@ export const getOrderById = async (req: AuthRequest, res: Response) => {
     if (!canManage) return res.status(403).json({ message: "Not authorized to view this order" });
   }
 
-  res.json(order);
+  // The buyer gets the customer's view even if they are staff; staff looking
+  // up someone else's order get the whole document.
+  res.json(isOwner ? customerOrderView(order) : order);
 };
 
 export const getAllOrders = async (_req: AuthRequest, res: Response) => {
@@ -802,7 +811,7 @@ export const cancelMyOrder = async (req: AuthRequest, res: Response) => {
     "items.product",
     "name images deliveryFeeInsideCity deliveryFeeOutsideCity"
   );
-  res.json(updated);
+  res.json(updated && customerOrderView(updated));
 };
 
 // Lightweight, quick-glance numbers for the admin dashboard overview — not

@@ -6,7 +6,7 @@ row here and add a dated entry to [PROGRESS.md](PROGRESS.md) (the full history
 log: what changed and how it was verified). How things are built lives in
 [ARCHITECTURE.md](ARCHITECTURE.md); costs in [LAUNCH_COSTS.md](LAUNCH_COSTS.md).
 
-Updated: 2026-10-12. Launch target: end of October 2026 (3 products, Cash on
+Updated: 2026-10-13. Launch target: end of October 2026 (3 products, Cash on
 Delivery + Pathao).
 
 A task is **Done** only after its acceptance checks pass. "Done locally" means
@@ -48,7 +48,7 @@ the user deferred them on 2026-10-09.
 | SEC-10 | Input validation | Verified live 2026-10-12: a product edited to add variants + pre-order saved correctly. Nothing left. |
 | SEC-11 | Rate limits / DDoS | Edge/WAF in front of the API, direct-origin access, spoofed IP headers, limits shared across instances. Small agreed staging load only — never load-test the live store. |
 | SEC-15 | API answers the storefront only | **Done** (2026-10-12): in production the API returns 403 to any `/api` request without the shared `INTERNAL_API_SECRET`, before the rate limiter or database are touched. The storefront proxy and server-side rendering send it. Open on purpose: `/api/health`, `/api/orders/bkash/callback`, `/uploads`. Deployed 2026-10-12 (frontend first, backend after); the owner reports the live store working. Verified live 2026-10-12: direct requests to `/api/products` and `/api/categories` return 403 and `/api/health` returns 200. Nothing left for this task. This does not stop a large flood from reaching Railway; an edge/WAF (SEC-11) is still the real fix. |
-| SEC-16 | Staff-only order fields reach the customer | **Open** (found 2026-10-12, not fixed). `GET /api/orders/my` and the owner path of `GET /api/orders/:id` return the whole order document, so `internalNote`, `courierNote`, `paymentReviewNote`, the courier consignment ID and the idempotency key/fingerprint are in the response a customer's browser receives. The pages don't display them. Fix: select only customer fields on those two responses. |
+| SEC-16 | Staff-only order fields reach the customer | **Done locally** (2026-10-13). Every order response a customer receives (`GET /api/orders/my`, the owner path of `GET /api/orders/:id`, self-cancel, and checkout including its retry replies) now carries only an allowlist of customer fields; `internalNote`, the courier fields, the payment-review fields, the bKash ids and the idempotency key/fingerprint are gone. Staff routes are unchanged. Left: deploy the backend, then as a customer check My Orders, the print page and a checkout still work and that the `/orders/my` response has no staff fields. |
 | SEC-14 | Storefront security headers | **Done locally** (2026-10-12): every page and route now sends `Content-Security-Policy` (`frame-ancestors`, `base-uri`, `object-src` only), `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`; `X-Powered-By` removed. Left: deploy, check the headers on `shohojepai.com`, and confirm Google sign-in, GTM / Meta pixel and "copy link" still work. No `script-src` (see ARCHITECTURE.md). |
 
 ## 4. Proposed features (not started unless noted)
