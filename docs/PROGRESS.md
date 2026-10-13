@@ -1325,3 +1325,9 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Five translation keys added (`chat.open`, `chat.close`, `chat.messenger`, `chat.whatsapp`, `messenger.chatWithUs`).
 - Verified: frontend `tsc` and lint, backend `tsc`. In a browser on the local dev server, signed in as staff: the button opens and closes the menu, both links and labels are right, Escape and an outside click close it. `m.me/61594292297060` redirects to a Facebook message thread. Not checked: signed out (the customer's Messenger link), a phone screen, Bangla labels.
 - Left: deploy, `npm run sync-translations`, then tap Messenger as a signed-out visitor and confirm it opens a chat with the right Page.
+
+## 2026-10-13 (email inbox link in the dashboard)
+- The dashboard sidebar has a new "Email inboxes" group for admin and coadmin (any coadmin, no permission needed): one link per store mailbox, opening Namecheap Private Email's sign-in (`https://privateemail.com/`) in a new tab. The mailbox's own password is the gate; the site stores no mail credentials.
+- Mailboxes come from `STAFF_MAILBOXES` in `frontend/src/lib/contact.ts` (currently only `hello@shohojepai.com`). A new mailbox is one more address in that list. Every address uses the same sign-in page; the address is not pre-filled.
+- Verified: frontend `tsc` and lint; seen in a browser on the local dev server as admin (group at the bottom of the sidebar, link and target correct). Not checked as a coadmin or as a customer, and the link was not clicked through to a sign-in.
+- Also today: the chat button commit `45746d6` is live on Vercel (button present in the page HTML); its Railway status was still "deploying" 20+ minutes after the push, with `/api/health` at 200 throughout. That commit changed only the translation seed on the server.

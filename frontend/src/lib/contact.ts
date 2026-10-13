@@ -9,6 +9,11 @@ export const CONTACT_EMAIL = "hello@shohojepai.com";
 export const CONTACT_ADDRESS =
   "Rongdhonu Manipuri Saree Ghor, Lamabazar, opposite Madan Mohan College gate, Sylhet";
 export const CONTACT_ADDRESS_KEY = "contact.address";
+// Namecheap Private Email's webmail sign-in, and the store's mailboxes on
+// it — the dashboard sidebar shows staff one link per address. Every
+// address signs in on the same page; add a mailbox here once it exists.
+export const WEBMAIL_LOGIN_URL = "https://privateemail.com/";
+export const STAFF_MAILBOXES = [CONTACT_EMAIL];
 // Digits only, with country code, no "+" — what wa.me links expect.
 export const WHATSAPP_NUMBER = "8801700502013";
 

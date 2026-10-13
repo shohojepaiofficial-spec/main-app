@@ -25,7 +25,10 @@ import {
   History,
   RotateCcw,
   Wallet,
+  AtSign,
+  ExternalLink,
 } from "lucide-react";
+import { STAFF_MAILBOXES, WEBMAIL_LOGIN_URL } from "@/lib/contact";
 import { useAuthController } from "@/controllers/useAuthController";
 import { Modal } from "@/components/ui/Modal";
 import { useTranslations } from "@/controllers/useTranslations";
@@ -48,6 +51,7 @@ export function DashboardSidebar() {
   // On small screens the nav lives behind a "Menu" button (a drawer) instead
   // of sitting permanently on the page — see the mobile bar below.
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const isStaff = user?.role === "admin" || user?.role === "coadmin";
 
   // Each admin link is gated by the same permission that gates its API
   // routes (see docs/ARCHITECTURE.md's "Roles & permissions"), so a coadmin
@@ -133,6 +137,28 @@ export function DashboardSidebar() {
           {group.links.map(renderLink)}
         </div>
       ))}
+
+      {/* Webmail opens outside the site, one link per store mailbox. Any
+          admin/coadmin sees it — the mailbox's own password is the gate. */}
+      {isStaff && (
+        <div className="flex flex-col gap-0.5">
+          {groupHeading("Email inboxes")}
+          {STAFF_MAILBOXES.map((address) => (
+            <a
+              key={address}
+              href={WEBMAIL_LOGIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setIsMobileOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-background"
+            >
+              <AtSign size={16} className="shrink-0" />
+              <span className="truncate">{address}</span>
+              <ExternalLink size={12} className="ml-auto shrink-0 text-muted" aria-label="opens in a new tab" />
+            </a>
+          ))}
+        </div>
+      )}
 
       <div className="mt-3 border-t border-border pt-2">
         <button
