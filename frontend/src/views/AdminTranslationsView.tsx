@@ -85,7 +85,7 @@ export function AdminTranslationsView() {
       {isLoading ? (
         <p className="text-sm text-muted">Loading translations...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted">No translations match "{search}".</p>
+        <p className="text-sm text-muted">No translations match &ldquo;{search}&rdquo;.</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full min-w-[720px] text-left">

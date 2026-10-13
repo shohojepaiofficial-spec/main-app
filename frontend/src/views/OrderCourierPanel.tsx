@@ -122,12 +122,23 @@ function BookingForm({
     };
   }, []);
 
+  // Picking a city or zone clears everything below it here, in the handler,
+  // rather than in the effects (see ARCHITECTURE.md on set-state-in-effect).
+  // The zone and area ids belong to the old choice, so they must not survive
+  // into the booking.
+  const chooseCity = (id: number | "") => {
+    setCityId(id);
+    setZones([]);
+    chooseZone("");
+  };
+  const chooseZone = (id: number | "") => {
+    setZoneId(id);
+    setAreas([]);
+    setAreaId("");
+  };
+
   useEffect(() => {
-    if (cityId === "") {
-      setZones([]);
-      setZoneId("");
-      return;
-    }
+    if (cityId === "") return;
     let ignore = false;
     orderService.getPathaoZones(cityId).then((data) => {
       if (!ignore) setZones(data);
@@ -138,11 +149,7 @@ function BookingForm({
   }, [cityId]);
 
   useEffect(() => {
-    if (zoneId === "") {
-      setAreas([]);
-      setAreaId("");
-      return;
-    }
+    if (zoneId === "") return;
     let ignore = false;
     orderService.getPathaoAreas(zoneId).then((data) => {
       if (!ignore) setAreas(data);
@@ -164,7 +171,7 @@ function BookingForm({
   }
 
   if (isLoadingCities) {
-    return <p className="rounded-md border border-border bg-background p-3 text-xs text-muted">Loading Pathao's coverage area list...</p>;
+    return <p className="rounded-md border border-border bg-background p-3 text-xs text-muted">Loading Pathao&apos;s coverage area list...</p>;
   }
 
   const canSubmit = cityId !== "" && zoneId !== "" && Number(weightKg) > 0;
@@ -178,7 +185,7 @@ function BookingForm({
       <div className="grid gap-2 sm:grid-cols-3">
         <select
           value={cityId}
-          onChange={(e) => setCityId(e.target.value ? Number(e.target.value) : "")}
+          onChange={(e) => chooseCity(e.target.value ? Number(e.target.value) : "")}
           className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
         >
           <option value="">City</option>
@@ -190,7 +197,7 @@ function BookingForm({
         </select>
         <select
           value={zoneId}
-          onChange={(e) => setZoneId(e.target.value ? Number(e.target.value) : "")}
+          onChange={(e) => chooseZone(e.target.value ? Number(e.target.value) : "")}
           disabled={cityId === ""}
           className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm disabled:opacity-50"
         >

@@ -408,7 +408,7 @@ export function CheckoutView({
         // payment cancels this order and restores its stock server-side, so
         // leaving the cart untouched here means there's still something to
         // check out with either way.
-        window.location.href = order.bkashRedirectUrl;
+        window.location.assign(order.bkashRedirectUrl);
         return;
       }
 

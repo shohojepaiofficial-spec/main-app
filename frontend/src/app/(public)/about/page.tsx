@@ -7,6 +7,7 @@ import {
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL,
 } from "@/lib/contact";
+import { T } from "@/components/ui/T";
 import { toJsonLdScript } from "@/lib/jsonLd";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
@@ -63,86 +64,114 @@ export default function AboutPage() {
 
       <div className="mb-6 flex items-center gap-3">
         <Store size={24} className="text-primary" />
-        <h1 className="text-2xl font-semibold">About {SITE_NAME}</h1>
+        <h1 className="text-2xl font-semibold">
+          <T k="about.heading" vars={{ name: SITE_NAME }}>
+            {"About {name}"}
+          </T>
+        </h1>
       </div>
 
       <div className="flex flex-col gap-6 text-sm text-muted">
         <section>
-          <h2 className="mb-1 text-base font-semibold text-foreground">Who we are</h2>
+          <h2 className="mb-1 text-base font-semibold text-foreground">
+            <T k="about.who.title">Who we are</T>
+          </h2>
           <p>
-            {SITE_NAME} is an online shop based in Sylhet, Bangladesh. The name is Bangla for
-            &ldquo;get it easily&rdquo;, and that is the idea behind the store: pick what you
-            like, order in a couple of minutes, and have it brought to your door.
+            <T k="about.who.body" vars={{ name: SITE_NAME }}>
+              {"{name} is an online shop based in Sylhet, Bangladesh. The name is Bangla for “get it easily”, and that is the idea behind the store: pick what you like, order in a couple of minutes, and have it brought to your door."}
+            </T>
           </p>
         </section>
 
         <section>
-          <h2 className="mb-1 text-base font-semibold text-foreground">How shopping with us works</h2>
+          <h2 className="mb-1 text-base font-semibold text-foreground">
+            <T k="about.how.title">How shopping with us works</T>
+          </h2>
           <ul className="flex flex-col gap-1">
             <li>
-              <strong className="text-foreground">Delivery across Bangladesh.</strong> We send
-              orders to every zila by courier. See{" "}
+              <strong className="text-foreground">
+                <T k="about.how.delivery.title">Delivery across Bangladesh.</T>
+              </strong>{" "}
+              <T k="about.how.delivery.body">We send orders to every zila by courier.</T>{" "}
               <Link href="/shipping" className="text-primary underline">
-                Shipping &amp; Delivery
-              </Link>{" "}
-              for timelines and fees.
-            </li>
-            <li>
-              <strong className="text-foreground">Cash on delivery.</strong> Pay when your order
-              arrives. The delivery fee is shown at checkout before you place the order.
-            </li>
-            <li>
-              <strong className="text-foreground">Order updates.</strong> We email you as your
-              order is confirmed, shipped and delivered, and you can follow it any time under{" "}
-              <Link href="/orders" className="text-primary underline">
-                My Orders
+                <T k="about.how.delivery.link">See delivery times and fees</T>
               </Link>
-              .
             </li>
             <li>
-              <strong className="text-foreground">7-day returns.</strong> If something isn&apos;t
-              right, you can return or exchange it within 7 days of delivery. Details are on our{" "}
+              <strong className="text-foreground">
+                <T k="about.how.cod.title">Cash on delivery.</T>
+              </strong>{" "}
+              <T k="about.how.cod.body">
+                {"Pay when your order arrives. The delivery fee is shown at checkout before you place the order."}
+              </T>
+            </li>
+            <li>
+              <strong className="text-foreground">
+                <T k="about.how.updates.title">Order updates.</T>
+              </strong>{" "}
+              <T k="about.how.updates.body">
+                {"We email you as your order is confirmed, shipped and delivered."}
+              </T>{" "}
+              <Link href="/orders" className="text-primary underline">
+                <T k="about.how.updates.link">Follow it under My Orders</T>
+              </Link>
+            </li>
+            <li>
+              <strong className="text-foreground">
+                <T k="about.how.returns.title">7-day returns.</T>
+              </strong>{" "}
+              <T k="about.how.returns.body">
+                {"If something isn't right, you can return or exchange it within 7 days of delivery."}
+              </T>{" "}
               <Link href="/returns" className="text-primary underline">
-                Returns &amp; Exchanges
-              </Link>{" "}
-              page.
+                <T k="about.how.returns.link">Read the returns policy</T>
+              </Link>
             </li>
           </ul>
         </section>
 
         <section>
-          <h2 className="mb-1 text-base font-semibold text-foreground">Where to find us</h2>
+          <h2 className="mb-1 text-base font-semibold text-foreground">
+            <T k="about.find.title">Where to find us</T>
+          </h2>
           <address className="not-italic">{CONTACT_ADDRESS}</address>
-          <p className="mt-2">
-            Call{" "}
-            <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-primary underline">
-              {CONTACT_PHONE_DISPLAY}
-            </a>
-            , email{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline">
-              {CONTACT_EMAIL}
-            </a>
-            , or use our{" "}
-            <Link href="/contact" className="text-primary underline">
-              Contact page
-            </Link>
-            .
-          </p>
+          <ul className="mt-2 flex flex-col gap-1">
+            <li>
+              <T k="about.find.phone">Phone</T>:{" "}
+              <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-primary underline">
+                {CONTACT_PHONE_DISPLAY}
+              </a>
+            </li>
+            <li>
+              <T k="about.find.email">Email</T>:{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline">
+                {CONTACT_EMAIL}
+              </a>
+            </li>
+            <li>
+              <Link href="/contact" className="text-primary underline">
+                <T k="about.find.contactLink">Send us a message</T>
+              </Link>
+            </li>
+          </ul>
         </section>
 
         <section>
-          <h2 className="mb-1 text-base font-semibold text-foreground">Start shopping</h2>
-          <p>
-            Browse everything in the{" "}
-            <Link href="/shop" className="text-primary underline">
-              Shop
-            </Link>{" "}
-            or look through our{" "}
-            <Link href="/categories" className="text-primary underline">
-              Categories
-            </Link>
-            .
-          </p>
+          <h2 className="mb-1 text-base font-semibold text-foreground">
+            <T k="about.start.title">Start shopping</T>
+          </h2>
+          <ul className="flex flex-col gap-1">
+            <li>
+              <Link href="/shop" className="text-primary underline">
+                <T k="about.start.shop">Browse the shop</T>
+              </Link>
+            </li>
+            <li>
+              <Link href="/categories" className="text-primary underline">
+                <T k="about.start.categories">Look through categories</T>
+              </Link>
+            </li>
+          </ul>
         </section>
       </div>
     </main>
