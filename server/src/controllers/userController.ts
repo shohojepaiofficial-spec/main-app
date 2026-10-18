@@ -1,15 +1,13 @@
 import { validateControllerInput } from "../middleware/controllerInput";
 import { Response } from "express";
-import { User, UserRole } from "../models/User";
+import { MAX_ADMINS, User, UserRole } from "../models/User";
 import { PERMISSIONS, isPermission } from "../utils/permissions";
 import { AuthRequest } from "../middleware/auth";
 import { escapeRegex } from "../utils/regex";
+import { notifyRoleChange } from "../utils/roleChangeEmail";
 
-// "admin" is deliberately excluded: there is exactly one admin at a time,
-// set only by the promote-admin bootstrap script (which transfers the role
-// rather than adding a second one). This endpoint can only ever move
-// someone between "user" and "coadmin".
-const ASSIGNABLE_ROLES: UserRole[] = ["user", "coadmin"];
+// Any role can be assigned here, but there are never more than MAX_ADMINS
+// admins at once (checked in updateUserAccess).
 const ALL_ROLES: UserRole[] = ["user", "coadmin", "admin"];
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -69,7 +67,8 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
   });
 };
 
-// Admin-only (see routes/userRoutes.ts) — grants/revokes a user's role and,
+// Admin-only (see routes/userRoutes.ts) — any admin can change anyone else's
+// role (including promoting or demoting another admin) and,
 // for coadmins, which of PERMISSIONS they hold. A user's own access can't be
 // changed here so an admin can't accidentally lock themselves out.
 export const updateUserAccess = async (req: AuthRequest, res: Response) => {
@@ -80,13 +79,16 @@ export const updateUserAccess = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: "You can't change your own access" });
   }
 
-  if (role !== undefined && !ASSIGNABLE_ROLES.includes(role)) {
-    return res.status(400).json({
-      message:
-        role === "admin"
-          ? "There is only one admin — use the promote-admin script to transfer that role"
-          : "Invalid role",
-    });
+  if (role !== undefined && !ALL_ROLES.includes(role)) {
+    return res.status(400).json({ message: "Invalid role" });
+  }
+
+  const tooManyAdmins = { message: `There can be at most ${MAX_ADMINS} admins — demote one first` };
+  const target = await User.findById(req.params.id).select("role");
+  if (!target) return res.status(404).json({ message: "User not found" });
+  const promotingToAdmin = role === "admin" && target.role !== "admin";
+  if (promotingToAdmin && (await User.countDocuments({ role: "admin" })) >= MAX_ADMINS) {
+    return res.status(400).json(tooManyAdmins);
   }
 
   if (permissions !== undefined) {
@@ -105,5 +107,19 @@ export const updateUserAccess = async (req: AuthRequest, res: Response) => {
 
   const user = await User.findByIdAndUpdate(req.params.id, update, { returnDocument: "after" });
   if (!user) return res.status(404).json({ message: "User not found" });
+
+  // Two admins promoting different people at the same moment could both pass
+  // the count check above, so recount and undo this promotion if it overshot.
+  if (promotingToAdmin && (await User.countDocuments({ role: "admin" })) > MAX_ADMINS) {
+    await User.updateOne({ _id: user._id, role: "admin" }, { role: target.role, permissions: [] });
+    return res.status(409).json(tooManyAdmins);
+  }
+
+  // Both the admin who made the change and the person whose role changed
+  // are always emailed. Permission-only edits don't send anything.
+  if (role !== undefined && role !== target.role) {
+    notifyRoleChange(req.userId, { name: user.name, email: user.email }, target.role, role);
+  }
+
   res.json(shapeUser(user));
 };

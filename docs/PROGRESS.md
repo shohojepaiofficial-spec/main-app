@@ -1389,3 +1389,12 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - `PATHAO_WEBHOOK_AUTO_STATUS=true` (off by default) also moves the order: picked/in transit/sorting/hub/out for delivery → Shipped, delivered → Delivered (partial, returned, failed, hold, cancelled are left to staff), recorded as "by Pathao (automatic)". `transitionOrder`'s actor may now be a name without a user id.
 - Verified: server `tsc` + 480 tests (7 new), frontend `tsc` + lint + 110 tests. Not verified against a real Pathao webhook.
 - Left: in the Pathao merchant panel set the webhook URL `https://api.shohojepai.com/api/orders/pathao/webhook` and a secret; put `PATHAO_WEBHOOK_SECRET` and the panel's integration UUID (`PATHAO_WEBHOOK_INTEGRATION_SECRET`) in Railway; after the first real booking check the Railway log lines and the order's Courier tracking, then decide on `PATHAO_WEBHOOK_AUTO_STATUS`.
+
+## 2026-10-19 — Up to two admins
+
+- The store can now have two admins (`MAX_ADMINS = 2` in `models/User.ts`). Any admin can change anyone else's role on `/admin/users`, including promoting someone to Admin or demoting the other admin. Nobody can change their own role, so there is always at least one admin.
+- `updateUserAccess` refuses a promotion when two admins already exist ("demote one first"), and recounts after saving so two promotions at the same moment can't leave three; the later one is undone with a 409.
+- `npm run promote-admin` no longer demotes the existing admin; it adds one and refuses if two already exist.
+- A newly promoted admin must turn on two-step verification before staff pages work (SEC-19).
+- Verified: server `tsc` + 480 tests, frontend `tsc`. Not tried in a browser.
+- Role changes now always send two emails (`utils/roleChangeEmail.ts`), with no opt-out: one to the person whose role changed (old → new role, who changed it, when) and one to the admin who made the change. Changing only a co-admin's permissions sends nothing. Emails are fire-and-forget, so a mail failure is logged but doesn't undo the change. Server `tsc` + 483 tests (3 new). No real email sent yet.

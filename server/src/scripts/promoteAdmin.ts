@@ -5,7 +5,7 @@
 // Usage: npm run promote-admin -- someone@example.com
 import "dotenv/config";
 import mongoose from "mongoose";
-import { User } from "../models/User";
+import { MAX_ADMINS, User } from "../models/User";
 
 const run = async () => {
   const email = process.argv[2];
@@ -29,22 +29,21 @@ const run = async () => {
     process.exit(1);
   }
 
-  // There is only ever one admin — this transfers the role rather than
-  // adding a second one, so the invariant holds no matter how this script
-  // gets run.
-  const previousAdmins = await User.find({ role: "admin", _id: { $ne: target.id } });
-  for (const previous of previousAdmins) {
-    previous.role = "user";
-    previous.permissions = [];
-    previous.twoFactor = { enabled: false };
-    await previous.save();
-    console.log(`${previous.email} is no longer admin.`);
+  // Never more than MAX_ADMINS admins — refuse rather than silently demote
+  // someone. Demote an admin from /admin/users first if the limit is reached.
+  if (target.role !== "admin") {
+    const adminCount = await User.countDocuments({ role: "admin" });
+    if (adminCount >= MAX_ADMINS) {
+      console.error(`There are already ${adminCount} admins (max ${MAX_ADMINS}). Demote one first.`);
+      await mongoose.disconnect();
+      process.exit(1);
+    }
   }
 
   target.role = "admin";
   target.permissions = [];
   await target.save();
-  console.log(`${target.email} is now the admin.`);
+  console.log(`${target.email} is now an admin.`);
 
   await mongoose.disconnect();
 };

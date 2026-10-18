@@ -139,11 +139,9 @@ function UserAccessRow({
     );
   };
 
-  // There is only one admin, ever — it's set outside this UI (see the
-  // promote-admin script) and never assignable here. The current user's own
-  // row is the only one that can show "Admin", and it's fully disabled below,
-  // so this just keeps "Admin" out of every other row's options.
-  const selectableRoles: UserRole[] = isCurrentUser ? ["admin"] : ["user", "coadmin"];
+  // Any admin can set anyone else's role, including Admin. The server caps
+  // admins at 2 and replies with a message if that limit is hit.
+  const selectableRoles: UserRole[] = ["user", "coadmin", "admin"];
 
   return (
     <tr className="border-b border-border last:border-b-0">

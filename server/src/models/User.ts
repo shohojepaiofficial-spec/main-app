@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs";
 import { PERMISSIONS, Permission } from "../utils/permissions";
 
 export type AuthProvider = "local" | "google";
+// The store never has more than this many admins at once.
+export const MAX_ADMINS = 2;
+
 export type UserRole = "user" | "coadmin" | "admin";
 
 export interface DeliveryLocation {
