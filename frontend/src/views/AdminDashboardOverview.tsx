@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ClipboardList, Boxes, AlertTriangle, Wallet, ArrowRight } from "lucide-react";
+import { ClipboardList, Boxes, AlertTriangle, Wallet, ArrowRight, MessageSquare } from "lucide-react";
 import { useAuthController } from "@/controllers/useAuthController";
+import { useSmsBalance } from "@/controllers/useSmsBalance";
 import * as orderService from "@/services/orderService";
 import * as productService from "@/services/productService";
 import { formatCurrency } from "@/lib/currency";
@@ -42,6 +43,8 @@ export function AdminDashboardOverview() {
   const { user, hasPermission } = useAuthController();
   const canSeeOrders = hasPermission("orders:manage");
   const canSeeProducts = hasPermission("products:manage");
+
+  const { smsBalance, hasError: smsBalanceError } = useSmsBalance(canSeeOrders);
 
   const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
   const [productStats, setProductStats] = useState<ProductStats | null>(null);
@@ -88,7 +91,7 @@ export function AdminDashboardOverview() {
                   Manage orders <ArrowRight size={12} />
                 </Link>
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatTile
                   label="Pending orders"
                   value={String(orderStats.pendingCount)}
@@ -97,6 +100,20 @@ export function AdminDashboardOverview() {
                 />
                 <StatTile label="Total orders" value={String(orderStats.totalOrders)} Icon={ClipboardList} />
                 <StatTile label="Revenue" value={formatCurrency(orderStats.totalRevenue)} Icon={Wallet} />
+                <StatTile
+                  label="SMS balance"
+                  value={
+                    smsBalanceError
+                      ? "Unavailable"
+                      : !smsBalance
+                        ? "…"
+                        : !smsBalance.configured || smsBalance.balance === null
+                          ? "Not connected"
+                          : formatCurrency(smsBalance.balance)
+                  }
+                  Icon={MessageSquare}
+                  tone={smsBalanceError || (smsBalance?.balance ?? Infinity) < 100 ? "warning" : undefined}
+                />
               </div>
             </div>
           )}

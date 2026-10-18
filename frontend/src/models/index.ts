@@ -323,6 +323,11 @@ export interface DeliveryQuote {
 // orderController#getOrderStats/productController#getProductStats. Kept
 // separate from AnalyticsOverview (which needs analytics:manage) so an
 // orders-only or products-only coadmin still gets a useful home screen.
+export interface SmsBalance {
+  configured: boolean;
+  balance: number | null;
+}
+
 export interface OrderStats {
   pendingCount: number;
   totalOrders: number;

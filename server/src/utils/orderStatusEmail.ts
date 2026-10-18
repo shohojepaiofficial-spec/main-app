@@ -2,6 +2,7 @@ import { Order, IOrder } from "../models/Order";
 import { sendEmail } from "./sendEmail";
 import { escapeHtml } from "./escapeHtml";
 import { RETURN_WINDOW_DAYS } from "./returns";
+import { notifyOrderStatusSms } from "./orderStatusSms";
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 
@@ -112,7 +113,9 @@ export function buildOrderStatusEmail(event: OrderEmailEvent, data: OrderEmailDa
 // email here: a mail hiccup must never fail or undo the order change that
 // triggered it. Orders with no account (staff-entered phone orders) have no
 // address to write to and are skipped.
+// Also sends the matching SMS (utils/orderStatusSms.ts) when SMS is configured.
 export function notifyOrderStatus(orderId: string, event: OrderEmailEvent, previousStatus?: IOrder["status"]) {
+  notifyOrderStatusSms(orderId, event, previousStatus);
   Promise.resolve()
     .then(() => sendOrderStatusEmail(orderId, event, previousStatus))
     .catch((err) => console.error("Order status email failed:", (err as Error).message));

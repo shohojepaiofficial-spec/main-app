@@ -17,6 +17,7 @@ import wishlist from "./wishlistRoutes";
 import shared from "./sharedCartRoutes";
 import ads from "./adRoutes";
 import campaigns from "./campaignRoutes";
+import sms from "./smsRoutes";
 import translations from "./translationRoutes";
 import reviews from "./reviewRoutes";
 import stats from "./statsRoutes";
@@ -36,7 +37,7 @@ const publicRoutes = new Set([
   "orders GET /bkash/callback", "banners GET /", "promos POST /validate", "promos GET /active",
   "analytics POST /track", "contact POST /", "shared GET /:id", "translations GET /", "stats GET /",
 ]);
-const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, stats, auditLogs, returns, payments, categories };
+const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, sms, stats, auditLogs, returns, payments, categories };
 const protectedRoutes: { name: string; method: string; path: string }[] = [];
 const customerRoutes = new Set([
   "auth POST /logout", "auth POST /logout-all", "auth GET /sessions", "auth DELETE /sessions/:sid", "auth GET /me", "auth PATCH /profile", "auth PATCH /password", "auth PATCH /delivery-location",
