@@ -59,7 +59,8 @@ app.use(
 );
 app.use("/api", storefrontOnly);
 app.use("/api", apiLimiter);
-app.use(express.json({ limit: "128kb" }));
+// The Pathao webhook signature may be an HMAC of the exact bytes received.
+app.use(express.json({ limit: "128kb", verify: (req, _res, buf) => { if ((req as express.Request).originalUrl?.startsWith("/api/orders/pathao/webhook")) (req as express.Request & { rawBody?: Buffer }).rawBody = buf; } }));
 app.use(requestValidation);
 app.use(boundMultipart);
 app.use(cookieParser());

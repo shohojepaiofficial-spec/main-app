@@ -23,6 +23,7 @@ import {
 } from "../controllers/orderController";
 import { protect, authorize } from "../middleware/auth";
 import { auditTrail } from "../middleware/auditTrail";
+import { pathaoWebhook } from "../controllers/pathaoWebhookController";
 import { checkoutIpLimiter, checkoutAccountLimiter, checkoutDailyLimiter, quoteLimiter } from "../middleware/rateLimit";
 
 const router = Router();
@@ -32,6 +33,7 @@ router.post("/", checkoutIpLimiter, protect, checkoutAccountLimiter, checkoutDai
 router.post("/delivery-quote", checkoutIpLimiter, protect, quoteLimiter, getDeliveryQuote);
 router.post("/admin", checkoutIpLimiter, protect, canManageOrders, checkoutAccountLimiter, auditTrail({ entityType: "order", action: "created", target: { from: "created" } }), adminCreateOrder);
 router.get("/bkash/callback", bkashCallback);
+router.post("/pathao/webhook", pathaoWebhook);
 router.get("/my", protect, getMyOrders);
 router.get("/reviewable", protect, getReviewableProducts);
 router.get("/stats", protect, canManageOrders, getOrderStats);

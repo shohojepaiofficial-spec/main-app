@@ -2,8 +2,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { Request, Response, NextFunction } from "express";
 
 // Paths (under /api) that something other than the storefront calls directly:
-// the host's health check and the browser redirect back from bKash.
-const openPaths = new Set(["/health", "/orders/bkash/callback"]);
+// the host's health check, the browser redirect back from bKash and
+// Pathao's courier status webhook (signed, see pathaoWebhookController).
+const openPaths = new Set(["/health", "/orders/bkash/callback", "/orders/pathao/webhook"]);
 const digest = (value: string) => createHash("sha256").update(value).digest();
 
 // In production the API only answers the storefront: its Next.js proxy and

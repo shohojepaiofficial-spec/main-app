@@ -25,7 +25,7 @@ export async function transitionOrder(
   // `silent` skips the customer email, for a change the customer was never
   // told the first half of (an order whose payment couldn't even be started).
   // `actor` is the staff member making the change, kept on the history entry.
-  options: { owner?: string; pendingOnly?: boolean; transactionId?: string; paymentFailed?: boolean; silent?: boolean; actor?: { id: string; name: string } } = {},
+  options: { owner?: string; pendingOnly?: boolean; transactionId?: string; paymentFailed?: boolean; silent?: boolean; actor?: { id?: string; name: string } } = {},
 ) {
   const session = await mongoose.startSession();
   let changedFrom: IOrder["status"] | undefined;
@@ -52,7 +52,7 @@ export async function transitionOrder(
       }
       const updated = await Order.findOneAndUpdate(
         { _id: current._id, status: current.status },
-        { $push: { statusHistory: { status, at: new Date(), ...(options.actor ? { by: options.actor.id, byName: options.actor.name } : {}) } }, $set: { status, ...(status === "delivered" && !current.deliveredAt ? { deliveredAt: new Date() } : {}), ...(status === "cancelled" && current.bkashTrxID ? { paymentReviewRequired: true } : {}), ...(options.transactionId ? { bkashTrxID: options.transactionId } : {}) } },
+        { $push: { statusHistory: { status, at: new Date(), ...(options.actor ? { ...(options.actor.id ? { by: options.actor.id } : {}), byName: options.actor.name } : {}) } }, $set: { status, ...(status === "delivered" && !current.deliveredAt ? { deliveredAt: new Date() } : {}), ...(status === "cancelled" && current.bkashTrxID ? { paymentReviewRequired: true } : {}), ...(options.transactionId ? { bkashTrxID: options.transactionId } : {}) } },
         { session, returnDocument: "after" },
       );
       if (!updated) throw Object.assign(new Error("Order changed; please retry"), { status: 409 });

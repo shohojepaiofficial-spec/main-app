@@ -57,7 +57,7 @@ export function CourierTrackingCard({
               <p className={`text-xs ${index === 0 ? "font-semibold" : "font-medium"}`}>{event.status}</p>
               <p className="text-[11px] text-muted">
                 {format(new Date(event.at), "d MMM yyyy, h:mm a")} &middot;{" "}
-                {event.kind === "booked" ? "booked with Pathao" : event.kind === "refresh" ? "from Pathao" : "entered by hand"}
+                {event.kind === "booked" ? "booked with Pathao" : event.kind === "webhook" ? "sent by Pathao" : event.kind === "refresh" ? "from Pathao" : "entered by hand"}
                 {event.byName && <> by {event.byName}</>}
               </p>
             </li>

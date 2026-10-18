@@ -31,7 +31,7 @@ async function proxy(req: NextRequest, context: { params: Promise<{ path: string
   const { path } = await context.params;
   if (!allowed.has(path[0]) || path.some(p => !/^[\w.-]+$/.test(p) || p === "." || p === "..")) return fail("Not found", 404);
   const route = path.join("/");
-  if (route === "auth/oauth-sync" || route === "orders/bkash/callback") return fail("Not found", 404);
+  if (route === "auth/oauth-sync" || route === "orders/bkash/callback" || route === "orders/pathao/webhook") return fail("Not found", 404);
   const mutation = !["GET", "HEAD"].includes(req.method);
   if (mutation && (req.headers.get("origin") !== req.nextUrl.origin || req.headers.get("x-requested-with") !== "ecommerce")) return fail("Invalid request origin", 403);
   if (req.headers.get("sec-fetch-site") === "cross-site") return fail("Invalid request origin", 403);

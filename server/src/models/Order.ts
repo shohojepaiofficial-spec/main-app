@@ -41,8 +41,8 @@ export interface ICourierEvent {
   status: string;
   at: Date;
   source: "pathao" | "manual";
-  // "booked" for the booking reply, "refresh" for a status check, "manual" for a hand edit.
-  kind: "booked" | "refresh" | "manual";
+  // "booked" for the booking reply, "refresh" for a status check, "manual" for a hand edit, "webhook" when Pathao pushed it.
+  kind: "booked" | "refresh" | "manual" | "webhook";
   byName?: string;
 }
 
@@ -227,7 +227,7 @@ const orderSchema = new Schema<IOrder>(
             status: { type: String, required: true, trim: true },
             at: { type: Date, required: true },
             source: { type: String, enum: ["pathao", "manual"], required: true },
-            kind: { type: String, enum: ["booked", "refresh", "manual"], required: true },
+            kind: { type: String, enum: ["booked", "refresh", "manual", "webhook"], required: true },
             byName: { type: String },
           },
           { _id: false }
