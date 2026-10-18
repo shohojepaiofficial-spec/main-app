@@ -57,6 +57,15 @@ const perAccount = (req: Request) => (req as AuthRequest).userId ?? clientIpKey(
 
 export const checkoutIpLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
 export const checkoutAccountLimiter = rateLimit({ windowMs: 60_000, limit: 10, keyGenerator: perAccount, standardHeaders: true, legacyHeaders: false });
+// Customer checkout only: each order texts the phone typed in, so a day's
+// cap bounds what one account can spend of the SMS balance (with the
+// open-order cap in createOrder and the per-phone cap in orderStatusSms).
+export const checkoutDailyLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, limit: 10, keyGenerator: perAccount, standardHeaders: true, legacyHeaders: false,
+  // Only placed orders count; a rejected attempt (out of stock, bad phone) does not.
+  skipFailedRequests: true,
+  message: { message: "You've placed a lot of orders today. Please try again tomorrow or contact us." },
+});
 export const quoteLimiter = rateLimit({ windowMs: 60_000, limit: 30, keyGenerator: perAccount, standardHeaders: true, legacyHeaders: false });
 export const apiLimiter = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: true, legacyHeaders: false });
 

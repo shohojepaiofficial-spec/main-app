@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { DashboardSidebar } from "@/views/DashboardSidebar";
 import { AuthModal } from "@/views/AuthModal";
 import { EmailVerificationBanner } from "@/views/EmailVerificationBanner";
+import { StaffTwoFactorBanner } from "@/views/StaffTwoFactorBanner";
 import { PageHelpPanel } from "@/views/PageHelpPanel";
 import { useRequireAuth } from "@/controllers/useRequireAuth";
 
@@ -52,6 +53,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     <div className="flex flex-col md:flex-row min-h-screen">
       <DashboardSidebar />
       <div className="flex-1">
+        <StaffTwoFactorBanner />
         <EmailVerificationBanner />
         <PageHelpPanel />
         {children}

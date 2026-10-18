@@ -18,6 +18,7 @@ vi.mock("../models/Product", () => ({ Product: {
   updateOne: async (_filter: unknown, update: { $inc: { stock: number } }) => { state.stock += update.$inc.stock; return { modifiedCount: 1 }; },
 } }));
 vi.mock("../models/Order", () => ({ Order: {
+  countDocuments: async (query: Record<string, unknown>) => state.orders.filter(o => o.user === query.user && o.status === query.status).length,
   findOne: async (query: Record<string, unknown>) => state.orders.find(o => o.user === query.user && o.idempotencyKey === query.idempotencyKey) ?? null,
   create: async ([data]: Record<string, any>[]) => {
     if (state.orders.some(o => o.user === data.user && o.idempotencyKey === data.idempotencyKey)) throw Object.assign(new Error("duplicate"), { code: 11000 });
@@ -82,5 +83,21 @@ describe("checkout security", () => {
     await createOrder(request(), res as unknown as Response);
     expect(res.status).toHaveBeenCalledWith(403); expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: "EMAIL_VERIFICATION_REQUIRED" }));
     expect(state.orders).toHaveLength(0);
+  });
+  it("caps how many unconfirmed orders one account can hold", async () => {
+    for (let n = 0; n < 3; n++) await createOrder(request(`open-order-key-${n}-0000`), response() as unknown as Response);
+    expect(state.orders).toHaveLength(3);
+    const res = response();
+    await createOrder(request("open-order-key-3-0000"), res as unknown as Response);
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: "TOO_MANY_OPEN_ORDERS" }));
+    expect(state.orders).toHaveLength(3); expect(state.stock).toBe(4);
+  });
+  it("refuses a phone that isn't a Bangladeshi mobile and stores one spelling per number", async () => {
+    const address = (phone: string) => ({ shippingAddress: { fullName: "Buyer", phone, zila: "Dhaka", upazila: "Dhaka", addressLine: "Test street" } });
+    await expect(createOrder(request("bad-phone-key-000000", address("12345")), response() as unknown as Response)).rejects.toMatchObject({ status: 400 });
+    expect(state.orders).toHaveLength(0);
+    await createOrder(request("good-phone-key-00000", address("+880 1712-345678")), response() as unknown as Response);
+    expect(state.orders[0].shippingAddress.phone).toBe("01712345678");
   });
 });

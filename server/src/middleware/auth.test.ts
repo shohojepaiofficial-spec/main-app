@@ -21,13 +21,24 @@ describe("token purpose boundaries", () => {
     ["user", ["orders:manage"], false],
     ["user", [], false],
   ])("checks current role %s and permissions %j", async (role, permissions, allowed) => {
-    vi.spyOn(User, "findById").mockReturnValue({ select: () => Promise.resolve({ role, permissions }) } as never);
+    vi.spyOn(User, "findById").mockReturnValue({ select: () => Promise.resolve({ role, permissions, twoFactor: { enabled: true } }) } as never);
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     const next = vi.fn();
     await authorize("orders:manage")({ userId: id, userRole: "admin" } as AuthRequest, res as unknown as express.Response, next);
     if (allowed) expect(next).toHaveBeenCalledOnce();
     else {
       expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    }
+  });
+  it.each(["admin", "coadmin"])("keeps %s out of staff routes until two-step verification is on", async (role) => {
+    vi.spyOn(User, "findById").mockReturnValue({ select: () => Promise.resolve({ role, permissions: ["orders:manage"], twoFactor: { enabled: false } }) } as never);
+    for (const guard of role === "admin" ? [authorize("orders:manage"), adminOnly] : [authorize("orders:manage")]) {
+      const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+      const next = vi.fn();
+      await guard({ userId: id } as AuthRequest, res as unknown as express.Response, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: "TWO_FACTOR_REQUIRED" }));
       expect(next).not.toHaveBeenCalled();
     }
   });

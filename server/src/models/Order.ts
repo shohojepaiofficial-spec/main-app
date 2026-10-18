@@ -215,4 +215,7 @@ orderSchema.pre("save", function () {
 orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } } });
 orderSchema.index({ status: 1, reservationExpiresAt: 1 });
 orderSchema.index({ createdAt: -1 }, { partialFilterExpression: { paymentReviewRequired: true } });
+// Checkout's open-order cap and the order SMS per-phone daily cap.
+orderSchema.index({ user: 1, status: 1 });
+orderSchema.index({ "shippingAddress.phone": 1, createdAt: -1 });
 export const Order = model<IOrder>("Order", orderSchema);

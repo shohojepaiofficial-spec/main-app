@@ -326,8 +326,6 @@ export interface DeliveryQuote {
 export interface SmsBalance {
   configured: boolean;
   balance: number | null;
-  // Which server env var REVE accepted as the balance "client ID".
-  source: string | null;
 }
 
 export interface OrderStats {

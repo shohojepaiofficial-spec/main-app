@@ -61,10 +61,25 @@ export function notifyOrderStatusSms(orderId: string, event: OrderEmailEvent, pr
     .catch((err) => console.error("Order status SMS failed:", (err as Error).message));
 }
 
+// "Placed" and "cancelled" texts are the ones a customer can trigger on their
+// own, to any number they type at checkout. Past this many online orders to
+// one phone in 24 hours those two texts stop, so the store's SMS balance
+// can't be spent texting a stranger. Shipped/delivered (staff actions) and
+// staff-entered orders are never capped.
+export const MAX_CUSTOMER_SMS_ORDERS_PER_PHONE = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 async function sendOrderStatusSms(orderId: string, event: OrderEmailEvent, previousStatus?: IOrder["status"]) {
-  const order = await Order.findById(orderId).select("shippingAddress.phone paymentMethod totalAmount bkashTrxID");
+  const order = await Order.findById(orderId).select("shippingAddress.phone paymentMethod totalAmount bkashTrxID source");
   const phone = order?.shippingAddress?.phone;
   if (!order || !phone) return;
+  if ((event === "placed" || event === "cancelled") && order.source === "online") {
+    const recent = await Order.countDocuments({ "shippingAddress.phone": phone, source: "online", createdAt: { $gte: new Date(Date.now() - DAY_MS) } });
+    if (recent > MAX_CUSTOMER_SMS_ORDERS_PER_PHONE) {
+      console.warn(`Order status SMS skipped for order ${orderId}: ${recent} online orders to this phone in 24h`);
+      return;
+    }
+  }
   const message = buildOrderStatusSms(event, {
     orderId: order.id,
     paymentMethod: order.paymentMethod,

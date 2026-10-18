@@ -11,3 +11,21 @@
 export function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
+
+// A person's display name. It is greeted by name in every account email, so
+// it must not be able to carry a link or markup into an email the store
+// sends to someone else's address (sign up with a stranger's email, put a
+// phishing link in the name). Emails escape it too; this keeps links out of
+// the plain-text part, where mail apps turn them into clickable links.
+export const NAME_MAX_LENGTH = 80;
+export const NAME_RULE_MESSAGE = `Use your real name, up to ${NAME_MAX_LENGTH} characters, without links.`;
+export function isValidPersonName(value: string): boolean {
+  const name = value.trim();
+  return name.length > 0 && name.length <= NAME_MAX_LENGTH && !/[<>]|:\/\/|www\.|\.(com|net|org|xyz|info|top|bd|io|me|link|site|online|shop)\b/i.test(name);
+}
+
+// For names that come from Google, which can't be refused: keep the safe part.
+export function safePersonName(value: string, fallback: string): string {
+  const name = value.replace(/[<>]/g, "").trim().slice(0, NAME_MAX_LENGTH);
+  return isValidPersonName(name) ? name : fallback;
+}

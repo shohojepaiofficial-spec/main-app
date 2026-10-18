@@ -27,7 +27,7 @@ function extractErrorMessage(err: unknown, fallback: string) {
 }
 
 const profileSchema = z.object({
-  name: z.string().min(2, "Name is too short"),
+  name: z.string().trim().min(2, "Name is too short").max(80, "Name is too long"),
   phone: z.string().optional(),
 });
 type ProfileValues = z.infer<typeof profileSchema>;

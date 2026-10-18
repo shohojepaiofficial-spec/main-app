@@ -1,5 +1,6 @@
 "use client";
 
+import { isBdMobile, BD_MOBILE_MESSAGE } from "@/lib/phone";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -166,7 +167,7 @@ function ProductPicker({ onAdd }: { onAdd: (item: PickableItem) => void }) {
 
 const manualOrderSchema = z.object({
   fullName: z.string().min(2, "Name is too short"),
-  phone: z.string().min(6, "Enter a valid phone number"),
+  phone: z.string().refine(isBdMobile, BD_MOBILE_MESSAGE),
   zila: z.string().min(1, "Pick a Zila"),
   upazila: z.string().min(1, "Pick an Upazila"),
   addressLine: z.string().min(5, "Address is too short"),

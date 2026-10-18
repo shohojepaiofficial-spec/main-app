@@ -11,3 +11,12 @@ export function toWhatsAppLink(phone: string): string {
 export function toTelLink(phone: string): string {
   return `tel:${phone.replace(/\s/g, "")}`;
 }
+
+// Mirrors the server's checkout rule (server/src/utils/phone.ts): any
+// spelling of a Bangladeshi mobile number — "01712-345678", "+8801712345678".
+export function isBdMobile(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  const local = digits.startsWith("880") ? digits.slice(3) : digits.startsWith("0") ? digits.slice(1) : digits;
+  return /^1[3-9]\d{8}$/.test(local);
+}
+export const BD_MOBILE_MESSAGE = "Enter a valid Bangladeshi mobile number, like 01712345678";

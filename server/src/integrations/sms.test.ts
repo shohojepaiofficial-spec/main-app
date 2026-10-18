@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getSmsBalance, isSmsConfigured, parseSmsBalance, resetSmsBalanceMatch, sendSms, toBdMsisdn } from "./sms";
+import { getSmsBalance, isSmsBalanceConfigured, isSmsConfigured, parseSmsBalance, sendSms, toBdMsisdn } from "./sms";
 
 const env = { SMS_API_URL: "https://sms.example.com/sendtext", SMS_API_KEY: "key", SMS_SECRET_KEY: "secret", SMS_SENDER_ID: "MyShop" };
 const reply = (body: string, status = 200) => vi.fn().mockResolvedValue(new Response(body, { status }));
@@ -51,7 +51,6 @@ describe("sendSms (REVE)", () => {
 });
 
 describe("SMS balance (REVE)", () => {
-  beforeEach(() => resetSmsBalanceMatch());
   const clientOf = (fetch: ReturnType<typeof vi.fn>, call: number) => new URL(fetch.mock.calls[call][0]).searchParams.get("client");
 
   it("reads a balance from plain text, HTML or JSON replies", () => {
@@ -60,30 +59,23 @@ describe("SMS balance (REVE)", () => {
     expect(parseSmsBalance('{"Status":"0","Balance":"42.75"}')).toBe(42.75);
     expect(parseSmsBalance("Invalid Account")).toBeNull();
   });
-  it("uses SMS_CLIENT_ID alone when it is set", async () => {
+  it("asks for the balance with SMS_CLIENT_ID only", async () => {
     vi.stubEnv("SMS_CLIENT_ID", "c1");
     const fetch = reply("150");
     vi.stubGlobal("fetch", fetch);
-    expect(await getSmsBalance()).toEqual({ balance: 150, source: "SMS_CLIENT_ID" });
+    expect(await getSmsBalance()).toBe(150);
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(clientOf(fetch, 0)).toBe("c1");
   });
-  it("otherwise tries each configured value and remembers the one REVE accepts", async () => {
-    const fetch = vi.fn((url: string) =>
-      Promise.resolve(new Response(new URL(url).searchParams.get("client") === "MyShop" ? "88.5" : "Invalid Account")),
-    );
+  it("never sends the API or secret key, and isn't configured without a client ID", async () => {
+    vi.stubEnv("SMS_CLIENT_ID", "");
+    expect(isSmsBalanceConfigured()).toBe(false);
+    vi.stubEnv("SMS_CLIENT_ID", "c1");
+    const fetch = vi.fn((_url: string) => Promise.resolve(new Response("Invalid Account")));
     vi.stubGlobal("fetch", fetch);
-    expect(await getSmsBalance()).toEqual({ balance: 88.5, source: "SMS_SENDER_ID" });
-    expect([clientOf(fetch, 0), clientOf(fetch, 1)]).toEqual(["key", "MyShop"]);
-    fetch.mockClear();
-    await getSmsBalance();
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(clientOf(fetch, 0)).toBe("MyShop");
-  });
-  it("fails naming only variable names, never values, when nothing is accepted", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("Invalid Account"))));
     const err = (await getSmsBalance().catch((e: Error) => e)) as Error;
-    expect(err.message).toContain("SMS_API_KEY, SMS_SENDER_ID, SMS_SECRET_KEY");
-    expect(err.message).not.toMatch(/\bkey\b|\bsecret\b|MyShop/);
+    expect(err.message).toContain("SMS_CLIENT_ID");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0][0])).not.toMatch(/key|secret|MyShop/);
   });
 });

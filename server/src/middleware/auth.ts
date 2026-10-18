@@ -60,15 +60,21 @@ export const optionalAuth = async (req: AuthRequest, _res: Response, next: NextF
   next();
 };
 
+// Staff powers need two-step verification: a stolen password or Google
+// session alone must not open the dashboard. Turning it on (Settings, the
+// /api/auth/2fa/* routes) only needs `protect`, so nobody is locked out.
+export const twoFactorRequiredResponse = { code: "TWO_FACTOR_REQUIRED", message: "Turn on two-step verification in Settings to use the staff dashboard." };
+
 // Re-checks the DB rather than trusting the JWT's `role` claim, so a demoted
 // admin is blocked immediately instead of staying "admin" until their token
 // expires. Reserved for user/role/permission management — never delegated to
 // coadmins, so a coadmin can never escalate their own or anyone else's access.
 export const adminOnly = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const user = await User.findById(req.userId).select("role");
+  const user = await User.findById(req.userId).select("role twoFactor.enabled");
   if (!user || user.role !== "admin") {
     return res.status(403).json({ message: "Admin access required" });
   }
+  if (!user.twoFactor?.enabled) return res.status(403).json(twoFactorRequiredResponse);
   next();
 };
 
@@ -77,11 +83,12 @@ export const adminOnly = async (req: AuthRequest, res: Response, next: NextFunct
 // request, not on the coadmin's next login.
 export const authorize = (permission: Permission) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const user = await User.findById(req.userId).select("role permissions");
+    const user = await User.findById(req.userId).select("role permissions twoFactor.enabled");
     const allowed = !!user && (user.role === "admin" || (user.role === "coadmin" && user.permissions.includes(permission)));
     if (!allowed) {
       return res.status(403).json({ message: "You don't have permission to do this" });
     }
+    if (!user.twoFactor?.enabled) return res.status(403).json(twoFactorRequiredResponse);
     next();
   };
 };

@@ -19,6 +19,7 @@ import { transitionOrder } from "../utils/orderTransitions";
 import { orderStockMovements, recordStockMovements } from "../utils/stockLedger";
 import { checkoutSchema, parseInput, cartFingerprint, cartItems } from "../utils/checkoutValidation";
 import { createHash } from "node:crypto";
+import { normalizeBdPhone } from "../utils/phone";
 import { reconcilePayment } from "../utils/paymentReconciliation";
 import { customerOrderView } from "../utils/customerOrder";
 import {
@@ -419,7 +420,7 @@ function readShippingAddress(input?: ShippingInput) {
   }
   return {
     fullName: fullName.trim(),
-    phone: phone.trim(),
+    phone: normalizeBdPhone(phone),
     zila: zila.trim(),
     upazila: upazila.trim(),
     addressLine: addressLine.trim(),
@@ -436,6 +437,9 @@ function checkoutResponse(order: InstanceType<typeof Order>) {
 // further down the cart can't leave earlier ones partially deducted) and,
 // when checking out via a shared "ask someone else to pay" link, marks that
 // link fulfilled so it can't be completed twice.
+// Unconfirmed ("pending") orders one customer account may have at once.
+export const MAX_OPEN_ORDERS = 3;
+
 export const createOrder = async (req: AuthRequest, res: Response) => {
   validateControllerInput("createOrder", req);
   const input = parseInput(checkoutSchema, req.body);
@@ -461,6 +465,14 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     return res
       .status(400)
       .json({ message: "That payment method isn't available yet — please choose Cash on Delivery." });
+  }
+
+  // A real shopper rarely has more than a couple of unconfirmed orders.
+  // Without a cap, one account could hold every unit of stock (and text a
+  // stranger's phone with each order) by placing and cancelling in a loop.
+  const openOrders = await Order.countDocuments({ user: req.userId, status: "pending" });
+  if (openOrders >= MAX_OPEN_ORDERS) {
+    return res.status(429).json({ code: "TOO_MANY_OPEN_ORDERS", message: `You already have ${openOrders} orders waiting for confirmation. Please wait for those to be confirmed, or cancel one, before placing another.` });
   }
 
   const session = await mongoose.startSession();

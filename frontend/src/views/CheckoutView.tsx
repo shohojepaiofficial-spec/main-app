@@ -1,5 +1,6 @@
 "use client";
 
+import { isBdMobile, BD_MOBILE_MESSAGE } from "@/lib/phone";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -183,7 +184,7 @@ function OrderPlaced({ order }: { order: Order }) {
 
 const checkoutSchema = z.object({
   fullName: z.string().min(2, "Name is too short"),
-  phone: z.string().min(6, "Enter a valid phone number"),
+  phone: z.string().refine(isBdMobile, BD_MOBILE_MESSAGE),
   zila: z.string().min(1, "Pick a Zila"),
   upazila: z.string().min(1, "Pick an Upazila"),
   addressLine: z.string().min(5, "Address is too short"),

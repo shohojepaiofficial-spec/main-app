@@ -8,7 +8,8 @@ import { createSession, revokeSession, rotateSession, sessionDevice, SessionErro
 import { verifyUnsubscribeToken } from "../utils/campaignTokens";
 import { storeUploadedFile, deleteUploadedFile } from "../utils/upload";
 import { signTwoFactorChallenge } from "../utils/twoFactor";
-import { isNonEmptyString } from "../utils/validate";
+import { isNonEmptyString, isValidPersonName, NAME_RULE_MESSAGE, safePersonName } from "../utils/validate";
+import { escapeHtml } from "../utils/escapeHtml";
 import { AuthRequest } from "../middleware/auth";
 import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../utils/passwordPolicy";
 
@@ -66,7 +67,7 @@ async function sendVerificationEmail(user: InstanceType<typeof User>) {
   return sendEmail({
     to: user.email,
     subject: "Confirm your email address for Shohoje Pai",
-    html: `<p>Hi ${user.name},</p><p>Thanks for creating an account with Shohoje Pai. Before you can sign in, we just need to confirm this is really your email address.</p><p><a href="${link}" style="display:inline-block;background:#15914f;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">Confirm my email address</a></p><p>This link stays valid for the next 24 hours. If the button above doesn't work, copy this address into your browser: ${link}</p><p>If you didn't create this account, you can safely ignore this email.</p>`,
+    html: `<p>Hi ${escapeHtml(user.name)},</p><p>Thanks for creating an account with Shohoje Pai. Before you can sign in, we just need to confirm this is really your email address.</p><p><a href="${link}" style="display:inline-block;background:#15914f;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">Confirm my email address</a></p><p>This link stays valid for the next 24 hours. If the button above doesn't work, copy this address into your browser: ${link}</p><p>If you didn't create this account, you can safely ignore this email.</p>`,
     text: `Hi ${user.name},\n\nThanks for creating an account with Shohoje Pai. Before you can sign in, we just need to confirm this is really your email address.\n\nConfirm it here (valid for the next 24 hours):\n${link}\n\nIf you didn't create this account, you can safely ignore this email.`,
   });
 }
@@ -79,6 +80,8 @@ export const register = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "name, email and password are required" });
   }
 
+  if (!isValidPersonName(name)) return res.status(400).json({ message: NAME_RULE_MESSAGE });
+
   const normalizedEmail = email.trim().toLowerCase();
   const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
@@ -89,7 +92,7 @@ export const register = async (req: Request, res: Response) => {
   }
 
   if (!validNewPassword(password)) return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
-  const user = await User.create({ name, email: normalizedEmail, password });
+  const user = await User.create({ name: name.trim(), email: normalizedEmail, password });
   const credentials = await createSession(user, undefined, sessionDevice(req));
 
   sendVerificationEmail(user).catch((err) => console.error("Verification email failed:", err.message));
@@ -138,6 +141,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
   const { name, phone } = req.body as { name?: string; phone?: string };
   if (name !== undefined) {
     if (!name.trim()) return res.status(400).json({ message: "Name can't be empty" });
+    if (!isValidPersonName(name)) return res.status(400).json({ message: NAME_RULE_MESSAGE });
     user.name = name.trim();
   }
   if (phone !== undefined) user.phone = phone.trim() || undefined;
@@ -290,7 +294,7 @@ export const oauthSync = async (req: Request, res: Response) => {
 
   if (!user) {
     user = await User.create({
-      name: name || email.split("@")[0],
+      name: safePersonName(typeof name === "string" ? name : "", "Customer"),
       email: normalizedEmail,
       provider,
       providerId,
@@ -300,7 +304,7 @@ export const oauthSync = async (req: Request, res: Response) => {
     sendEmail({
       to: user.email,
       subject: "Welcome to Shohoje Pai",
-      html: `<p>Hi ${user.name}, thanks for signing up with Shohoje Pai!</p>`,
+      html: `<p>Hi ${escapeHtml(user.name)}, thanks for signing up with Shohoje Pai!</p>`,
       text: `Hi ${user.name}, thanks for signing up with Shohoje Pai!`,
     }).catch((err) => console.error("Welcome email failed:", err.message));
   } else {
@@ -400,7 +404,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
   sendEmail({
     to: user.email,
     subject: "Reset your Shohoje Pai password",
-    html: `<p>Hi ${user.name},</p><p>We received a request to reset the password on your Shohoje Pai account.</p><p><a href="${link}" style="display:inline-block;background:#15914f;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">Choose a new password</a></p><p>This link stays valid for the next hour. If the button above doesn't work, copy this address into your browser: ${link}</p><p>If you didn't request this, you can safely ignore this email — your password won't be changed.</p>`,
+    html: `<p>Hi ${escapeHtml(user.name)},</p><p>We received a request to reset the password on your Shohoje Pai account.</p><p><a href="${link}" style="display:inline-block;background:#15914f;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">Choose a new password</a></p><p>This link stays valid for the next hour. If the button above doesn't work, copy this address into your browser: ${link}</p><p>If you didn't request this, you can safely ignore this email — your password won't be changed.</p>`,
     text: `Hi ${user.name},\n\nWe received a request to reset the password on your Shohoje Pai account.\n\nChoose a new password here (valid for the next hour):\n${link}\n\nIf you didn't request this, you can safely ignore this email — your password won't be changed.`,
   }).catch((err) => console.error("Password reset email failed:", err.message));
 

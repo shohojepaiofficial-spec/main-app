@@ -115,7 +115,6 @@ export function AdminDashboardOverview() {
                           : formatCurrency(smsBalance.balance)
                   }
                   Icon={MessageSquare}
-                  hint={smsBalance?.source ? `Matched ${smsBalance.source}` : undefined}
                   tone={smsBalanceError || (smsBalance?.balance ?? Infinity) < 100 ? "warning" : undefined}
                 />
               </div>

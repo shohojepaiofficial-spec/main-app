@@ -28,7 +28,7 @@ const loginSchema = z.object({
 
 const signupSchema = loginSchema.extend({
   password: newPasswordSchema,
-  name: z.string().min(2, "Name is too short"),
+  name: z.string().trim().min(2, "Name is too short").max(80, "Name is too long"),
 });
 
 const forgotSchema = z.object({

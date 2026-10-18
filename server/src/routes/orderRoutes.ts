@@ -22,12 +22,12 @@ import {
 } from "../controllers/orderController";
 import { protect, authorize } from "../middleware/auth";
 import { auditTrail } from "../middleware/auditTrail";
-import { checkoutIpLimiter, checkoutAccountLimiter, quoteLimiter } from "../middleware/rateLimit";
+import { checkoutIpLimiter, checkoutAccountLimiter, checkoutDailyLimiter, quoteLimiter } from "../middleware/rateLimit";
 
 const router = Router();
 const canManageOrders = authorize("orders:manage");
 
-router.post("/", checkoutIpLimiter, protect, checkoutAccountLimiter, createOrder);
+router.post("/", checkoutIpLimiter, protect, checkoutAccountLimiter, checkoutDailyLimiter, createOrder);
 router.post("/delivery-quote", checkoutIpLimiter, protect, quoteLimiter, getDeliveryQuote);
 router.post("/admin", checkoutIpLimiter, protect, canManageOrders, checkoutAccountLimiter, auditTrail({ entityType: "order", action: "created", target: { from: "created" } }), adminCreateOrder);
 router.get("/bkash/callback", bkashCallback);
