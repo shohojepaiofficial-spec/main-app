@@ -12,7 +12,7 @@ const stored = {
   status: "shipped",
   paymentMethod: "bkash",
   shippingAddress: { fullName: "Buyer", phone: "01700000000", zila: "Dhaka", upazila: "Dhaka", addressLine: "Test street" },
-  statusHistory: [{ status: "pending", at: new Date("2026-10-01") }],
+  statusHistory: [{ status: "pending", at: new Date("2026-10-01") }, { status: "paid", at: new Date("2026-10-02"), by: "staff1", byName: "Staff Name" }],
   createdAt: new Date("2026-10-01"),
   internalNote: "customer is rude on the phone",
   courierProvider: "pathao",
@@ -42,7 +42,8 @@ describe("customerOrderView", () => {
     expect(view).toMatchObject({ _id: "o1", totalAmount: 460, status: "shipped", paymentMethod: "bkash" });
     expect(view.items).toBe(stored.items);
     expect(view.shippingAddress).toBe(stored.shippingAddress);
-    expect(view.statusHistory).toBe(stored.statusHistory);
+    // Who moved the order is staff-only.
+    expect(view.statusHistory).toEqual([{ status: "pending", at: new Date("2026-10-01") }, { status: "paid", at: new Date("2026-10-02") }]);
   });
 
   it("drops every staff-only and internal field", () => {

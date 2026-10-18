@@ -21,6 +21,10 @@ describe("page help", () => {
     expect(missing).toEqual([]);
   });
 
+  it("finds the order detail help for a real order id", () => {
+    expect(helpForPath("/admin/orders/665f1f77bcf86cd7994a1b2c", true)?.title).toBe("Order details");
+  });
+
   it("shows staff help on the dashboard for staff and customer help otherwise", () => {
     expect(helpForPath("/dashboard", true)?.i18n).toBeUndefined();
     expect(helpForPath("/dashboard", false)?.i18n).toBe("help.dashboard");

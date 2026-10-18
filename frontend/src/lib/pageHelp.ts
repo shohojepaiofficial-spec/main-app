@@ -112,6 +112,18 @@ const HELP: Record<string, PageHelp> = {
       { term: "Low stock", meaning: "5 or fewer units left (per variant)." },
     ],
   },
+  "/admin/orders/[id]": {
+    title: "Order details",
+    summary: "One order from start to finish: what was ordered, who the customer is, and what to do next.",
+    expect: [
+      "The timeline shows each step. Green with a tick is done, the highlighted step is what to do next, grey is still to come.",
+      "WhatsApp opens a chat with the customer with a ready message about the order. Call dials their number.",
+      "Customer history counts every order from this account or phone number. A warning shows when they cancel often.",
+      "Book with Pathao from the booking step; Refresh Pathao fetches the latest courier status.",
+      "Cancelling puts the stock back automatically and tells the customer.",
+    ],
+    terms: ORDER_STATUS_TERMS,
+  },
   "/admin/orders": {
     title: "Manage orders",
     summary: "Every order in the store, from the website and ones you record by phone.",
@@ -321,5 +333,6 @@ const HELP: Record<string, PageHelp> = {
 // the order print page). `/dashboard` differs for staff and customers.
 export function helpForPath(pathname: string, isStaffDashboard: boolean): PageHelp | null {
   if (pathname === "/dashboard") return isStaffDashboard ? STAFF_DASHBOARD : CUSTOMER_DASHBOARD;
+  if (/^\/admin\/orders\/[a-f0-9]{24}$/i.test(pathname)) return HELP["/admin/orders/[id]"];
   return HELP[pathname] ?? null;
 }

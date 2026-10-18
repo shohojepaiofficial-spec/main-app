@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
-import { Plus, Printer, ChevronDown, ChevronUp, Search, Phone, MessageCircle, RotateCcw } from "lucide-react";
+import { Plus, Printer, ChevronDown, ChevronUp, Search, Phone, MessageCircle, RotateCcw, ArrowRight } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAdminOrders } from "@/controllers/useAdminOrders";
 import { AdminOrderFormModal } from "@/views/AdminOrderFormModal";
@@ -16,73 +16,10 @@ import { formatCurrency } from "@/lib/currency";
 import { toTelLink, toWhatsAppLink } from "@/lib/phone";
 import { formatShipDate } from "@/lib/preorder";
 import { Order, OrderStatus } from "@/models";
-
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  pending: "Pending",
-  paid: "Paid",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
-
-const STATUS_CLASS: Record<OrderStatus, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  paid: "bg-blue-100 text-blue-800",
-  shipped: "bg-purple-100 text-purple-800",
-  delivered: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
-};
-
-// Rendered in this order everywhere a status picker appears — the natural
-// pipeline order, with "Cancelled" last since it's the exception, not a step.
-const STATUS_OPTIONS: OrderStatus[] = ["pending", "paid", "shipped", "delivered", "cancelled"];
-
-const PAYMENT_LABEL: Record<string, string> = {
-  cod: "Cash on Delivery",
-  bkash: "bKash",
-};
+import { ORDER_STATUS_LABEL as STATUS_LABEL, ORDER_STATUS_CLASS as STATUS_CLASS, ORDER_STATUS_OPTIONS as STATUS_OPTIONS, PAYMENT_LABEL } from "@/lib/orderStatus";
+import { OrderNoteField as NoteField } from "@/views/OrderNoteField";
 
 type SortOption = "newest" | "oldest" | "highest" | "lowest";
-
-function NoteField({
-  order,
-  isSaving,
-  onSave,
-}: {
-  order: Order;
-  isSaving: boolean;
-  onSave: (note: string) => void;
-}) {
-  const [value, setValue] = useState(order.internalNote ?? "");
-  const isDirty = value !== (order.internalNote ?? "");
-
-  return (
-    <div className="mt-3 border-t border-border pt-3">
-      <label className="mb-1 block text-xs font-medium text-muted" htmlFor={`note-${order._id}`}>
-        Internal note (not visible to the customer)
-      </label>
-      <div className="flex gap-2">
-        <textarea
-          id={`note-${order._id}`}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          rows={2}
-          placeholder="e.g. Asked for evening delivery"
-          className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-        />
-        {isDirty && (
-          <button
-            onClick={() => onSave(value)}
-            disabled={isSaving}
-            className="shrink-0 self-start rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-          >
-            {isSaving ? "Saving..." : "Save"}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function OrderRow({
   order,
@@ -172,6 +109,12 @@ function OrderRow({
             )}
           </div>
         </button>
+        <Link
+          href={`/admin/orders/${order._id}`}
+          className="flex shrink-0 items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
+        >
+          Open <ArrowRight size={13} />
+        </Link>
       </div>
 
       {isOpen && (

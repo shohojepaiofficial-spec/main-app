@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import {
+  CustomerHistory,
   DeliveryQuote,
   Order,
   OrderStats,
@@ -81,6 +82,11 @@ export const getOrderById = async (id: string): Promise<Order | null> => {
     if ((err as { response?: { status?: number } })?.response?.status === 404) return null;
     throw err;
   }
+};
+
+export const getCustomerHistory = async (orderId: string): Promise<CustomerHistory> => {
+  const { data } = await api.get<CustomerHistory>(`/orders/${orderId}/customer-history`);
+  return data;
 };
 
 export const updateOrderStatus = async (id: string, status: OrderStatus): Promise<Order> => {

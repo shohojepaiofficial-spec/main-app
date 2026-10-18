@@ -33,5 +33,9 @@ export function customerOrderView(order: OrderLike): Record<string, unknown> {
   for (const field of CUSTOMER_ORDER_FIELDS) {
     if (source[field] !== undefined) view[field] = source[field];
   }
+  // Which staff member moved the order is staff-only.
+  if (Array.isArray(view.statusHistory)) {
+    view.statusHistory = (view.statusHistory as { status: string; at: Date }[]).map(({ status, at }) => ({ status, at }));
+  }
   return view;
 }

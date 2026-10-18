@@ -294,7 +294,8 @@ export interface Order {
   deliveredAt?: string;
   // When the order entered each status, oldest first (see
   // lib/orderTimeline.ts). Absent or empty on orders placed before it existed.
-  statusHistory?: { status: OrderStatus; at: string }[];
+  // `byName` (staff-fetched orders only) is who made the change.
+  statusHistory?: { status: OrderStatus; at: string; byName?: string }[];
   // Admin-only fields — absent from the customer's own getMyOrders response.
   internalNote?: string;
   courierProvider?: "pathao";
@@ -302,6 +303,21 @@ export interface Order {
   courierTrackingStatus?: string;
   courierNote?: string;
   courierBookedAt?: string;
+}
+
+// GET /orders/:id/customer-history (staff) — the customer's record with
+// us, matched by account and shipping phone. See server utils/customerHistory.ts.
+export interface CustomerHistory {
+  totalOrders: number;
+  delivered: number;
+  cancelled: number;
+  open: number;
+  returns: number;
+  totalSpent: number;
+  firstOrderAt: string | null;
+  lastOrderAt: string | null;
+  risk: "new" | "ok" | "watch";
+  orders: { _id: string; status: OrderStatus; totalAmount: number; createdAt: string; itemCount: number; isCurrent: boolean }[];
 }
 
 // A Pathao city/zone/area — id + display name, nothing else (see

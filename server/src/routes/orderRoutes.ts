@@ -19,6 +19,7 @@ import {
   bookPathaoOrder,
   refreshPathaoStatus,
   bulkUpdateStatus,
+  getCustomerHistory,
 } from "../controllers/orderController";
 import { protect, authorize } from "../middleware/auth";
 import { auditTrail } from "../middleware/auditTrail";
@@ -45,6 +46,7 @@ router.patch("/:id/note", protect, canManageOrders, auditTrail({ entityType: "or
 router.patch("/:id/courier", protect, canManageOrders, auditTrail({ entityType: "order", action: "updated", target: { from: "param" } }), updateCourierInfo);
 router.post("/:id/pathao", protect, canManageOrders, auditTrail({ entityType: "order", action: "booked", target: { from: "param" } }), bookPathaoOrder);
 router.post("/:id/pathao/refresh", protect, canManageOrders, refreshPathaoStatus);
+router.get("/:id/customer-history", protect, canManageOrders, getCustomerHistory);
 router.get("/:id", protect, getOrderById);
 
 export default router;

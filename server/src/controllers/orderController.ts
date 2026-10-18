@@ -20,6 +20,8 @@ import { orderStockMovements, recordStockMovements } from "../utils/stockLedger"
 import { checkoutSchema, parseInput, cartFingerprint, cartItems } from "../utils/checkoutValidation";
 import { createHash } from "node:crypto";
 import { normalizeBdPhone } from "../utils/phone";
+import { summarizeCustomerHistory } from "../utils/customerHistory";
+import { ReturnRequest } from "../models/ReturnRequest";
 import { reconcilePayment } from "../utils/paymentReconciliation";
 import { customerOrderView } from "../utils/customerOrder";
 import {
@@ -796,6 +798,29 @@ export async function restoreStock(order: {
   );
 }
 
+// Staff (orders:manage): the customer's record with us, for confirming an
+// order. Matched by account and by the order's shipping phone, in both the
+// stored and normalized spelling (older orders kept the phone as typed).
+export const getCustomerHistory = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("getCustomerHistory", req);
+  const order = await Order.findById(req.params.id).select("user shippingAddress.phone");
+  if (!order) return res.status(404).json({ message: "Order not found" });
+
+  const phone = order.shippingAddress?.phone;
+  const match: Record<string, unknown>[] = [];
+  if (order.user) match.push({ user: order.user });
+  if (phone) match.push({ "shippingAddress.phone": { $in: [...new Set([phone, normalizeBdPhone(phone)])] } });
+  const orders = await Order.find({ $or: match }).select("status totalAmount createdAt items").sort({ createdAt: -1 }).limit(500).lean();
+  const returnCount = await ReturnRequest.countDocuments({ order: { $in: orders.map((o) => o._id) } });
+  res.json(summarizeCustomerHistory(orders, order.id, returnCount));
+};
+
+// The signed-in staff member, for the order's status history.
+async function staffActor(req: AuthRequest) {
+  const staff = await User.findById(req.userId).select("name");
+  return staff ? { id: staff.id as string, name: staff.name } : undefined;
+}
+
 export const updateOrderStatus = async (req: AuthRequest, res: Response) => {
   validateControllerInput("updateOrderStatus", req);
   const { status } = req.body as { status?: string };
@@ -803,7 +828,7 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: "Invalid status" });
   }
 
-  const existing = await transitionOrder(req.params.id, status as (typeof ORDER_STATUSES)[number]);
+  const existing = await transitionOrder(req.params.id, status as (typeof ORDER_STATUSES)[number], { actor: await staffActor(req) });
 
   const order = await Order.findById(existing.id)
     .populate("items.product", "name images deliveryFeeInsideCity deliveryFeeOutsideCity")
@@ -1030,8 +1055,9 @@ export const bulkUpdateStatus = async (req: AuthRequest, res: Response) => {
   }
 
   const orders = await Order.find({ _id: { $in: ids } });
+  const actor = await staffActor(req);
   for (const order of orders) {
-    await transitionOrder(order.id, status as (typeof ORDER_STATUSES)[number]);
+    await transitionOrder(order.id, status as (typeof ORDER_STATUSES)[number], { actor });
   }
 
   const updated = await Order.find({ _id: { $in: ids } })

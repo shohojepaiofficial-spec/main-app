@@ -92,7 +92,7 @@ export interface IOrder extends Document {
   // entry is pushed by utils/orderTransitions.ts. Empty on orders placed
   // before this existed (the timeline then falls back to createdAt and
   // deliveredAt).
-  statusHistory: { status: IOrder["status"]; at: Date }[];
+  statusHistory: { status: IOrder["status"]; at: Date; by?: Types.ObjectId; byName?: string }[];
   source: OrderSource;
   shippingAddress: IShippingDetails;
   // Set when this order was placed by fulfilling someone else's shared-cart

@@ -20,3 +20,9 @@ export function isBdMobile(phone: string): boolean {
   return /^1[3-9]\d{8}$/.test(local);
 }
 export const BD_MOBILE_MESSAGE = "Enter a valid Bangladeshi mobile number, like 01712345678";
+
+// A WhatsApp chat with the customer, opened with a ready message about
+// their order so staff confirm it in one tap.
+export function toOrderWhatsAppLink(phone: string, message: string): string {
+  return `${toWhatsAppLink(phone)}?text=${encodeURIComponent(message)}`;
+}

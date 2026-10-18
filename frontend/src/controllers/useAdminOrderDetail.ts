@@ -1,0 +1,120 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import * as orderService from "@/services/orderService";
+import { CustomerHistory, Order, OrderStatus } from "@/models";
+
+const errorMessage = (err: unknown, fallback: string) =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
+
+// One order for the staff detail page (/admin/orders/[id]): the order, the
+// customer's history with us, and every action staff take on it. Waits for
+// `enabled` (the permission check) before fetching.
+export function useAdminOrderDetail(orderId: string, enabled: boolean) {
+  const [order, setOrder] = useState<Order | null>(null);
+  const [history, setHistory] = useState<CustomerHistory | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isSavingCourier, setIsSavingCourier] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let ignore = false;
+    Promise.all([orderService.getOrderById(orderId), orderService.getCustomerHistory(orderId).catch(() => null)])
+      .then(([data, customerHistory]) => {
+        if (ignore) return;
+        if (!data) setNotFound(true);
+        setOrder(data);
+        setHistory(customerHistory);
+      })
+      .catch(() => {
+        if (!ignore) setNotFound(true);
+      })
+      .finally(() => {
+        if (!ignore) setIsLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [orderId, enabled]);
+
+  // Status changes move the customer's counts too, so reload the history.
+  const refreshHistory = () => orderService.getCustomerHistory(orderId).then(setHistory).catch(() => {});
+
+  const updateStatus = async (status: OrderStatus) => {
+    setIsUpdatingStatus(true);
+    try {
+      setOrder(await orderService.updateOrderStatus(orderId, status));
+      refreshHistory();
+      toast.success("Order status updated");
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update status"));
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const saveNote = async (note: string) => {
+    setIsSavingNote(true);
+    try {
+      setOrder(await orderService.updateOrderNote(orderId, note));
+      toast.success("Note saved");
+    } catch {
+      toast.error("Failed to save note");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const saveCourierInfo = async (input: orderService.CourierInfoInput) => {
+    setIsSavingCourier(true);
+    try {
+      setOrder(await orderService.updateCourierInfo(orderId, input));
+      toast.success("Courier info saved");
+    } catch {
+      toast.error("Failed to save courier info");
+    } finally {
+      setIsSavingCourier(false);
+    }
+  };
+
+  const bookWithPathao = async (input: orderService.BookPathaoOrderInput) => {
+    setIsBooking(true);
+    try {
+      setOrder(await orderService.bookPathaoOrder(orderId, input));
+      toast.success("Booked with Pathao");
+      return true;
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to book with Pathao"));
+      return false;
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
+  const refreshPathaoStatus = async () => {
+    setIsRefreshing(true);
+    try {
+      setOrder(await orderService.refreshPathaoStatus(orderId));
+      toast.success("Tracking status refreshed");
+    } catch {
+      toast.error("Failed to refresh tracking status");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  return {
+    order, history, isLoading, notFound,
+    isUpdatingStatus, updateStatus,
+    isSavingNote, saveNote,
+    isSavingCourier, saveCourierInfo,
+    isBooking, bookWithPathao,
+    isRefreshing, refreshPathaoStatus,
+  };
+}
