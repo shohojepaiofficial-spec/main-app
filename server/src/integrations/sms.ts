@@ -50,15 +50,22 @@ export async function sendSms(to: string, message: string): Promise<void> {
 }
 
 // REVE's balance check is a separate host/page from sendtext and is keyed by
-// the account's client ID, not the API key:
+// a "client ID":
 //   GET https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp?client=CLIENT_ID
-// Its reply format isn't documented; an unknown client answers with the plain
-// text "Invalid Account". So this accepts JSON with a balance-like field or
-// plain text, and takes the first number it finds.
+// REVE support said no separate client ID is needed, so unless SMS_CLIENT_ID
+// is set this tries each SMS value already configured, in turn, and remembers
+// (per process) whichever one the page accepts. The variable *name* that
+// matched is returned so the dashboard can show it; values are never logged.
+// The reply format isn't documented; an unknown client answers with the
+// plain text "Invalid Account", so parseSmsBalance accepts JSON with a
+// balance-like field or plain text, and takes the first number it finds.
 const DEFAULT_BALANCE_URL = "https://smpp.revesms.com/sms/smsConfiguration/smsClientBalance.jsp";
+const BALANCE_CANDIDATES = ["SMS_CLIENT_ID", "SMS_API_KEY", "SMS_SENDER_ID", "SMS_SECRET_KEY"] as const;
+type BalanceSource = (typeof BALANCE_CANDIDATES)[number];
+let matchedSource: BalanceSource | null = null;
 
 export function isSmsBalanceConfigured(): boolean {
-  return !!process.env.SMS_CLIENT_ID;
+  return BALANCE_CANDIDATES.some((name) => !!process.env[name]);
 }
 
 export function parseSmsBalance(body: string): number | null {
@@ -77,12 +84,32 @@ export function parseSmsBalance(body: string): number | null {
   return match ? Number(match[0]) : null;
 }
 
-export async function getSmsBalance(): Promise<number> {
-  const url = `${process.env.SMS_BALANCE_URL || DEFAULT_BALANCE_URL}?${new URLSearchParams({ client: process.env.SMS_CLIENT_ID as string })}`;
+async function fetchBalance(client: string): Promise<number | null> {
+  const url = `${process.env.SMS_BALANCE_URL || DEFAULT_BALANCE_URL}?${new URLSearchParams({ client })}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-  const body = await res.text().catch(() => "");
   if (!res.ok) throw new Error(`SMS balance check failed (${res.status})`);
-  const balance = parseSmsBalance(body);
-  if (balance === null) throw new Error(`SMS gateway did not return a balance: ${body.trim().slice(0, 100)}`);
-  return balance;
+  return parseSmsBalance(await res.text().catch(() => ""));
+}
+
+export async function getSmsBalance(): Promise<{ balance: number; source: BalanceSource }> {
+  // An explicit SMS_CLIENT_ID wins; otherwise the last match is tried first.
+  const order = process.env.SMS_CLIENT_ID
+    ? (["SMS_CLIENT_ID"] as BalanceSource[])
+    : [...new Set([matchedSource, ...BALANCE_CANDIDATES].filter((n): n is BalanceSource => !!n && n !== "SMS_CLIENT_ID"))];
+  for (const name of order) {
+    const value = process.env[name];
+    if (!value) continue;
+    const balance = await fetchBalance(value);
+    if (balance !== null) {
+      if (matchedSource !== name) console.log(`SMS balance: REVE accepted ${name} as the client ID`);
+      matchedSource = name;
+      return { balance, source: name };
+    }
+  }
+  matchedSource = null;
+  throw new Error(`SMS gateway did not accept any of ${order.join(", ")} as the balance client ID`);
+}
+
+export function resetSmsBalanceMatch() {
+  matchedSource = null;
 }

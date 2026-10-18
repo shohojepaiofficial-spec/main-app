@@ -15,11 +15,13 @@ function StatTile({
   value,
   Icon,
   tone,
+  hint,
 }: {
   label: string;
   value: string;
   Icon: typeof ClipboardList;
   tone?: "warning";
+  hint?: string;
 }) {
   return (
     <div className="rounded-md border border-border bg-surface p-4">
@@ -29,6 +31,7 @@ function StatTile({
       <p className={`mt-1 text-2xl font-semibold ${tone === "warning" ? "text-yellow-700" : ""}`}>
         {value}
       </p>
+      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }
@@ -112,6 +115,7 @@ export function AdminDashboardOverview() {
                           : formatCurrency(smsBalance.balance)
                   }
                   Icon={MessageSquare}
+                  hint={smsBalance?.source ? `Matched ${smsBalance.source}` : undefined}
                   tone={smsBalanceError || (smsBalance?.balance ?? Infinity) < 100 ? "warning" : undefined}
                 />
               </div>
