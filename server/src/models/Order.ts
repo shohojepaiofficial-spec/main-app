@@ -37,6 +37,15 @@ export type PaymentMethod = "cod" | "bkash";
 // happened to be entering it for their own test purposes.
 export type OrderSource = "online" | "manual";
 
+export interface ICourierEvent {
+  status: string;
+  at: Date;
+  source: "pathao" | "manual";
+  // "booked" for the booking reply, "refresh" for a status check, "manual" for a hand edit.
+  kind: "booked" | "refresh" | "manual";
+  byName?: string;
+}
+
 export interface IOrder extends Document {
   // Absent for a manual order placed for a customer with no account — the
   // shippingAddress still has their name/phone, it just won't show up in
@@ -113,6 +122,13 @@ export interface IOrder extends Document {
   courierTrackingStatus?: string;
   courierNote?: string;
   courierBookedAt?: Date;
+  // What Pathao charged for the delivery, from its booking reply.
+  courierDeliveryFee?: number;
+  // When staff last asked Pathao for the status (changed or not).
+  courierCheckedAt?: Date;
+  // Every courier status the order has had, oldest first: Pathao bookings
+  // and refreshes, and statuses typed in by hand. Staff-only.
+  courierEvents: ICourierEvent[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -202,6 +218,23 @@ const orderSchema = new Schema<IOrder>(
     courierTrackingStatus: { type: String, trim: true },
     courierNote: { type: String, trim: true },
     courierBookedAt: { type: Date },
+    courierDeliveryFee: { type: Number, min: 0 },
+    courierCheckedAt: { type: Date },
+    courierEvents: {
+      type: [
+        new Schema(
+          {
+            status: { type: String, required: true, trim: true },
+            at: { type: Date, required: true },
+            source: { type: String, enum: ["pathao", "manual"], required: true },
+            kind: { type: String, enum: ["booked", "refresh", "manual"], required: true },
+            byName: { type: String },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

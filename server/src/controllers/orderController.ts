@@ -21,6 +21,7 @@ import { checkoutSchema, parseInput, cartFingerprint, cartItems } from "../utils
 import { createHash } from "node:crypto";
 import { normalizeBdPhone } from "../utils/phone";
 import { summarizeCustomerHistory } from "../utils/customerHistory";
+import { recordCourierStatus } from "../utils/courierEvents";
 import { ReturnRequest } from "../models/ReturnRequest";
 import { reconcilePayment } from "../utils/paymentReconciliation";
 import { customerOrderView } from "../utils/customerOrder";
@@ -910,7 +911,11 @@ export const updateCourierInfo = async (req: AuthRequest, res: Response) => {
   const hasAny = !!(consignmentId?.trim() || trackingStatus?.trim() || note?.trim());
   order.courierProvider = hasAny ? "pathao" : undefined;
   order.courierConsignmentId = consignmentId?.trim() || undefined;
-  order.courierTrackingStatus = trackingStatus?.trim() || undefined;
+  if (trackingStatus?.trim() && trackingStatus.trim() !== order.courierTrackingStatus) {
+    recordCourierStatus(order, { status: trackingStatus, source: "manual", kind: "manual", byName: (await staffActor(req))?.name });
+  } else if (!trackingStatus?.trim()) {
+    order.courierTrackingStatus = undefined;
+  }
   order.courierNote = note?.trim() || undefined;
   await order.save();
   res.json(await populatedOrder(order.id));
@@ -1005,8 +1010,9 @@ export const bookPathaoOrder = async (req: AuthRequest, res: Response) => {
 
     order.courierProvider = "pathao";
     order.courierConsignmentId = result.consignmentId;
-    order.courierTrackingStatus = result.orderStatus;
     order.courierBookedAt = new Date();
+    if (result.deliveryFee !== undefined) order.courierDeliveryFee = result.deliveryFee;
+    recordCourierStatus(order, { status: result.orderStatus, source: "pathao", kind: "booked", byName: (await staffActor(req))?.name });
     await order.save();
     res.json(await populatedOrder(order.id));
   } catch (err) {
@@ -1030,7 +1036,8 @@ export const refreshPathaoStatus = async (req: AuthRequest, res: Response) => {
 
   try {
     const { orderStatus } = await getPathaoOrderStatus(order.courierConsignmentId);
-    order.courierTrackingStatus = orderStatus;
+    recordCourierStatus(order, { status: orderStatus, source: "pathao", kind: "refresh" });
+    order.courierCheckedAt = new Date();
     await order.save();
     res.json(await populatedOrder(order.id));
   } catch (err) {

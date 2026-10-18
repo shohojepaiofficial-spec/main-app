@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
-import { ArrowLeft, MessageCircle, Phone, Printer, RefreshCw, Truck, PackageCheck, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, Phone, Printer, RefreshCw, Truck, PackageCheck, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAdminOrderDetail } from "@/controllers/useAdminOrderDetail";
 import { buildStaffOrderTimeline, StaffTimelineStep } from "@/lib/staffOrderTimeline";
@@ -19,6 +20,8 @@ import { StaffOrderTimeline } from "@/views/StaffOrderTimeline";
 import { CustomerHistoryCard } from "@/views/CustomerHistoryCard";
 import { OrderCourierPanel } from "@/views/OrderCourierPanel";
 import { OrderNoteField } from "@/views/OrderNoteField";
+import { ReturnRequestModal } from "@/views/ReturnRequestModal";
+import { CourierTrackingCard } from "@/views/CourierTrackingCard";
 
 const orderNumber = (order: Order) => `#${order._id.slice(-6).toUpperCase()}`;
 
@@ -37,6 +40,7 @@ export function AdminOrderDetailView({ orderId }: { orderId: string }) {
   const { isChecking, isAllowed } = useRequirePermission("orders:manage");
   const detail = useAdminOrderDetail(orderId, isAllowed);
   const { order, history } = detail;
+  const [isReturnOpen, setIsReturnOpen] = useState(false);
 
   if (isChecking || !isAllowed || detail.isLoading) {
     return <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted">Loading order...</div>;
@@ -144,6 +148,11 @@ export function AdminOrderDetailView({ orderId }: { orderId: string }) {
           <Link href={`/admin/orders/${order._id}/print`} target="_blank" className={`${buttonClass} border border-border hover:bg-background`}>
             <Printer size={16} /> Print
           </Link>
+          {order.status === "delivered" && (
+            <button onClick={() => setIsReturnOpen(true)} className={`${buttonClass} border border-border hover:bg-background`}>
+              <RotateCcw size={16} /> Log return / exchange
+            </button>
+          )}
           {isOpen && !bkashUnpaid && (
             <button onClick={cancel} disabled={detail.isUpdatingStatus} className={`${buttonClass} border border-red-200 text-red-700 hover:bg-red-50`}>
               <XCircle size={16} /> Cancel
@@ -158,14 +167,7 @@ export function AdminOrderDetailView({ orderId }: { orderId: string }) {
             <h2 className="mb-4 text-sm font-semibold">Progress</h2>
             <StaffOrderTimeline steps={steps} renderAction={renderAction} />
             {order.courierConsignmentId && (
-              <div className="mt-4 rounded-md bg-background p-3 text-xs">
-                <p className="font-medium">Courier: {order.courierProvider === "pathao" ? "Pathao" : "Manual entry"}</p>
-                <p className="mt-1 text-muted">
-                  Consignment {order.courierConsignmentId} &middot; status: {order.courierTrackingStatus ?? "unknown"}
-                  {order.courierBookedAt && <> &middot; booked {format(new Date(order.courierBookedAt), "d MMM, h:mm a")}</>}
-                </p>
-                {order.courierNote && <p className="mt-1 text-muted">Note: {order.courierNote}</p>}
-              </div>
+              <CourierTrackingCard order={order} isRefreshing={detail.isRefreshing} onRefresh={detail.refreshPathaoStatus} />
             )}
           </section>
 
@@ -220,6 +222,14 @@ export function AdminOrderDetailView({ orderId }: { orderId: string }) {
           <CustomerHistoryCard history={history} />
         </aside>
       </div>
+      <ReturnRequestModal
+        order={isReturnOpen ? order : null}
+        // The server subtracts units already claimed by other requests.
+        remaining={order.items.map((item) => item.quantity)}
+        asStaff
+        onClose={() => setIsReturnOpen(false)}
+        onSubmitted={() => setIsReturnOpen(false)}
+      />
     </main>
   );
 }

@@ -1366,3 +1366,11 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Refactor: status labels/colours moved to `lib/orderStatus.ts` and the internal note field to `views/OrderNoteField.tsx`, shared by both pages. Page help added for the new page.
 - Verified: server `tsc` + 471 tests, frontend `tsc` + lint + 110 tests + build. Not verified: the page in a browser against real orders.
 - Left: deploy and try it on a live order. Next steps of WORK-17: keep every Pathao status update in the timeline (step 2), customer order page `/orders/[id]` (step 3).
+
+## 2026-10-18 (simpler Manage Orders list + courier history, WORK-17 step 2)
+- **Manage Orders list is read-only now** (owner's request): each order is one line — number, Manual / Pre-order / Payment review tags, date, customer and phone, items, payment, the latest courier status ("Pathao: Pending" / "Not booked"), a coloured status badge and the total. Clicking it opens the order page; the status picker, note, courier/Pathao panel and "Log return / exchange" moved there. Bulk select + bulk status change stay on the list. `useAdminOrders` trimmed to list concerns.
+- **Courier history (step 2):** new staff-only `courierEvents` on Order (`status`, `at`, `source`, `kind` booked/refresh/manual, `byName`), plus `courierDeliveryFee` (Pathao's booking reply) and `courierCheckedAt`. `utils/courierEvents.ts#recordCourierStatus` adds an entry on booking, on a Pathao refresh only when the status changed (case-insensitive), and on a hand-typed status. Not in the customer allowlist, so customers never get it.
+- Order page shows a **Courier tracking** card: consignment, latest status, Pathao fee, last checked, Refresh, and every status newest first with time and who/what recorded it.
+- Verified: server `tsc` + build + 473 tests, frontend `tsc` + lint + build + 110 tests. Not verified in a browser or against a real Pathao booking (WORK-03 still owed).
+- Note: Pathao statuses only arrive when someone presses Refresh. A Pathao webhook (status pushed to us automatically) would fill the timeline on its own — worth doing once the first real booking works.
+- Left: step 3, the customer order page `/orders/[id]`.

@@ -5,16 +5,14 @@ import toast from "react-hot-toast";
 import * as orderService from "@/services/orderService";
 import { Order, OrderStatus } from "@/models";
 
+// Manage Orders list: loading, selection and bulk status changes.
+// Single-order actions live in useAdminOrderDetail.
+
 export function useAdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
-  const [noteSavingId, setNoteSavingId] = useState<string | null>(null);
-  const [courierSavingId, setCourierSavingId] = useState<string | null>(null);
-  const [pathaoBookingId, setPathaoBookingId] = useState<string | null>(null);
-  const [pathaoRefreshingId, setPathaoRefreshingId] = useState<string | null>(null);
 
   const reload = () => {
     setIsLoading(true);
@@ -42,23 +40,6 @@ export function useAdminOrders() {
       ignore = true;
     };
   }, []);
-
-  const applyUpdate = (updated: Order) => {
-    setOrders((prev) => prev.map((o) => (o._id === updated._id ? updated : o)));
-  };
-
-  const updateStatus = async (id: string, status: OrderStatus) => {
-    setUpdatingId(id);
-    try {
-      const updated = await orderService.updateOrderStatus(id, status);
-      applyUpdate(updated);
-      toast.success("Order status updated");
-    } catch {
-      toast.error("Failed to update status");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
@@ -89,82 +70,5 @@ export function useAdminOrders() {
     }
   };
 
-  const saveNote = async (id: string, note: string) => {
-    setNoteSavingId(id);
-    try {
-      const updated = await orderService.updateOrderNote(id, note);
-      applyUpdate(updated);
-      toast.success("Note saved");
-    } catch {
-      toast.error("Failed to save note");
-    } finally {
-      setNoteSavingId(null);
-    }
-  };
-
-  const saveCourierInfo = async (id: string, input: orderService.CourierInfoInput) => {
-    setCourierSavingId(id);
-    try {
-      const updated = await orderService.updateCourierInfo(id, input);
-      applyUpdate(updated);
-      toast.success("Courier info saved");
-    } catch {
-      toast.error("Failed to save courier info");
-    } finally {
-      setCourierSavingId(null);
-    }
-  };
-
-  const bookWithPathao = async (id: string, input: orderService.BookPathaoOrderInput) => {
-    setPathaoBookingId(id);
-    try {
-      const updated = await orderService.bookPathaoOrder(id, input);
-      applyUpdate(updated);
-      toast.success("Booked with Pathao");
-      return true;
-    } catch (err) {
-      toast.error(
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-          "Failed to book with Pathao"
-      );
-      return false;
-    } finally {
-      setPathaoBookingId(null);
-    }
-  };
-
-  const refreshPathaoStatus = async (id: string) => {
-    setPathaoRefreshingId(id);
-    try {
-      const updated = await orderService.refreshPathaoStatus(id);
-      applyUpdate(updated);
-      toast.success("Tracking status refreshed");
-    } catch {
-      toast.error("Failed to refresh tracking status");
-    } finally {
-      setPathaoRefreshingId(null);
-    }
-  };
-
-  return {
-    orders,
-    isLoading,
-    updatingId,
-    updateStatus,
-    reload,
-    selectedIds,
-    toggleSelected,
-    selectAll,
-    clearSelection,
-    isBulkUpdating,
-    bulkUpdateStatus,
-    noteSavingId,
-    saveNote,
-    courierSavingId,
-    saveCourierInfo,
-    pathaoBookingId,
-    bookWithPathao,
-    pathaoRefreshingId,
-    refreshPathaoStatus,
-  };
+  return { orders, isLoading, reload, selectedIds, toggleSelected, selectAll, clearSelection, isBulkUpdating, bulkUpdateStatus };
 }

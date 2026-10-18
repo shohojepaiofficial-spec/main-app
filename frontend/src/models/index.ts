@@ -303,6 +303,10 @@ export interface Order {
   courierTrackingStatus?: string;
   courierNote?: string;
   courierBookedAt?: string;
+  courierDeliveryFee?: number;
+  courierCheckedAt?: string;
+  // Every courier status, oldest first (staff only).
+  courierEvents?: { status: string; at: string; source: "pathao" | "manual"; kind: "booked" | "refresh" | "manual"; byName?: string }[];
 }
 
 // GET /orders/:id/customer-history (staff) — the customer's record with
