@@ -1374,3 +1374,11 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Verified: server `tsc` + build + 473 tests, frontend `tsc` + lint + build + 110 tests. Not verified in a browser or against a real Pathao booking (WORK-03 still owed).
 - Note: Pathao statuses only arrive when someone presses Refresh. A Pathao webhook (status pushed to us automatically) would fill the timeline on its own — worth doing once the first real booking works.
 - Left: step 3, the customer order page `/orders/[id]`.
+
+## 2026-10-19 (customer order page, WORK-17 step 3)
+- New customer page `/orders/[id]` (`views/MyOrderDetailView.tsx`, `controllers/useMyOrder.ts`; noindex, already under robots' `/orders` disallow). Shows the status, "Where your order is" timeline (existing `OrderTimeline`), "Please keep Tk X ready" for COD orders on their way, items with photos and the price breakdown, how it's being paid, any return requests, the delivery address, and buttons: **Help on WhatsApp** (store chat with "I need help with my order #ID"), Cancel (pending only), Return or exchange (when eligible), Pay online before receiving (COD), Print. Someone else's order shows "couldn't find this order".
+- **My Orders is now a list** (same idea as Manage Orders): one card per order with the first product photo, "+N more", date, coloured status and total; tapping opens the order page.
+- The checkout confirmation button is now "Track your order" → `/orders/<id>`. The order status emails and texts link to `/orders/<id>` instead of `/orders`; the longest text with the live domain is 147 characters (still one SMS).
+- 27 new Bangla rows in `translationSeed.ts` (order page strings + its page help). Shared `customerStatusLabel` in `lib/orderStatus.ts`.
+- Verified: server `tsc` + build + 473 tests, frontend `tsc` + lint + build + 110 tests. Not verified in a browser.
+- Left: deploy, run `npm run sync-translations`, then as a customer open an order from My Orders, from the checkout confirmation and from an order email/text.

@@ -90,7 +90,7 @@ function copyFor(event: OrderEmailEvent, data: OrderEmailData): { subject: strin
 
 export function buildOrderStatusEmail(event: OrderEmailEvent, data: OrderEmailData) {
   const { subject, lines } = copyFor(event, data);
-  const link = `${CLIENT_URL}/orders`;
+  const link = `${CLIENT_URL}/orders/${data.orderId}`;
   const itemText = (item: OrderEmailData["items"][number]) =>
     `${item.name}${item.variantLabel ? ` (${item.variantLabel})` : ""} × ${item.quantity}`;
   const html = [

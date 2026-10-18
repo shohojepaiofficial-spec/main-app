@@ -26,3 +26,10 @@ export const PAYMENT_LABEL: Record<string, string> = {
   cod: "Cash on Delivery",
   bkash: "bKash",
 };
+
+type Translate = (key: string, fallback: string, values?: Record<string, string | number>) => string;
+
+// Customer-facing status wording, translated (the storefront is bilingual).
+export function customerStatusLabel(t: Translate, status: OrderStatus): string {
+  return t(`order.status.${status}`, ORDER_STATUS_LABEL[status]);
+}

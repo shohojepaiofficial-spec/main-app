@@ -22,6 +22,7 @@ describe("page help", () => {
   });
 
   it("finds the order detail help for a real order id", () => {
+    expect(helpForPath("/orders/665f1f77bcf86cd7994a1b2c", false)?.i18n).toBe("help.orderDetail");
     expect(helpForPath("/admin/orders/665f1f77bcf86cd7994a1b2c", true)?.title).toBe("Order details");
   });
 

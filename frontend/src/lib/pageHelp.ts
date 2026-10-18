@@ -59,6 +59,21 @@ const STAFF_DASHBOARD: PageHelp = {
 };
 
 const HELP: Record<string, PageHelp> = {
+  "/orders/[id]": {
+    i18n: "help.orderDetail",
+    title: "Order details",
+    summary: "One order: where it is now, what's in it and where it's going.",
+    expect: [
+      "The timeline shows each step with its date; the coloured step is where your order is now.",
+      "Check your delivery address and phone. If something is wrong, tap Help on WhatsApp straight away.",
+      "You can cancel while the order is Pending, and ask for a return within 7 days of delivery.",
+    ],
+    terms: [
+      { term: "Pending", meaning: "Placed, not yet confirmed. You can still cancel it." },
+      { term: "Shipped", meaning: "With the courier and on its way to you." },
+      { term: "COD", meaning: "Cash on Delivery: pay the rider when it arrives." },
+    ],
+  },
   "/orders": {
     i18n: "help.orders",
     title: "My orders",
@@ -333,6 +348,7 @@ const HELP: Record<string, PageHelp> = {
 // the order print page). `/dashboard` differs for staff and customers.
 export function helpForPath(pathname: string, isStaffDashboard: boolean): PageHelp | null {
   if (pathname === "/dashboard") return isStaffDashboard ? STAFF_DASHBOARD : CUSTOMER_DASHBOARD;
+  if (/^\/orders\/[a-f0-9]{24}$/i.test(pathname)) return HELP["/orders/[id]"];
   if (/^\/admin\/orders\/[a-f0-9]{24}$/i.test(pathname)) return HELP["/admin/orders/[id]"];
   return HELP[pathname] ?? null;
 }

@@ -18,7 +18,7 @@ const orderNumber = (id: string) => `#${id.slice(-6).toUpperCase()}`;
 const money = (amount: number) => `Tk ${amount.toLocaleString("en-US")}`;
 
 // Short, plain-English order texts — each must stay within one 160-character
-// SMS. Like the emails, they never name the courier.
+// SMS (with the order page link). Like the emails, they never name the courier.
 export function buildOrderStatusSms(event: OrderEmailEvent, data: OrderSmsData): string {
   const number = orderNumber(data.orderId);
   const cod = data.paymentMethod === "cod";
@@ -48,7 +48,7 @@ export function buildOrderStatusSms(event: OrderEmailEvent, data: OrderSmsData):
           : `Order ${number} was cancelled.`;
     }
   })();
-  return `${brand ? `${brand}: ` : ""}${body} ${CLIENT_URL}/orders`;
+  return `${brand ? `${brand}: ` : ""}${body} ${CLIENT_URL}/orders/${data.orderId}`;
 }
 
 // Texts the order's shipping phone — so staff-entered phone orders with no
