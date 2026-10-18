@@ -29,7 +29,7 @@ the code and tests are finished but a live/staging check is still owed.
 | ID | Task | What's left |
 | --- | --- | --- |
 | WORK-01 | Live bKash | Waiting on merchant approval. Put live `BKASH_*` in Railway; bKash stops showing "Coming soon" within a minute. Then test success / cancel / failure / reconciliation with small real payments. |
-| WORK-02 | SMS — **built, not yet live** | REVE SMS (revesms.com) wired in (2026-10-18): order status texts (placed, confirmed/paid, shipped, delivered, cancelled) to the order's shipping phone, plus the existing campaign SMS. Left: set `SMS_API_URL` / `SMS_API_KEY` / `SMS_SECRET_KEY` / `SMS_SENDER_ID` (and optional `SMS_BRAND_NAME`) on Railway, deploy, place a test order and confirm the text arrives. Dashboard SMS balance tile built (2026-10-18): set `SMS_CLIENT_ID` too and check the tile shows the right amount. |
+| WORK-02 | SMS — **live** (send verified 2026-10-18) | REVE SMS (revesms.com) wired in (2026-10-18): order status texts (placed, confirmed/paid, shipped, delivered, cancelled) to the order's shipping phone, plus the existing campaign SMS. Deployed `805c5a4`; a confirmed test order texted the owner. Dashboard SMS balance tile also built. Left: check the other status events, and check the tile shows the right amount. |
 
 ## 3. Open — security checks owed on staging/live
 

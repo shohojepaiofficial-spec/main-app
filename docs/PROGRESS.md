@@ -1345,3 +1345,4 @@ Verification: 263 backend tests, 58 frontend tests, backend build, frontend prod
 - Staff dashboard Orders section has an "SMS balance" tile (`controllers/useSmsBalance.ts`, `services/smsService.ts`): the amount, "Not connected", or "Unavailable"; warning colour under 100. `sms` added to the frontend proxy allowlist.
 - Verified: server `tsc` + 456 tests, frontend `tsc` + 103 tests, lint on changed files. Not verified: a real balance reply (no client ID here), the tile in a browser.
 - Left: set `SMS_CLIENT_ID` on Railway, deploy, confirm the tile matches the REVE panel. If the reply holds several numbers, adjust `parseSmsBalance`.
+- Deployed as `805c5a4`. Owner set the REVE env vars on Railway, confirmed a test order and received the status SMS. Not yet checked: the dashboard balance tile, the other status events.
