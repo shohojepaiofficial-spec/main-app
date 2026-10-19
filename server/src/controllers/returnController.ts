@@ -14,6 +14,8 @@ import { isBkashLive, refundBkashPayment } from "../integrations/bkash";
 import { getPathaoOrderStatus, isPathaoConfigured } from "../integrations/pathao";
 import { recordCourierStatus } from "../utils/courierEvents";
 import { sendEmail } from "../utils/sendEmail";
+import { notifyStaff, notifyUser } from "../utils/notify";
+import { returnUpdateNotification, staffReturnRequestNotification, ReturnNotificationEvent } from "../utils/notificationMessages";
 import { escapeHtml } from "../utils/escapeHtml";
 
 // Returns, exchanges and refunds (WORK-08) — see docs/ARCHITECTURE.md's
@@ -68,6 +70,10 @@ async function createRequest(req: AuthRequest, res: Response, createdBy: "custom
     items,
     createdBy,
   });
+  // Staff logging one themselves don't need telling about it.
+  if (createdBy === "customer") {
+    notifyStaff("orders:manage", staffReturnRequestNotification(String(order._id), order.shippingAddress?.fullName));
+  }
   return res.status(201).json(request);
 }
 
@@ -191,6 +197,9 @@ export const updateReturnStatus = async (req: AuthRequest, res: Response) => {
     customerMessage, staffNote, restock, replacementOrder: replacementOrderId,
   });
   notifyCustomer(request).catch(() => undefined);
+  if (["approved", "rejected", "received", "completed"].includes(request.status)) {
+    notifyUser(request.user, returnUpdateNotification(request.status as ReturnNotificationEvent, String(request.order), request.type));
+  }
   res.json({ ...request.toObject(), skippedRestock });
 };
 
@@ -221,7 +230,10 @@ async function saveRefund(request: IReturnRequest, refund: Record<string, unknow
     { $set: { refund, ...(request.status === "received" ? { status: "completed" } : {}) }, $unset: { bkashRefundStartedAt: 1 } },
     { returnDocument: "after" },
   );
-  if (saved) notifyCustomer(saved).catch(() => undefined);
+  if (saved) {
+    notifyCustomer(saved).catch(() => undefined);
+    notifyUser(saved.user, returnUpdateNotification("refunded", String(saved.order)));
+  }
   return saved;
 }
 

@@ -3,6 +3,8 @@ import { sendEmail } from "./sendEmail";
 import { escapeHtml } from "./escapeHtml";
 import { RETURN_WINDOW_DAYS } from "./returns";
 import { notifyOrderStatusSms } from "./orderStatusSms";
+import { notifyUser } from "./notify";
+import { orderStatusNotification } from "./notificationMessages";
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 
@@ -114,11 +116,27 @@ export function buildOrderStatusEmail(event: OrderEmailEvent, data: OrderEmailDa
 // triggered it. Orders with no account (staff-entered phone orders) have no
 // address to write to and are skipped.
 // Also sends the matching SMS (utils/orderStatusSms.ts) when SMS is configured.
+// And the bell/push notification (utils/notify.ts).
 export function notifyOrderStatus(orderId: string, event: OrderEmailEvent, previousStatus?: IOrder["status"]) {
   notifyOrderStatusSms(orderId, event, previousStatus);
   Promise.resolve()
+    .then(() => sendOrderStatusNotification(orderId, event, previousStatus))
+    .catch((err) => console.error("Order status notification failed:", (err as Error).message));
+  Promise.resolve()
     .then(() => sendOrderStatusEmail(orderId, event, previousStatus))
     .catch((err) => console.error("Order status email failed:", (err as Error).message));
+}
+
+async function sendOrderStatusNotification(orderId: string, event: OrderEmailEvent, previousStatus?: IOrder["status"]) {
+  const order = await Order.findById(orderId).select("user paymentMethod totalAmount bkashTrxID");
+  if (!order?.user) return;
+  notifyUser(order.user, orderStatusNotification(event, {
+    id: order.id,
+    paymentMethod: order.paymentMethod,
+    totalAmount: order.totalAmount,
+    paymentReceived: !!order.bkashTrxID,
+    previousStatus,
+  }));
 }
 
 async function sendOrderStatusEmail(orderId: string, event: OrderEmailEvent, previousStatus?: IOrder["status"]) {

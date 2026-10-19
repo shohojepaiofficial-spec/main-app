@@ -12,6 +12,7 @@ import { useTranslations } from "@/controllers/useTranslations";
 import { LanguageSwitcher } from "@/views/LanguageSwitcher";
 import { Logo } from "@/views/Logo";
 import { ProfileDropdown } from "@/views/ProfileDropdown";
+import { NotificationBell } from "@/views/NotificationBell";
 import { PromoAnnouncementBar } from "@/views/PromoAnnouncementBar";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL, FACEBOOK_URL, INSTAGRAM_URL } from "@/lib/contact";
 import { AppliedPromo } from "@/models";
@@ -84,7 +85,14 @@ function AuthArea() {
   const openAuthModal = useUIStore((s) => s.openAuthModal);
   const { t } = useTranslations();
 
-  if (isAuthenticated) return <ProfileDropdown />;
+  if (isAuthenticated) {
+    return (
+      <>
+        <NotificationBell />
+        <ProfileDropdown />
+      </>
+    );
+  }
 
   return (
     <button

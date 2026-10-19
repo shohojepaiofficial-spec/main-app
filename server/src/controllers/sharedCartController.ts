@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import { Order } from "../models/Order";
 import { User } from "../models/User";
 import { isBkashLive, createBkashPayment } from "../integrations/bkash";
+import { alertLowStockAfterSale } from "../utils/lowStockAlert";
 import { transitionOrder } from "../utils/orderTransitions";
 import { orderStockMovements, recordStockMovements } from "../utils/stockLedger";
 import { cartIdFromPaymentLink, paymentLink } from "../utils/paymentLinks";
@@ -219,6 +220,7 @@ export const payForSharedCart = async (req: Request, res: Response) => {
     await session.endSession();
   }
   if (!order) return res.status(500).json({ message: "Couldn't start the payment" });
+  alertLowStockAfterSale(order.items);
 
   // Outside the transaction, like createOrder: never call bKash while holding it.
   try {

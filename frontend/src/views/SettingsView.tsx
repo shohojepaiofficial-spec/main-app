@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { newPasswordSchema } from "@/lib/passwordPolicy";
+import { BrowserPushSection } from "@/views/BrowserPushSection";
 import toast from "react-hot-toast";
 import { IMAGE_ACCEPT, imageUploadError } from "@/lib/imageUpload";
 import { useAuthController } from "@/controllers/useAuthController";
@@ -669,6 +670,7 @@ export function SettingsView() {
         <ProfileSection />
         <DeliveryLocationSection />
         <MarketingSection />
+        <BrowserPushSection />
         <ActiveSessionsView
           sessions={activeSessions.sessions}
           isLoading={activeSessions.isLoading}

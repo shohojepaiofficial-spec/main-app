@@ -25,6 +25,7 @@ import auditLogs from "./auditLogRoutes";
 import returns from "./returnRoutes";
 import payments from "./paymentRoutes";
 import categories from "./categoryRoutes";
+import notifications from "./notificationRoutes";
 
 // Explicit exceptions: catalog reads, public submissions, signed email/payment
 // links, login entry points, and the shared-secret OAuth exchange. Every other
@@ -37,7 +38,7 @@ const publicRoutes = new Set([
   "orders GET /bkash/callback", "orders POST /pathao/webhook", "banners GET /", "promos POST /validate", "promos GET /active",
   "analytics POST /track", "contact POST /", "shared GET /:link", "shared POST /:link/pay", "translations GET /", "stats GET /",
 ]);
-const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, sms, stats, auditLogs, returns, payments, categories };
+const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, sms, stats, auditLogs, returns, payments, categories, notifications };
 const protectedRoutes: { name: string; method: string; path: string }[] = [];
 const customerRoutes = new Set([
   "auth POST /logout", "auth POST /logout-all", "auth GET /sessions", "auth DELETE /sessions/:sid", "auth GET /me", "auth PATCH /profile", "auth PATCH /password", "auth PATCH /delivery-location",
@@ -47,6 +48,8 @@ const customerRoutes = new Set([
   "orders GET /my", "orders GET /reviewable", "orders PATCH /:id/cancel", "orders GET /:id",
   "products POST /:id/reviews", "wishlist GET /", "wishlist POST /:productId",
   "wishlist DELETE /:productId", "shared POST /", "returns POST /", "returns GET /my",
+  "notifications GET /", "notifications PATCH /read-all", "notifications PATCH /:id/read", "notifications GET /push/config",
+  "notifications POST /push/subscribe", "notifications POST /push/unsubscribe",
 ]);
 const app = express();
 app.use(express.json());

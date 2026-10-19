@@ -1,3 +1,5 @@
+import { notifyStaff } from "../utils/notify";
+import { staffContactMessageNotification } from "../utils/notificationMessages";
 import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { ContactMessage } from "../models/ContactMessage";
@@ -50,6 +52,7 @@ export const submitContactMessage = async (req: Request, res: Response) => {
     }).catch((err) => console.error("Contact notification email failed:", err.message));
   }
 
+  notifyStaff("messages:manage", staffContactMessageNotification(contactMessage.name, contactMessage.subject));
   res.status(201).json({ id: contactMessage.id });
 };
 

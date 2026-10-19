@@ -9,6 +9,7 @@ import { useOAuthBridge } from "@/controllers/useOAuthBridge";
 import { useRefreshUser } from "@/controllers/useRefreshUser";
 import { usePageViewTracking } from "@/controllers/usePageViewTracking";
 import { useWishlistSync } from "@/controllers/useWishlistSync";
+import { useNotificationPolling } from "@/controllers/useNotificationPolling";
 import { SESSION_SYNC_KEY } from "@/lib/sessionClient";
 
 // Global, render-nothing hooks that need to run once for the whole app,
@@ -18,6 +19,7 @@ function AppEffects() {
   useRefreshUser();
   usePageViewTracking();
   useWishlistSync();
+  useNotificationPolling();
   return null;
 }
 

@@ -1452,3 +1452,10 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 
 ## 2026-10-19 (account menu button)
 - Navbar: the signed-in avatar is now a pill with an "Account" label (hidden on phones) and a down-arrow that flips when open, so it reads as a menu. Added `nav.account` / `nav.openAccountMenu` translations (run sync-translations). Typecheck and lint clean.
+
+## 2026-10-19 (notifications, WORK-18)
+- Built notifications for customers and staff: bell in the navbar and dashboard sidebar (unread badge, latest 30, mark read / all), browser push (per device, Settings switch, `public/sw.js`), events for order status, returns/refunds, review replies, and staff alerts for new orders, payments needing review, return requests, low stock and contact messages. See ARCHITECTURE.md "Notifications".
+- Decisions: one document per recipient (simple per-person read state); staff alerts go to the admin and coadmins with the matching permission; no new emails (owner chose no alert emails earlier); payment-review alerts fire only when the flag first turns on; low stock alerts only on crossing the line; push endpoints limited to known push services; logout unsubscribes the browser.
+- New server dependency `web-push` (+ `@types/web-push`). New env vars `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (optional).
+- Checks: server typecheck + 518 tests (new `utils/notifications.test.ts`, route-protection list extended), frontend typecheck + lint + 110 tests, `git diff --check`. Not yet tried in a browser.
+- Left: deploy, sync translations, set VAPID keys in Railway, try bell + push on a phone and a computer.

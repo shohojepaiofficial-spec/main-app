@@ -25,6 +25,10 @@ import { recordCourierStatus } from "../utils/courierEvents";
 import { ReturnRequest } from "../models/ReturnRequest";
 import { reconcilePayment } from "../utils/paymentReconciliation";
 import { customerOrderView } from "../utils/customerOrder";
+import { alertLowStockAfterSale } from "../utils/lowStockAlert";
+import { flagPaymentReview } from "../utils/paymentReview";
+import { notifyStaff } from "../utils/notify";
+import { staffNewOrderNotification } from "../utils/notificationMessages";
 import {
   createBkashPayment,
   executeBkashPayment,
@@ -518,6 +522,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   }
 
   if (!order) return res.status(500).json({ message: "Failed to place order" });
+  alertLowStockAfterSale(order.items);
 
   // bKash needs its own payment session started after the order (and its
   // stock decrement) is safely committed — never call out to an external
@@ -537,7 +542,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       order.bkashRedirectUrl = bkashURL;
       const saved = await Order.updateOne({ _id: order._id, status: "pending", reservationExpiresAt: { $gt: new Date() } }, { $set: { bkashPaymentID: paymentID, bkashRedirectUrl: bkashURL } });
       if (!saved.matchedCount) {
-        await Order.updateOne({ _id: order._id }, { $set: { bkashPaymentID: paymentID, paymentReviewRequired: true } });
+        await flagPaymentReview(order._id, "The payment reservation expired while bKash was starting.", { bkashPaymentID: paymentID });
         return res.status(409).json({ message: "This reservation expired; payment needs review" });
       }
       return res.status(201).json(checkoutResponse(order));
@@ -554,6 +559,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   // Cash on delivery is final at this point. A bKash order is only
   // confirmed once it is paid, which transitionOrder emails about.
   notifyOrderStatus(order.id, "placed");
+  notifyStaff("orders:manage", staffNewOrderNotification({ id: order.id, totalAmount: order.totalAmount, paymentMethod: order.paymentMethod, customerName: order.shippingAddress?.fullName }));
 };
 
 // The admin/coadmin equivalent of createOrder, for a phone or walk-in order
@@ -610,6 +616,7 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
       await recordStockMovements(orderStockMovements(totals.orderItems, "sale", { order: created._id }), session);
     });
 
+    if (order) alertLowStockAfterSale(order.items);
     res.status(201).json(order);
   } catch (err) {
     const { status, message } = err as { status?: number; message?: string };

@@ -7,6 +7,8 @@ import { Order } from "../models/Order";
 import { AuthRequest } from "../middleware/auth";
 import { isNonEmptyString } from "../utils/validate";
 import { notifyReviewReply } from "../utils/reviewReplyEmail";
+import { notifyUser } from "../utils/notify";
+import { reviewReplyNotification } from "../utils/notificationMessages";
 
 const PAGE_SIZE = 5;
 
@@ -131,7 +133,11 @@ export const replyToReview = async (req: AuthRequest, res: Response) => {
   if (!before) return res.status(404).json({ message: "Review not found" });
   const review = await Review.findById(before._id).populate("product", "name images");
   if (!review) return res.status(404).json({ message: "Review not found" });
-  if (!before.reply?.text) notifyReviewReply(review);
+  if (!before.reply?.text) {
+    notifyReviewReply(review);
+    const product = review.product as unknown as { _id?: unknown; name?: string } | null;
+    notifyUser(review.user, reviewReplyNotification(String(product?._id ?? ""), product?.name ?? "your purchase"));
+  }
   res.json(review);
 };
 

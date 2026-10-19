@@ -862,3 +862,35 @@ export interface ActiveSession {
   lastActiveAt: string;
   current: boolean;
 }
+
+// In-site (bell) notifications — server/src/models/Notification.ts.
+export type NotificationType =
+  | "order_status"
+  | "return_update"
+  | "review_reply"
+  | "staff_new_order"
+  | "staff_payment_review"
+  | "staff_return_request"
+  | "staff_low_stock"
+  | "staff_contact_message";
+
+export interface AppNotification {
+  _id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  // Site-relative path to open on click.
+  link?: string;
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface NotificationList {
+  items: AppNotification[];
+  unreadCount: number;
+}
+
+export interface BrowserPushSubscription {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}

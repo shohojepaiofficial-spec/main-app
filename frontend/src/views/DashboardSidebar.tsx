@@ -31,6 +31,7 @@ import {
 import { STAFF_MAILBOXES, WEBMAIL_LOGIN_URL } from "@/lib/contact";
 import { useAuthController } from "@/controllers/useAuthController";
 import { Modal } from "@/components/ui/Modal";
+import { NotificationBell } from "@/views/NotificationBell";
 import { useTranslations } from "@/controllers/useTranslations";
 
 // Every logged-in account gets these — their own orders/settings, not the
@@ -182,12 +183,15 @@ export function DashboardSidebar() {
         <Link href="/" className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
           <ArrowLeft size={14} /> {t("account.backToStore", "Back to store")}
         </Link>
-        <button
-          onClick={() => setIsMobileOpen(true)}
-          className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-background"
-        >
-          <Menu size={16} /> {t("account.menu", "Menu")}
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <button
+            onClick={() => setIsMobileOpen(true)}
+            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-background"
+          >
+            <Menu size={16} /> {t("account.menu", "Menu")}
+          </button>
+        </div>
       </div>
 
       <Modal
@@ -205,7 +209,12 @@ export function DashboardSidebar() {
           <Link href="/" className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
             <ArrowLeft size={14} /> {t("account.backToStore", "Back to store")}
           </Link>
-          {user && <p className="mt-3 text-sm font-medium truncate">{user.name}</p>}
+          {user && (
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-sm font-medium">{user.name}</p>
+              <NotificationBell placement="sidebar" />
+            </div>
+          )}
         </div>
 
         {navLinks}

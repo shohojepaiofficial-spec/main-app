@@ -1,11 +1,12 @@
 import { Order } from "../models/Order";
 import { queryBkashPayment, type BkashPaymentResult } from "../integrations/bkash";
 import { transitionOrder } from "./orderTransitions";
+import { flagPaymentReview } from "./paymentReview";
 
 export async function reconcilePayment(order: InstanceType<typeof Order>, result: BkashPaymentResult) {
   if (result.transactionStatus === "Completed") {
     if (!result.trxID || !result.amount || Number(result.amount) !== order.totalAmount) {
-      await Order.updateOne({ _id: order._id }, { $set: { paymentReviewRequired: true } });
+      await flagPaymentReview(order._id, "bKash says paid, but the amount or transaction id doesn't match.");
       return "error";
     }
     try {
@@ -13,7 +14,7 @@ export async function reconcilePayment(order: InstanceType<typeof Order>, result
       return "success";
     } catch (error) {
       if ((error as { status?: number }).status !== 409) throw error;
-      await Order.updateOne({ _id: order._id }, { $set: { paymentReviewRequired: true, bkashTrxID: result.trxID } });
+      await flagPaymentReview(order._id, "Paid in bKash after the order had already changed.", { bkashTrxID: result.trxID });
       return "error";
     }
   }
@@ -22,7 +23,7 @@ export async function reconcilePayment(order: InstanceType<typeof Order>, result
     return "failed";
   }
   // Initiated/unknown is not proof that funds cannot arrive. Hold inventory.
-  await Order.updateOne({ _id: order._id }, { $set: { paymentReviewRequired: true } });
+  await flagPaymentReview(order._id, "bKash hasn't confirmed or failed this payment.");
   return "pending";
 }
 
@@ -34,7 +35,7 @@ export async function reconcileExpiredReservations() {
       if (!order.bkashPaymentID) await transitionOrder(order.id, "cancelled", { pendingOnly: true });
       else await reconcilePayment(order, await queryBkashPayment(order.bkashPaymentID));
     } catch {
-      await Order.updateOne({ _id: order._id }, { $set: { paymentReviewRequired: true } });
+      await flagPaymentReview(order._id, "Couldn't check this payment with bKash.");
     }
   }
 }

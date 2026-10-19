@@ -4,6 +4,7 @@ import { useAuthStore } from "@/controllers/useAuthStore";
 import { translateNow } from "@/controllers/useTranslations";
 import { Permission } from "@/models";
 import { endSession } from "@/lib/sessionClient";
+import { disablePush } from "@/lib/push";
 
 // `useAuthStore` is the single source of truth for "who's logged in" — both
 // the email/password flow and the OAuth bridge (useOAuthBridge) write into it.
@@ -15,6 +16,9 @@ export function useAuthController() {
 
   const logout = async (allDevices = false) => {
     try {
+      // While still signed in: stop this browser's push, so the next person
+      // on a shared computer doesn't get this account's alerts.
+      await disablePush().catch(() => undefined);
       await endSession(allDevices);
       await nextAuthSignOut({ redirect: false }).catch(() => {});
       toast.success(translateNow("auth.loggedOut", "Logged out"));

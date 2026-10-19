@@ -21,6 +21,7 @@ vi.mock("../models/Product", () => ({ Product: { updateOne: vi.fn(async (_filter
 }) } }));
 vi.mock("../models/StockMovement", () => ({ StockMovement: { insertMany: vi.fn() } }));
 vi.mock("./orderStatusEmail", () => ({ notifyOrderStatus: vi.fn() }));
+vi.mock("./notify", () => ({ notifyStaff: vi.fn() }));
 vi.mock("../models/SharedCart", () => ({ SharedCart: { updateOne: vi.fn().mockResolvedValue({ matchedCount: 1 }) } }));
 import { transitionOrder } from "./orderTransitions";
 import { Product } from "../models/Product";

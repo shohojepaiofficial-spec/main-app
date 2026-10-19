@@ -24,6 +24,7 @@ import statsRoutes from "./routes/statsRoutes";
 import auditLogRoutes from "./routes/auditLogRoutes";
 import returnRoutes from "./routes/returnRoutes";
 import paymentRoutes from "./routes/paymentRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
 import { notFound, errorHandler, twoFactorUnavailableResponse } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
 import { liveOnlinePaymentMethods } from "./utils/paymentMethods";
@@ -112,6 +113,7 @@ app.use("/api/stats", statsRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

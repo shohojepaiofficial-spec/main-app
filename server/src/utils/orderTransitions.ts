@@ -4,6 +4,8 @@ import { Product } from "../models/Product";
 import { SharedCart } from "../models/SharedCart";
 import { orderStockMovements, recordStockMovements } from "./stockLedger";
 import { notifyOrderStatus } from "./orderStatusEmail";
+import { notifyStaff } from "./notify";
+import { staffNewOrderNotification, staffPaymentReviewNotification } from "./notificationMessages";
 
 export async function restoreInventory(order: Pick<IOrder, "_id" | "items">, session: ClientSession) {
   // Operations on one transaction session must be sequential.
@@ -80,6 +82,22 @@ export async function transitionOrder(
     // failure can't undo it. Every status change in the app comes through
     // here, so this one call covers staff, bulk, customer and payment paths.
     if (changedFrom && status !== "pending" && !options.silent) notifyOrderStatus(String(result._id), status, changedFrom);
+    if (changedFrom) notifyStaffOfTransition(result, status, changedFrom);
     return result;
   } finally { await session.endSession(); }
+}
+
+// Staff alerts that hang off a status change (after commit, never awaited):
+// an online payment arriving is a new order to pack; a cancelled order that
+// was already paid needs a refund by hand. A COD order is announced by
+// createOrder itself, since it never passes through "paid" from checkout.
+function notifyStaffOfTransition(order: IOrder, status: IOrder["status"], from: IOrder["status"]) {
+  if (status === "paid" && from === "pending" && order.paymentMethod !== "cod" && order.source === "online") {
+    notifyStaff("orders:manage", staffNewOrderNotification({
+      id: String(order._id), totalAmount: order.totalAmount, paymentMethod: order.paymentMethod, customerName: order.shippingAddress?.fullName,
+    }));
+  }
+  if (status === "cancelled" && order.bkashTrxID) {
+    notifyStaff("orders:manage", staffPaymentReviewNotification(String(order._id), "A paid order was cancelled — refund it by hand."));
+  }
 }
