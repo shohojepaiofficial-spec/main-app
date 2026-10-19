@@ -79,14 +79,14 @@ function AskSomeoneElseToPay() {
   };
 
   return (
-    <div className="mb-6 rounded-md border border-dashed border-border p-4">
+    <div className="mb-6 rounded-lg border border-primary/40 bg-primary/5 p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <Share2 size={18} className="mt-0.5 shrink-0 text-primary" />
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"><Share2 size={18} aria-hidden="true" /></span>
         <div className="flex-1">
-          <p className="text-sm font-medium">
+          <p className="text-base font-semibold">
             {t("checkout.askSomeoneElseTitle", "Want someone else to pay for this?")}
           </p>
-          <p className="mt-0.5 text-xs text-muted">
+          <p className="mt-0.5 text-sm text-muted">
             {t(
               "checkout.askSomeoneElseSubtitle",
               "Share a link to this cart — whoever opens it can check out and pay for it themselves."
@@ -94,12 +94,12 @@ function AskSomeoneElseToPay() {
           </p>
 
           {shareUrl ? (
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <input
                 readOnly
                 value={shareUrl}
                 onFocus={(e) => e.target.select()}
-                className="flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs"
+                className="min-w-0 flex-1 basis-48 rounded border border-border bg-background px-2 py-1.5 text-xs"
               />
               <button
                 onClick={onCopy}
@@ -126,7 +126,7 @@ function AskSomeoneElseToPay() {
             <button
               onClick={onCreate}
               disabled={isCreating}
-              className="mt-3 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background disabled:opacity-50"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               {isCreating
                 ? t("checkout.creatingLink", "Creating link...")

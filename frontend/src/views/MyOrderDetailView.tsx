@@ -8,6 +8,7 @@ import { ArrowLeft, MapPin, MessageCircle, Printer, RotateCcw, Wallet, XCircle }
 import { useMyOrder } from "@/controllers/useMyOrder";
 import { useMyReturns } from "@/controllers/useMyReturns";
 import { useTranslations } from "@/controllers/useTranslations";
+import { openWhatsAppDirect } from "@/lib/whatsapp";
 import { formatCurrency } from "@/lib/currency";
 import { toUploadUrl } from "@/lib/api";
 import { WHATSAPP_NUMBER } from "@/lib/contact";
@@ -145,6 +146,7 @@ export function MyOrderDetailView({ orderId }: { orderId: string }) {
       <div className="flex flex-wrap gap-2">
         <a
           href={toOrderWhatsAppLink(WHATSAPP_NUMBER, helpMessage)}
+          onClick={openWhatsAppDirect}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-md bg-[#25D366] px-3 py-2 text-sm font-medium text-white hover:opacity-90"

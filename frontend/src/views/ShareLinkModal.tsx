@@ -3,6 +3,7 @@ import { FaWhatsapp, FaFacebook, FaTelegram, FaXTwitter } from "react-icons/fa6"
 import { IconType } from "react-icons";
 import { Modal } from "@/components/ui/Modal";
 import { useTranslations } from "@/controllers/useTranslations";
+import { openWhatsAppDirect } from "@/lib/whatsapp";
 
 interface ShareOption {
   id: string;
@@ -79,7 +80,7 @@ export function ShareLinkModal({ isOpen, onClose, url, text }: ShareLinkModalPro
             href={buildHref(url, text)}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={onClose}
+            onClick={(event) => { openWhatsAppDirect(event); onClose(); }}
             className="flex flex-col items-center gap-1.5 rounded-md border border-border p-3 text-center hover:bg-background"
           >
             <Icon size={22} style={{ color }} />

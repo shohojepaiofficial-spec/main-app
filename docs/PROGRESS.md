@@ -1407,3 +1407,9 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Customers see "Rider pickup booked — a Pathao rider will collect the item from you. Free of charge." and the latest pickup status while the request is approved. 5 new Bangla rows in `translationSeed.ts`.
 - Verified: server `tsc` + 491 tests (4 new), frontend `tsc` + lint on changed files. Not tried in a browser or with a real Pathao return parcel.
 - Left: deploy, `npm run sync-translations`, then try a full return with a real pickup: approve → book in Pathao panel → enter consignment → watch webhook entries → mark received.
+
+## 2026-10-19 — WhatsApp links open the chat directly; "ask someone else to pay" stands out
+
+- New `lib/whatsapp.ts#openWhatsAppDirect`, a click handler on every wa.me link (chat button, Contact page, order page help, staff "WhatsApp customer", share modal). It skips WhatsApp's "Continue to chat" page: phones open `whatsapp://send` (falling back to the wa.me page after 1.5s if the app didn't open), computers open WhatsApp Web on the chat. Links keep their wa.me href, so middle-click and no-JS still work.
+- Checkout's "Want someone else to pay for this?" is now a tinted card with a larger title and a solid primary "Create shareable link" button (was a dashed box with a small outline button); the link row wraps on phones.
+- Verified: frontend `tsc` + lint on changed files. Not tried on a phone.

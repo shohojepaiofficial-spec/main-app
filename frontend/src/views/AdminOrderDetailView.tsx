@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { ArrowLeft, MessageCircle, Phone, Printer, RefreshCw, Truck, PackageCheck, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAdminOrderDetail } from "@/controllers/useAdminOrderDetail";
+import { openWhatsAppDirect } from "@/lib/whatsapp";
 import { buildStaffOrderTimeline, StaffTimelineStep } from "@/lib/staffOrderTimeline";
 import { ORDER_STATUS_CLASS, ORDER_STATUS_LABEL, PAYMENT_LABEL } from "@/lib/orderStatus";
 import { toTelLink, toOrderWhatsAppLink } from "@/lib/phone";
@@ -139,7 +140,7 @@ export function AdminOrderDetailView({ orderId }: { orderId: string }) {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={toOrderWhatsAppLink(order.shippingAddress.phone, whatsAppMessage(order))} target="_blank" rel="noopener noreferrer" className={`${buttonClass} bg-[#25D366] text-white hover:opacity-90`}>
+          <a href={toOrderWhatsAppLink(order.shippingAddress.phone, whatsAppMessage(order))} target="_blank" rel="noopener noreferrer" onClick={openWhatsAppDirect} className={`${buttonClass} bg-[#25D366] text-white hover:opacity-90`}>
             <MessageCircle size={16} /> WhatsApp
           </a>
           <a href={toTelLink(order.shippingAddress.phone)} className={`${buttonClass} border border-border hover:bg-background`}>

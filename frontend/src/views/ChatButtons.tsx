@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { FaFacebookMessenger, FaWhatsapp } from "react-icons/fa6";
+import { openWhatsAppDirect } from "@/lib/whatsapp";
 import { MESSENGER_CHAT_URL, MESSENGER_INBOX_URL, WHATSAPP_NUMBER } from "@/lib/contact";
 import { useTranslations } from "@/controllers/useTranslations";
 import { useAuthController } from "@/controllers/useAuthController";
@@ -68,7 +69,7 @@ export function ChatButtons() {
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => setIsOpen(false)}
+              onClick={(event) => { setIsOpen(false); openWhatsAppDirect(event); }}
               aria-label={t("whatsapp.chatWithUs", "Chat with us on WhatsApp")}
               className={`${optionClass} bg-[#25D366]`}
             >

@@ -16,6 +16,7 @@ import {
   WHATSAPP_NUMBER,
 } from "@/lib/contact";
 import { T } from "@/components/ui/T";
+import { openWhatsAppDirect } from "@/lib/whatsapp";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -139,6 +140,7 @@ export function ContactView() {
           </a>
           <a
             href={whatsappHref}
+            onClick={openWhatsAppDirect}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 rounded-md border border-border bg-surface p-4 hover:bg-background"
