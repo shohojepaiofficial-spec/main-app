@@ -3,18 +3,21 @@
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
-import { ChevronRight, Package } from "lucide-react";
+import { ChevronRight, Package, RotateCcw } from "lucide-react";
 import { useMyOrders } from "@/controllers/useMyOrders";
+import { useMyReturns } from "@/controllers/useMyReturns";
 import { useTranslations } from "@/controllers/useTranslations";
 import { formatCurrency } from "@/lib/currency";
 import { toUploadUrl } from "@/lib/api";
 import { ORDER_STATUS_CLASS, customerStatusLabel } from "@/lib/orderStatus";
 import { PreorderLineTag } from "@/views/PreorderLineTag";
+import { ReturnCountdown } from "@/views/ReturnCountdown";
 
 // Every order on the account, one card each. Tapping one opens its own page
 // (/orders/[id]) with the timeline, items, address and actions.
 export function OrdersView() {
   const { orders, isLoading } = useMyOrders();
+  const { eligibilityByOrder } = useMyReturns();
   const { t } = useTranslations();
 
   return (
@@ -37,11 +40,12 @@ export function OrdersView() {
           {orders.map((order) => {
             const first = order.items[0];
             const more = order.items.length - 1;
+            const eligibility = eligibilityByOrder.get(order._id);
             return (
               <li key={order._id}>
                 <Link
                   href={`/orders/${order._id}`}
-                  className="flex items-center gap-3 rounded-md border border-border bg-surface p-3 transition-colors hover:border-primary/50"
+                  className={`flex items-center gap-3 border border-border bg-surface p-3 transition-colors hover:border-primary/50 ${eligibility ? "rounded-t-md" : "rounded-md"}`}
                 >
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded bg-background">
                     {first?.product?.images?.[0] && (
@@ -67,6 +71,17 @@ export function OrdersView() {
                   </div>
                   <ChevronRight size={16} className="shrink-0 text-muted" />
                 </Link>
+                {eligibility && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-b-md border border-t-0 border-border bg-background px-3 py-2">
+                    <ReturnCountdown endsAt={eligibility.windowEndsAt} />
+                    <Link
+                      href={`/orders/${order._id}#return`}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:border-primary/50"
+                    >
+                      <RotateCcw size={14} aria-hidden="true" /> {t("returns.requestButton", "Return or exchange")}
+                    </Link>
+                  </div>
+                )}
               </li>
             );
           })}

@@ -715,8 +715,28 @@ export interface ReturnRequest {
   restocked: boolean;
   refund?: Refund;
   replacementOrder?: string;
+  pickup?: ReturnPickup;
   createdAt: string;
   updatedAt: string;
+}
+
+// The rider pickup bringing the item back (staff book it in Pathao's panel;
+// the store pays). Customers don't get fee, note or bookedBy.
+export interface ReturnPickup {
+  provider: "pathao";
+  consignmentId: string;
+  fee?: number;
+  note?: string;
+  bookedAt: string;
+  bookedBy?: { name: string } | null;
+  courierTrackingStatus?: string;
+  courierEvents: NonNullable<Order["courierEvents"]>;
+}
+
+export interface ReturnPickupInput {
+  consignmentId: string;
+  fee?: number;
+  note?: string;
 }
 
 // For each delivered order still inside its window: units left to return

@@ -862,6 +862,11 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "returns.next.received", en: "We've received the item and are processing it.", bn: "আমরা পণ্যটি পেয়েছি এবং প্রক্রিয়া করছি।" },
   { key: "returns.next.completed", en: "All done.", bn: "সব সম্পন্ন।" },
   { key: "returns.refunded", en: "Refunded {amount} on {date}", bn: "{date} তারিখে {amount} ফেরত দেওয়া হয়েছে" },
+  { key: "returns.countdownDays", en: "{days}d {hours}h", bn: "{days} দিন {hours} ঘণ্টা" },
+  { key: "returns.countdownHours", en: "{hours}h {minutes}m", bn: "{hours} ঘণ্টা {minutes} মিনিট" },
+  { key: "returns.countdownLeft", en: "{time} left to return", bn: "ফেরতের জন্য আর {time} বাকি" },
+  { key: "returns.pickupBooked", en: "Rider pickup booked — a Pathao rider will collect the item from you. Free of charge.", bn: "রাইডার পিকআপ বুক হয়েছে — পাঠাও রাইডার আপনার কাছ থেকে পণ্যটি নিয়ে যাবেন। কোনো চার্জ নেই।" },
+  { key: "returns.pickupStatus", en: "Pickup status: {status}", bn: "পিকআপের অবস্থা: {status}" },
 
   // --- Settings / sign-in hints that had no seed row (found 2026-10-13) ---
   { key: "auth.twoFactorInstructions", en: "Enter the 6-digit code from your authenticator app, or one of your backup codes.", bn: "আপনার অথেন্টিকেটর অ্যাপের ৬ সংখ্যার কোড, অথবা আপনার একটি ব্যাকআপ কোড লিখুন।" },

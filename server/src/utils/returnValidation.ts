@@ -40,6 +40,12 @@ export const returnInputs: Record<string, z.ZodTypeAny> = {
     amount: money,
     reason: optionalText(255),
   }).strict(),
+  setReturnPickup: z.object({
+    consignmentId: z.string().trim().min(3).max(100),
+    fee: z.number().finite().min(0).max(100_000).optional(),
+    note: optionalText(1000),
+  }).strict(),
+  refreshReturnPickup: z.object({}).strict(),
   resolvePaymentReview: z.object({
     outcome: z.enum(["paid", "cancelled", "dismiss"]),
     note: z.string().trim().min(3, "Add a short note").max(1000),

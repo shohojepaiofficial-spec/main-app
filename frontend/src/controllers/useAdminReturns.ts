@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import * as returnService from "@/services/returnService";
-import { AdminReturnRequest, ManualRefundMethod, ReturnStatus, ReturnStatusUpdate } from "@/models";
+import { AdminReturnRequest, ManualRefundMethod, ReturnPickupInput, ReturnStatus, ReturnStatusUpdate } from "@/models";
 
 function errorMessage(err: unknown, fallback: string) {
   return (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
@@ -107,8 +107,30 @@ export function useAdminReturns() {
     }
   };
 
+  const setPickup = async (id: string, input: ReturnPickupInput): Promise<boolean> => {
+    try {
+      await returnService.setReturnPickup(id, input);
+      toast.success("Pickup saved");
+      reload();
+      return true;
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to save the pickup"));
+      return false;
+    }
+  };
+
+  const refreshPickup = async (id: string): Promise<void> => {
+    try {
+      await returnService.refreshReturnPickup(id);
+      toast.success("Pickup status updated");
+      reload();
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't reach Pathao"));
+    }
+  };
+
   return {
     items, total, page, totalPages, counts, bkashRefundsAvailable, isLoading, tab,
-    setTab, goToPage, updateStatus, recordRefund, refundWithBkash,
+    setTab, goToPage, updateStatus, recordRefund, refundWithBkash, setPickup, refreshPickup,
   };
 }

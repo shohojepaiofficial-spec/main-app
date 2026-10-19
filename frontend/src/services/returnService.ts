@@ -1,7 +1,7 @@
 import { api } from "@/lib/api";
 import {
   AdminReturnList, AdminReturnRequest, ManualRefundMethod, MyReturns, ReturnRequest,
-  ReturnRequestInput, ReturnStatus, ReturnStatusUpdate, ReturnType,
+  ReturnPickupInput, ReturnRequestInput, ReturnStatus, ReturnStatusUpdate, ReturnType,
 } from "@/models";
 
 // Returns, exchanges & refunds (WORK-08) — server's routes/returnRoutes.ts.
@@ -53,5 +53,16 @@ export const recordRefund = async (
 
 export const refundWithBkash = async (id: string, input: { amount: number; reason?: string }): Promise<AdminReturnRequest> => {
   const { data } = await api.post<AdminReturnRequest>(`/returns/${id}/refund/bkash`, input);
+  return data;
+};
+
+// The rider pickup staff booked in Pathao's merchant panel.
+export const setReturnPickup = async (id: string, input: ReturnPickupInput): Promise<AdminReturnRequest> => {
+  const { data } = await api.put<AdminReturnRequest>(`/returns/${id}/pickup`, input);
+  return data;
+};
+
+export const refreshReturnPickup = async (id: string): Promise<AdminReturnRequest> => {
+  const { data } = await api.post<AdminReturnRequest>(`/returns/${id}/pickup/refresh`, {});
   return data;
 };

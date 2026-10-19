@@ -18,6 +18,7 @@ import { PaymentMethodPicker, PAYMENT_METHODS } from "@/views/PaymentMethodPicke
 import { PreorderLineTag } from "@/views/PreorderLineTag";
 import { ReturnRequestModal } from "@/views/ReturnRequestModal";
 import { OrderReturnsList } from "@/views/OrderReturnsList";
+import { ReturnCountdown } from "@/views/ReturnCountdown";
 import { OrderTimeline } from "@/views/OrderTimeline";
 import { Order } from "@/models";
 
@@ -30,7 +31,8 @@ const orderNumber = (order: Order) => order._id.slice(-6).toUpperCase();
 export function MyOrderDetailView({ orderId }: { orderId: string }) {
   const { order, isLoading, notFound, isCancelling, cancel } = useMyOrder(orderId);
   const { requestsByOrder, eligibilityByOrder, windowDays, reload: reloadReturns } = useMyReturns();
-  const [isReturnOpen, setIsReturnOpen] = useState(false);
+  // The order list's "Return" button links here with #return.
+  const [isReturnOpen, setIsReturnOpen] = useState(() => typeof window !== "undefined" && window.location.hash === "#return");
   const [isPayOpen, setIsPayOpen] = useState(false);
   const { t } = useTranslations();
 
@@ -166,6 +168,9 @@ export function MyOrderDetailView({ orderId }: { orderId: string }) {
             <RotateCcw size={16} /> {t("returns.requestButton", "Return or exchange")}
           </button>
         )}
+        {eligibilityByOrder.has(order._id) && (
+          <ReturnCountdown endsAt={eligibilityByOrder.get(order._id)!.windowEndsAt} className="self-center" />
+        )}
         {order.paymentMethod === "cod" && awaitingDelivery && (
           <button
             onClick={() => setIsPayOpen(true)}
@@ -183,7 +188,7 @@ export function MyOrderDetailView({ orderId }: { orderId: string }) {
       </div>
 
       <ReturnRequestModal
-        order={isReturnOpen ? order : null}
+        order={isReturnOpen && eligibilityByOrder.has(order._id) ? order : null}
         remaining={eligibilityByOrder.get(order._id)?.remaining ?? []}
         windowDays={windowDays}
         onClose={() => setIsReturnOpen(false)}

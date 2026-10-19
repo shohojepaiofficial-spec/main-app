@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
+import type { ICourierEvent } from "./Order";
 
 // A customer's (or a staff-logged) request to send items back from a
 // delivered order — see docs/ARCHITECTURE.md's "Returns & refunds" section.
@@ -46,6 +47,23 @@ export interface IRefund {
   refundedBy: Types.ObjectId;
 }
 
+// The courier pickup that brings the item back from the customer. Pathao's
+// API only books store → customer parcels, so staff book the pickup in
+// Pathao's merchant panel and enter the consignment here; the webhook then
+// tracks it like an order's courier. The fee is the store's cost, never
+// charged to the customer.
+export interface IReturnPickup {
+  provider: "pathao";
+  consignmentId: string;
+  fee?: number;
+  note?: string;
+  bookedAt: Date;
+  bookedBy: Types.ObjectId;
+  // Same shape as Order's, so utils/courierEvents.ts works on both.
+  courierTrackingStatus?: string;
+  courierEvents: ICourierEvent[];
+}
+
 export interface IReturnRequest extends Document {
   order: Types.ObjectId;
   // The order's owner; absent for a manual order with no account.
@@ -72,6 +90,7 @@ export interface IReturnRequest extends Document {
   bkashRefundStartedAt?: Date;
   // Exchange only: the no-charge replacement order staff created.
   replacementOrder?: Types.ObjectId;
+  pickup?: IReturnPickup;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -101,6 +120,34 @@ const refundSchema = new Schema<IRefund>(
   { _id: false }
 );
 
+const pickupSchema = new Schema<IReturnPickup>(
+  {
+    provider: { type: String, enum: ["pathao"], required: true },
+    consignmentId: { type: String, required: true, trim: true, maxlength: 100 },
+    fee: { type: Number, min: 0 },
+    note: { type: String, trim: true, maxlength: 1000 },
+    bookedAt: { type: Date, required: true },
+    bookedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    courierTrackingStatus: { type: String, trim: true },
+    courierEvents: {
+      type: [
+        new Schema(
+          {
+            status: { type: String, required: true, trim: true },
+            at: { type: Date, required: true },
+            source: { type: String, enum: ["pathao", "manual"], required: true },
+            kind: { type: String, enum: ["booked", "refresh", "manual", "webhook"], required: true },
+            byName: { type: String },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
 const returnRequestSchema = new Schema<IReturnRequest>(
   {
     order: { type: Schema.Types.ObjectId, ref: "Order", required: true, index: true },
@@ -118,10 +165,13 @@ const returnRequestSchema = new Schema<IReturnRequest>(
     refund: { type: refundSchema, default: undefined },
     bkashRefundStartedAt: { type: Date },
     replacementOrder: { type: Schema.Types.ObjectId, ref: "Order" },
+    pickup: { type: pickupSchema, default: undefined },
   },
   { timestamps: true }
 );
 
 returnRequestSchema.index({ status: 1, createdAt: -1 });
+// The Pathao webhook finds a pickup by its consignment.
+returnRequestSchema.index({ "pickup.consignmentId": 1 }, { sparse: true });
 
 export const ReturnRequest = model<IReturnRequest>("ReturnRequest", returnRequestSchema);

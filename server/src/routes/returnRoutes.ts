@@ -7,6 +7,8 @@ import {
   updateReturnStatus,
   recordRefund,
   refundWithBkash,
+  setReturnPickup,
+  refreshReturnPickup,
 } from "../controllers/returnController";
 import { protect, authorize } from "../middleware/auth";
 import { auditTrail } from "../middleware/auditTrail";
@@ -24,5 +26,7 @@ router.post("/admin", protect, canManageOrders, audited("created"), adminCreateR
 router.patch("/:id/status", protect, canManageOrders, audited("updated"), updateReturnStatus);
 router.post("/:id/refund", protect, canManageOrders, audited("updated"), recordRefund);
 router.post("/:id/refund/bkash", protect, canManageOrders, audited("updated"), refundWithBkash);
+router.put("/:id/pickup", protect, canManageOrders, audited("updated"), setReturnPickup);
+router.post("/:id/pickup/refresh", protect, canManageOrders, refreshReturnPickup);
 
 export default router;

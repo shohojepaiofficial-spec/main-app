@@ -3,13 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw, Truck } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAdminReturns, type ReturnTab } from "@/controllers/useAdminReturns";
 import { Pagination } from "@/views/Pagination";
 import { formatCurrency } from "@/lib/currency";
 import { REFUND_METHOD_LABELS, RETURN_REASON_LABELS, RETURN_STATUS_LABELS, suggestedRefund } from "@/lib/returns";
-import { AdminReturnRequest, ManualRefundMethod, RefundMethod, ReturnStatus, ReturnStatusUpdate } from "@/models";
+import { AdminReturnRequest, ManualRefundMethod, RefundMethod, ReturnPickupInput, ReturnStatus, ReturnStatusUpdate } from "@/models";
 
 const TABS: { value: ReturnTab; label: string }[] = [
   { value: "requested", label: "New" },
@@ -22,7 +22,7 @@ const TABS: { value: ReturnTab; label: string }[] = [
 
 const REFUND_METHODS: RefundMethod[] = ["bkash", "bkash_personal", "nagad_personal", "cash", "bank", "other"];
 
-type Action = "approved" | "rejected" | "received" | "completed" | "refund";
+type Action = "approved" | "rejected" | "received" | "completed" | "refund" | "pickup";
 
 const inputClass = "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm";
 const shortId = (id: string) => id.slice(-6).toUpperCase();
@@ -32,6 +32,8 @@ interface CardHandlers {
   onStatus: (update: ReturnStatusUpdate) => Promise<boolean>;
   onRefund: (input: { amount: number; method: ManualRefundMethod; reference?: string; note?: string }) => Promise<boolean>;
   onBkashRefund: (input: { amount: number; reason?: string }) => Promise<boolean>;
+  onPickup: (input: ReturnPickupInput) => Promise<boolean>;
+  onRefreshPickup: () => Promise<void>;
 }
 
 // Which buttons each status offers.
@@ -42,6 +44,7 @@ function actionsFor(request: AdminReturnRequest): { action: Action; label: strin
       return [{ action: "approved", label: "Approve" }, { action: "rejected", label: "Reject", danger: true }];
     case "approved":
       return [
+        { action: "pickup", label: request.pickup ? "Edit pickup" : "Book rider pickup" },
         { action: "received", label: "Mark received" },
         ...(canRefund ? [{ action: "refund" as const, label: "Refund now" }] : []),
         { action: "rejected", label: "Reject", danger: true },
@@ -62,7 +65,7 @@ function StatusForm({
   onDone,
 }: {
   request: AdminReturnRequest;
-  action: Exclude<Action, "refund">;
+  action: Exclude<Action, "refund" | "pickup">;
   onStatus: CardHandlers["onStatus"];
   onDone: () => void;
 }) {
@@ -156,7 +159,7 @@ function RefundForm({
   onRefund,
   onBkashRefund,
   onDone,
-}: Omit<CardHandlers, "onStatus"> & { request: AdminReturnRequest; onDone: () => void }) {
+}: Pick<CardHandlers, "bkashRefundsAvailable" | "onRefund" | "onBkashRefund"> & { request: AdminReturnRequest; onDone: () => void }) {
   const [method, setMethod] = useState<RefundMethod>(request.canRefundWithBkash ? "bkash" : "bkash_personal");
   const [amount, setAmount] = useState(String(suggestedRefund(request.itemsValue, request.refundableRemaining)));
   const [reference, setReference] = useState("");
@@ -253,6 +256,97 @@ function RefundForm({
   );
 }
 
+// Pathao's API can't book a customer → store parcel, so staff book the
+// pickup in Pathao's merchant panel and record it here for tracking.
+function PickupForm({ request, onPickup, onDone }: { request: AdminReturnRequest; onPickup: CardHandlers["onPickup"]; onDone: () => void }) {
+  const [consignmentId, setConsignmentId] = useState(request.pickup?.consignmentId ?? "");
+  const [fee, setFee] = useState(request.pickup?.fee !== undefined ? String(request.pickup.fee) : "");
+  const [note, setNote] = useState(request.pickup?.note ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  return (
+    <form
+      className="mt-3 flex flex-col gap-3 rounded-md border border-border bg-background p-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setIsSaving(true);
+        const saved = await onPickup({
+          consignmentId: consignmentId.trim(),
+          fee: fee.trim() ? Number(fee) : undefined,
+          note: note.trim() || undefined,
+        });
+        setIsSaving(false);
+        if (saved) onDone();
+      }}
+    >
+      <p className="text-xs text-muted">
+        In the Pathao merchant panel, create a parcel with the customer&apos;s address as the pickup and your store as the
+        recipient, cash to collect ৳0 (the store pays the fee). Then enter its consignment ID here so its status is tracked.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          <span className="mb-1 block font-medium">Consignment ID</span>
+          <input value={consignmentId} onChange={(e) => setConsignmentId(e.target.value)} required minLength={3} maxLength={100} className={inputClass} />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-medium">Pickup fee (৳, paid by the store)</span>
+          <input type="number" min={0} step="1" value={fee} onChange={(e) => setFee(e.target.value)} className={inputClass} />
+        </label>
+      </div>
+      <label className="text-sm">
+        <span className="mb-1 block font-medium">Internal note</span>
+        <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} placeholder="Staff only" className={inputClass} />
+      </label>
+      <div className="flex gap-2">
+        <button type="submit" disabled={isSaving} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          {isSaving ? "Saving..." : "Save pickup"}
+        </button>
+        <button type="button" onClick={onDone} className="rounded-md px-3 py-1.5 text-sm text-muted hover:text-foreground">
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PickupSummary({ request, onRefreshPickup }: { request: AdminReturnRequest; onRefreshPickup: CardHandlers["onRefreshPickup"] }) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pickup = request.pickup;
+  if (!pickup) return null;
+  return (
+    <div className="mt-3 rounded-md border border-border bg-background p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 font-medium">
+          <Truck size={14} className="text-primary" aria-hidden="true" />
+          Rider pickup · Pathao {pickup.consignmentId}
+          {pickup.fee !== undefined && <span className="font-normal text-muted">· fee {formatCurrency(pickup.fee)} (store)</span>}
+        </p>
+        <button
+          type="button"
+          disabled={isRefreshing}
+          onClick={async () => {
+            setIsRefreshing(true);
+            await onRefreshPickup();
+            setIsRefreshing(false);
+          }}
+          className="rounded-md border border-border px-2 py-1 text-xs hover:bg-surface disabled:opacity-50"
+        >
+          {isRefreshing ? "Checking..." : "Refresh"}
+        </button>
+      </div>
+      {pickup.note && <p className="mt-1 text-xs text-muted">{pickup.note}</p>}
+      <ol className="mt-2 flex flex-col gap-0.5 text-xs">
+        {[...pickup.courierEvents].reverse().map((event, i) => (
+          <li key={`${event.at}-${i}`} className={i === 0 ? "font-medium" : "text-muted"}>
+            {event.status} · {format(new Date(event.at), "PPP p")}
+            {event.kind === "webhook" ? " · from Pathao" : event.byName ? ` · ${event.byName}` : ""}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function ReturnCard({ request, ...handlers }: CardHandlers & { request: AdminReturnRequest }) {
   const [action, setAction] = useState<Action | null>(null);
   const customer = request.order?.shippingAddress?.fullName ?? request.user?.name ?? "Customer";
@@ -330,6 +424,8 @@ function ReturnCard({ request, ...handlers }: CardHandlers & { request: AdminRet
         )}
       </div>
 
+      <PickupSummary request={request} onRefreshPickup={handlers.onRefreshPickup} />
+
       {action === null ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {actionsFor(request).map(({ action: next, label, danger }) => (
@@ -353,6 +449,8 @@ function ReturnCard({ request, ...handlers }: CardHandlers & { request: AdminRet
           onBkashRefund={handlers.onBkashRefund}
           onDone={() => setAction(null)}
         />
+      ) : action === "pickup" ? (
+        <PickupForm request={request} onPickup={handlers.onPickup} onDone={() => setAction(null)} />
       ) : (
         <StatusForm request={request} action={action} onStatus={handlers.onStatus} onDone={() => setAction(null)} />
       )}
@@ -364,7 +462,7 @@ export function AdminReturnsView() {
   const { isChecking, isAllowed } = useRequirePermission("orders:manage");
   const {
     items, total, page, totalPages, counts, bkashRefundsAvailable, isLoading, tab,
-    setTab, goToPage, updateStatus, recordRefund, refundWithBkash,
+    setTab, goToPage, updateStatus, recordRefund, refundWithBkash, setPickup, refreshPickup,
   } = useAdminReturns();
 
   if (isChecking || !isAllowed) {
@@ -417,6 +515,8 @@ export function AdminReturnsView() {
               onStatus={(update) => updateStatus(request._id, update)}
               onRefund={(input) => recordRefund(request._id, input)}
               onBkashRefund={(input) => refundWithBkash(request._id, input)}
+              onPickup={(input) => setPickup(request._id, input)}
+              onRefreshPickup={() => refreshPickup(request._id)}
             />
           ))}
         </div>

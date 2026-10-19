@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request, Response } from "express";
 
-const mocks = vi.hoisted(() => ({ findOne: vi.fn(), transitionOrder: vi.fn() }));
+const mocks = vi.hoisted(() => ({ findOne: vi.fn(), findReturn: vi.fn(), transitionOrder: vi.fn() }));
 vi.mock("../models/Order", () => ({ Order: { findOne: mocks.findOne } }));
+vi.mock("../models/ReturnRequest", () => ({ ReturnRequest: { findOne: mocks.findReturn } }));
 vi.mock("../utils/orderTransitions", () => ({ transitionOrder: mocks.transitionOrder }));
 import { pathaoWebhook } from "./pathaoWebhookController";
 
@@ -42,5 +43,17 @@ describe("Pathao webhook endpoint", () => {
     const o = order(); mocks.findOne.mockResolvedValue(o);
     await pathaoWebhook(request({ consignment_id: "DL1", order_status: "Delivered" }, "s3cret"), response() as unknown as Response);
     expect(mocks.transitionOrder).toHaveBeenCalledWith(o.id, "delivered", { actor: { name: "Pathao (automatic)" } });
+  });
+  it("records a return pickup's status when the consignment isn't an order's", async () => {
+    mocks.findOne.mockResolvedValue(null);
+    const ret = { id: "r1", pickup: { consignmentId: "RP1", courierEvents: [] as unknown[] }, save: vi.fn() };
+    mocks.findReturn.mockResolvedValue(ret);
+    const res = response();
+    await pathaoWebhook(request({ consignment_id: "RP1", order_status: "Pickup" }, "s3cret"), res as unknown as Response);
+    expect(mocks.findReturn).toHaveBeenCalledWith({ "pickup.consignmentId": "RP1" });
+    expect(ret.pickup.courierEvents).toEqual([expect.objectContaining({ status: "Pickup", kind: "webhook" })]);
+    expect(ret.save).toHaveBeenCalled();
+    expect(mocks.transitionOrder).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(202);
   });
 });

@@ -11,6 +11,8 @@ import {
   refundedForOrder, returnWindowEndsAt, transitionReturn, RETURN_WINDOW_DAYS,
 } from "../utils/returns";
 import { isBkashLive, refundBkashPayment } from "../integrations/bkash";
+import { getPathaoOrderStatus, isPathaoConfigured } from "../integrations/pathao";
+import { recordCourierStatus } from "../utils/courierEvents";
 import { sendEmail } from "../utils/sendEmail";
 import { escapeHtml } from "../utils/escapeHtml";
 
@@ -20,8 +22,9 @@ import { escapeHtml } from "../utils/escapeHtml";
 const ADMIN_PAGE_SIZE = 20;
 const orderNumber = (id: unknown) => `#${String(id).slice(-6).toUpperCase()}`;
 
-// What a customer may see of their own request: no staff note, no staff ids.
-const CUSTOMER_FIELDS = "-staffNote -refund.refundedBy -bkashRefundStartedAt";
+// What a customer may see of their own request: no staff note, no staff ids,
+// and not what the pickup cost the store.
+const CUSTOMER_FIELDS = "-staffNote -refund.refundedBy -bkashRefundStartedAt -pickup.bookedBy -pickup.fee -pickup.note";
 
 interface CreateBody {
   orderId: string;
@@ -117,6 +120,7 @@ export const getAllReturns = async (req: AuthRequest, res: Response) => {
       .populate("user", "name email")
       .populate("order", "totalAmount paymentMethod status bkashTrxID shippingAddress.fullName shippingAddress.phone createdAt")
       .populate("refund.refundedBy", "name")
+      .populate("pickup.bookedBy", "name")
       .lean(),
     ReturnRequest.countDocuments(filter),
     ReturnRequest.aggregate<{ _id: ReturnStatus; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
@@ -284,4 +288,59 @@ export const refundWithBkash = async (req: AuthRequest, res: Response) => {
   });
   if (!saved) return res.status(409).json({ message: "Refund sent, but the request changed meanwhile — record it by hand" });
   res.json(saved);
+};
+
+// Staff booked the rider pickup in Pathao's merchant panel (the API can't
+// book customer → store parcels) and enter its consignment here, so the
+// webhook can track it. Only while approved: before that nothing is agreed,
+// after "received" the item is already back. Re-entering a different
+// consignment (a rebooking) starts its history over.
+export const setReturnPickup = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("setReturnPickup", req);
+  const { consignmentId, fee, note } = req.body as { consignmentId: string; fee?: number; note?: string };
+  const request = await ReturnRequest.findById(req.params.id);
+  if (!request) return res.status(404).json({ message: "Return request not found" });
+  if (request.status !== "approved") {
+    return res.status(409).json({ message: "Approve the request before booking its pickup" });
+  }
+  const clash = await ReturnRequest.exists({ _id: { $ne: request._id }, "pickup.consignmentId": consignmentId });
+  if (clash || (await Order.exists({ courierConsignmentId: consignmentId }))) {
+    return res.status(409).json({ message: "That consignment is already used by another order or return" });
+  }
+
+  const staff = await User.findById(req.userId).select("name");
+  const sameParcel = request.pickup?.consignmentId === consignmentId;
+  request.pickup = {
+    provider: "pathao",
+    consignmentId,
+    fee,
+    note: note || undefined,
+    bookedAt: sameParcel ? request.pickup!.bookedAt : new Date(),
+    bookedBy: sameParcel ? request.pickup!.bookedBy : (req.userId as never),
+    courierTrackingStatus: sameParcel ? request.pickup!.courierTrackingStatus : undefined,
+    courierEvents: sameParcel ? request.pickup!.courierEvents : [],
+  };
+  if (!sameParcel) {
+    recordCourierStatus(request.pickup, { status: "Pickup booked", source: "manual", kind: "booked", byName: staff?.name });
+  }
+  await request.save();
+  res.json(request);
+};
+
+// Asks Pathao for the pickup's current status (the "Refresh" button) — for
+// when a webhook went missing.
+export const refreshReturnPickup = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("refreshReturnPickup", req);
+  const request = await ReturnRequest.findById(req.params.id);
+  if (!request?.pickup) return res.status(404).json({ message: "This return has no pickup booked" });
+  if (!isPathaoConfigured()) return res.status(503).json({ message: "Pathao isn't configured" });
+  let status: string;
+  try {
+    ({ orderStatus: status } = await getPathaoOrderStatus(request.pickup.consignmentId));
+  } catch (err) {
+    return res.status(502).json({ message: (err as Error).message || "Pathao didn't answer" });
+  }
+  recordCourierStatus(request.pickup, { status, source: "pathao", kind: "refresh" });
+  await request.save();
+  res.json(request);
 };

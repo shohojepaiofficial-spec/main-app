@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../models/Order", () => ({ Order: { findById: vi.fn(), exists: vi.fn() } }));
+vi.mock("../models/User", () => ({ User: { findById: vi.fn() } }));
 vi.mock("../models/ReturnRequest", async (original) => ({
   ...(await original<typeof import("../models/ReturnRequest")>()),
-  ReturnRequest: { find: vi.fn(), findById: vi.fn(), create: vi.fn(), findOneAndUpdate: vi.fn(), updateOne: vi.fn(), aggregate: vi.fn() },
+  ReturnRequest: { find: vi.fn(), findById: vi.fn(), exists: vi.fn(), create: vi.fn(), findOneAndUpdate: vi.fn(), updateOne: vi.fn(), aggregate: vi.fn() },
 }));
 vi.mock("../integrations/bkash", () => ({ isBkashLive: vi.fn(), refundBkashPayment: vi.fn() }));
 vi.mock("../utils/sendEmail", () => ({ sendEmail: vi.fn().mockResolvedValue(undefined) }));
@@ -10,7 +11,8 @@ import { Types } from "mongoose";
 import { Order } from "../models/Order";
 import { ReturnRequest } from "../models/ReturnRequest";
 import { isBkashLive, refundBkashPayment } from "../integrations/bkash";
-import { createReturnRequest, recordRefund, refundWithBkash } from "./returnController";
+import { User } from "../models/User";
+import { createReturnRequest, recordRefund, refundWithBkash, setReturnPickup } from "./returnController";
 
 const userId = new Types.ObjectId().toString();
 const orderId = new Types.ObjectId().toString();
@@ -103,5 +105,37 @@ describe("refunds", () => {
     await refundWithBkash(request({ amount: 100 }, { id: returnId }), res as never);
     expect(res.statusCode).toBe(502);
     expect(ReturnRequest.updateOne).not.toHaveBeenCalled();
+  });
+});
+
+describe("return pickups", () => {
+  const pickupBody = { consignmentId: "RP123", fee: 60 };
+  const stored = (status: string) => ({ _id: returnId, id: returnId, status, pickup: undefined as unknown, save: vi.fn() });
+  beforeEach(() => {
+    vi.mocked(ReturnRequest.exists).mockResolvedValue(null as never);
+    vi.mocked(Order.exists).mockResolvedValue(null as never);
+    vi.mocked(User.findById).mockReturnValue({ select: () => Promise.resolve({ name: "Staff" }) } as never);
+  });
+  it("only books a pickup for an approved request", async () => {
+    vi.mocked(ReturnRequest.findById).mockResolvedValue(stored("requested") as never);
+    const res = response();
+    await setReturnPickup(request(pickupBody, { id: returnId }), res as never);
+    expect(res.statusCode).toBe(409);
+  });
+  it("refuses a consignment already used by an order", async () => {
+    vi.mocked(ReturnRequest.findById).mockResolvedValue(stored("approved") as never);
+    vi.mocked(Order.exists).mockResolvedValue({ _id: orderId } as never);
+    const res = response();
+    await setReturnPickup(request(pickupBody, { id: returnId }), res as never);
+    expect(res.statusCode).toBe(409);
+  });
+  it("saves the pickup with the store's fee and a booked entry", async () => {
+    const r = stored("approved");
+    vi.mocked(ReturnRequest.findById).mockResolvedValue(r as never);
+    const res = response();
+    await setReturnPickup(request(pickupBody, { id: returnId }), res as never);
+    expect(res.statusCode).toBe(200);
+    expect(r.pickup).toMatchObject({ consignmentId: "RP123", fee: 60, courierEvents: [expect.objectContaining({ kind: "booked", byName: "Staff" })] });
+    expect(r.save).toHaveBeenCalled();
   });
 });

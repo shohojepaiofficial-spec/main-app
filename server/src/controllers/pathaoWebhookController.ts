@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Types } from "mongoose";
 import { Order } from "../models/Order";
+import { ReturnRequest } from "../models/ReturnRequest";
 import { recordCourierStatus } from "../utils/courierEvents";
 import { transitionOrder } from "../utils/orderTransitions";
 import {
@@ -32,7 +33,18 @@ export const pathaoWebhook = async (req: Request & { rawBody?: Buffer }, res: Re
     (update.merchantOrderId && Types.ObjectId.isValid(update.merchantOrderId)
       ? await Order.findOne({ _id: update.merchantOrderId, courierProvider: "pathao" })
       : null);
-  console.log(`Pathao webhook: consignment ${update.consignmentId ?? "-"} → "${update.status}" (${order ? `order ${order.id}` : "no matching order"})`);
+  // Not an order's parcel: maybe a return pickup (customer → store). Only
+  // its history is recorded; staff still mark the item received and decide
+  // on restocking.
+  const pickup = !order && update.consignmentId
+    ? await ReturnRequest.findOne({ "pickup.consignmentId": update.consignmentId })
+    : null;
+  const matched = order ? `order ${order.id}` : pickup ? `return ${pickup.id}` : "no match";
+  console.log(`Pathao webhook: consignment ${update.consignmentId ?? "-"} → "${update.status}" (${matched})`);
+  if (pickup?.pickup) {
+    recordCourierStatus(pickup.pickup, { status: update.status, source: "pathao", kind: "webhook" });
+    await pickup.save();
+  }
   if (!order) return res.status(202).json({ received: true });
 
   recordCourierStatus(order, { status: update.status, source: "pathao", kind: "webhook" });

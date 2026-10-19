@@ -351,6 +351,8 @@ Full-admin-only `/admin/audit-log` (`GET /api/audit-logs`, `/actors`). Records a
 - **Restock** happens only on `received` with `restock: true`, in the same transaction. Returned pre-order units go to `stock` (they're physical now), and a deleted variant is skipped and reported.
 - **Refunds:** one per request, capped at `order.totalAmount` minus earlier refunds on that order. Manual methods (personal bKash/Nagad, cash, bank, other) are recorded with a reference. `method: "bkash"` calls `integrations/bkash.ts#refundBkashPayment` against the order's own payment. It's gated by `isBkashLive()` (503 `BKASH_REFUND_UNAVAILABLE`, shown as "Coming soon"), claims the request with `bkashRefundStartedAt` first, and keeps the claim if bKash doesn't answer. Not sandbox-verified yet.
 - **Exchanges** aren't refunded. Staff send the replacement as a manual order and may link it (`replacementOrder`).
+- **Rider pickup** (`pickup`): Pathao's API can't book customer → store parcels, so once a request is approved staff book it in Pathao's merchant panel and enter the consignment + fee (`PUT /api/returns/:id/pickup`). The store pays; fee, note and `bookedBy` are stripped for customers. Its `courierEvents` use Order's shape, filled by the Pathao webhook (fallback when no order owns the consignment) or `POST .../pickup/refresh`. Pickup statuses never move the request; staff mark it received.
+- **Countdown:** customers see time left in the window (`controllers/useCountdown.ts`, `views/ReturnCountdown.tsx`) on My Orders cards and the order page.
 - **Who:** customers create and read their own (staff notes and staff ids are stripped). Everything else needs `orders:manage` and is audited (`return` entity).
 
 ## Payment reconciliation (WORK-11)

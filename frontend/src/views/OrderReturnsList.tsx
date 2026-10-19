@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Truck } from "lucide-react";
 import { useTranslations } from "@/controllers/useTranslations";
 import { formatCurrency } from "@/lib/currency";
 import { RETURN_STATUS_LABELS } from "@/lib/returns";
@@ -46,6 +46,19 @@ export function OrderReturnsList({ requests }: { requests: ReturnRequest[] }) {
           </p>
           <p className="mt-1 text-xs">{t(`returns.next.${request.status}`, NEXT_STEP[request.status])}</p>
           {request.customerMessage && <p className="mt-1 whitespace-pre-line text-xs text-muted">{request.customerMessage}</p>}
+          {request.pickup && request.status === "approved" && (
+            <div className="mt-2 flex items-start gap-1.5 rounded bg-primary/5 p-2 text-xs">
+              <Truck size={14} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+              <div>
+                <p>{t("returns.pickupBooked", "Rider pickup booked — a Pathao rider will collect the item from you. Free of charge.")}</p>
+                {request.pickup.courierTrackingStatus && (
+                  <p className="mt-0.5 text-muted">
+                    {t("returns.pickupStatus", "Pickup status: {status}", { status: request.pickup.courierTrackingStatus })}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           {request.refund && (
             <p className="mt-1 text-xs font-medium">
               {t("returns.refunded", "Refunded {amount} on {date}", {
