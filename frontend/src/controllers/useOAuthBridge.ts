@@ -8,7 +8,7 @@ import { useAuthStore } from "@/controllers/useAuthStore";
 import { useUIStore } from "@/controllers/useUIStore";
 import { translateNow } from "@/controllers/useTranslations";
 import { DecodedToken } from "@/models";
-import { writeSessionCookies, withSessionLock, type SessionCredentials } from "@/lib/sessionClient";
+import { readSessionCookies, tokenIsFresh, writeSessionCookies, withSessionLock, type SessionCredentials } from "@/lib/sessionClient";
 
 function isExpired(token: string) {
   try {
@@ -45,18 +45,34 @@ export function useOAuthBridge() {
         signOut({ redirect: false }).catch(() => {});
         return;
       }
-      void withSessionLock(() => fetch("/api/backend/auth/oauth-handoff", { method: "POST", headers: { "X-Requested-With": "ecommerce" }, signal: AbortSignal.timeout(10_000) })
-        .then(async response => {
+      const backendUserId = session.backendUser.id;
+      // A login this browser already holds for the same person (checked
+      // under the session lock, so it sees the latest cookies). The Google
+      // half-session can outlive its one-time handoff — a reload, a tab the
+      // phone discarded while asleep, a second tab — and redeeming it again
+      // must never replace or wipe that login. That used to log Google
+      // customers out without the server ever ending their session.
+      const existingLogin = () => {
+        const current = readSessionCookies();
+        return current && current.user.id === backendUserId && tokenIsFresh(current.refreshToken) ? current : null;
+      };
+      void withSessionLock(async () => {
+        if (existingLogin()) return;
+        try {
+          const response = await fetch("/api/backend/auth/oauth-handoff", { method: "POST", headers: { "X-Requested-With": "ecommerce" }, signal: AbortSignal.timeout(10_000) });
           if (!response.ok) throw new Error("OAuth handoff failed");
           const credentials = await response.json() as SessionCredentials;
           setAuth(credentials.token, credentials.user, credentials.refreshToken);
           useUIStore.getState().closeAuthModal();
           toast.success(translateNow("auth.loggedIn", "Logged in"));
-        }).catch(() => {
+        } catch {
+          // Only a browser that has no login of its own is signed out here.
+          if (existingLogin()) return;
           writeSessionCookies(null);
           useUIStore.getState().openAuthModal("login");
           toast.error(translateNow("auth.googleSignInFailed", "Google sign-in didn't finish. Please try again."));
-        }).finally(() => { signOut({ redirect: false }).catch(() => {}); }));
+        }
+      }).finally(() => { signOut({ redirect: false }).catch(() => {}); });
     } else if (session.twoFactorRequired && session.tempToken) {
       if (session.tempToken === currentTempToken) return;
       // The Google account itself checked out fine, but this account also

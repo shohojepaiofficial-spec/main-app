@@ -48,9 +48,15 @@ export async function revokeSession(sid: string, userId: string) {
 
 export async function rotateSession(refreshToken: string, device: SessionDevice = {}) {
   let claims: ReturnType<typeof verifyTypedToken>;
-  try { claims = verifyTypedToken(refreshToken, "refresh"); } catch { throw new SessionError(); }
+  try { claims = verifyTypedToken(refreshToken, "refresh"); } catch (err) {
+    console.warn("Session refresh refused: token didn't verify —", (err as Error).message);
+    throw new SessionError();
+  }
   const user = await User.findById(claims.id);
-  if (!user || (user.sessionVersion ?? 0) !== claims.version) throw new SessionError();
+  if (!user || (user.sessionVersion ?? 0) !== claims.version) {
+    console.warn(`Session refresh refused: ${user ? "account signed out everywhere since" : "account gone"} (session ${claims.sid})`);
+    throw new SessionError();
+  }
   const nextRefreshToken = signRefreshToken(user.id, { sid: claims.sid, version: claims.version }, claims.exp!);
   const session = await AuthSession.findOneAndUpdate({
     _id: claims.sid, user: user.id, version: claims.version,
@@ -59,6 +65,7 @@ export async function rotateSession(refreshToken: string, device: SessionDevice 
   if (!session) {
     // A correctly signed but spent refresh token proves replay, so revoke
     // its session as well as refusing to mint any more credentials.
+    console.warn(`Session refresh refused: renewal pass used twice — session ${claims.sid} ended`);
     await revokeSession(claims.sid, user.id);
     throw new SessionError();
   }

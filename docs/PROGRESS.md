@@ -1465,3 +1465,10 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Courier entry: "Booked on Pathao's site" (copy order id → Pathao's Merchant Order ID → the webhook links the consignment number); typed numbers tidied, duplicate numbers refused, "another courier" option with its name, Pathao numbers looked up before saving (unknown refused, other-phone asks first, unreachable saved unverified with "Check number").
 - Checks: server typecheck + 542 tests (new `controllers/courierEntry.test.ts`, webhook linking tests, route-protection list extended), frontend typecheck + lint + 110 tests. Not tried in a browser or against live Pathao.
 - Left: deploy, sync translations, live checks listed under WORK-19.
+
+## 2026-10-20 (Google customers logged out after a while)
+- Report: after ordering, the PC/phone slept ~1 hour and the customer was logged out (Chrome, Windows and Android). Session records: every affected session was a Google sign-in without 2FA, renewed once by the handoff and never again, and never ended on the server — the browser dropped its own login. Staff (Google + 2FA, a different route) were unaffected.
+- Cause found in `useOAuthBridge`: Google's half-session can outlive its one-time handoff (page reload, a tab the phone/PC discarded while asleep, a second tab). Redeeming it again fails, and the failure handler wiped the browser's valid login.
+- Fix: under the session lock, a browser that already holds a login for the same person skips the handoff, and a failed handoff never wipes that login (another person's login is still replaced). 3 new tests.
+- Logs added for the other quiet endings: proxy "no refresh cookie", server "token didn't verify" / "account signed out everywhere" / "renewal pass used twice". If it happens again, Vercel/Railway logs show which.
+- Checks: server 542 tests, frontend 113 tests, typecheck, lint. Needs live confirmation: sign in with Google, let the device sleep > 15 min, come back.

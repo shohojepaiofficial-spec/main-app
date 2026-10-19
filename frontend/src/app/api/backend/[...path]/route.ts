@@ -65,7 +65,7 @@ async function proxy(req: NextRequest, context: { params: Promise<{ path: string
     }
     let body: Buffer | string | undefined = mutation ? await boundedBody(req) : undefined;
     if (upstreamRoute === "auth/refresh") {
-      if (!refresh) return fail("Session expired", 401);
+      if (!refresh) { console.warn(`Session refresh refused: no refresh cookie (${route})`); return fail("Session expired", 401); }
       headers.set("content-type", "application/json");
       body = JSON.stringify({ refreshToken: refresh });
     }
