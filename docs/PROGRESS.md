@@ -1449,3 +1449,6 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 
 ## 2026-10-19 (plain password messages)
 - Replaced "Use at least 12 characters and at most 72 UTF-8 bytes" with two plain messages: "Password must be at least 12 characters" / "Password is too long — please use a shorter one" (server `passwordPolicyError`, frontend `newPasswordSchema`). Rule unchanged. Reset-password hint now "Use at least 12 characters." Server tests pass (152).
+
+## 2026-10-19 (account menu button)
+- Navbar: the signed-in avatar is now a pill with an "Account" label (hidden on phones) and a down-arrow that flips when open, so it reads as a menu. Added `nav.account` / `nav.openAccountMenu` translations (run sync-translations). Typecheck and lint clean.

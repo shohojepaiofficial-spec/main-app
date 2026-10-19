@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutDashboard, Package, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useTranslations } from "@/controllers/useTranslations";
 
@@ -32,16 +32,23 @@ export function ProfileDropdown() {
 
   return (
     <div className="relative" ref={ref}>
+      {/* Label + arrow so it's clear this opens a menu, not just an avatar. */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="w-9 h-9 rounded-full overflow-hidden bg-primary text-primary-foreground flex items-center justify-center text-sm font-normal"
-        aria-label="Open profile menu"
+        className="flex items-center gap-1.5 rounded-full border border-border py-0.5 pl-0.5 pr-2 hover:bg-background"
+        aria-label={t("nav.openAccountMenu", "Open account menu")}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
       >
-        {user.image ? (
-          <Image src={user.image} alt={user.name} width={36} height={36} className="object-cover" />
-        ) : (
-          initials
-        )}
+        <span className="w-8 h-8 shrink-0 rounded-full overflow-hidden bg-primary text-primary-foreground flex items-center justify-center text-sm font-normal">
+          {user.image ? (
+            <Image src={user.image} alt="" width={32} height={32} className="object-cover" />
+          ) : (
+            initials
+          )}
+        </span>
+        <span className="hidden text-sm font-medium sm:inline">{t("nav.account", "Account")}</span>
+        <ChevronDown size={16} aria-hidden="true" className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {isOpen && (

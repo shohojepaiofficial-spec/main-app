@@ -18,6 +18,8 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "nav.home", en: "Home", bn: "হোম" },
   { key: "nav.shop", en: "Shop", bn: "শপ" },
   { key: "nav.categories", en: "Categories", bn: "ক্যাটাগরি" },
+  { key: "nav.account", en: "Account", bn: "অ্যাকাউন্ট" },
+  { key: "nav.openAccountMenu", en: "Open account menu", bn: "অ্যাকাউন্ট মেনু খুলুন" },
   { key: "nav.about", en: "About", bn: "আমাদের সম্পর্কে" },
   { key: "nav.contact", en: "Contact", bn: "যোগাযোগ" },
   { key: "nav.signIn", en: "Sign in", bn: "সাইন ইন" },
