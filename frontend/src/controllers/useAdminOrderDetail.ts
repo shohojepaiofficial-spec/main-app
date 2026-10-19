@@ -71,15 +71,54 @@ export function useAdminOrderDetail(orderId: string, enabled: boolean) {
     }
   };
 
-  const saveCourierInfo = async (input: orderService.CourierInfoInput) => {
+  // "saved", "failed" (message already shown), or a phone mismatch the
+  // form asks about before saving anyway with confirmMismatch.
+  const saveCourierInfo = async (
+    input: orderService.CourierInfoInput
+  ): Promise<{ result: "saved" | "failed" } | { result: "mismatch"; message: string }> => {
     setIsSavingCourier(true);
     try {
-      setOrder(await orderService.updateCourierInfo(orderId, input));
-      toast.success("Courier info saved");
-    } catch {
-      toast.error("Failed to save courier info");
+      const updated = await orderService.updateCourierInfo(orderId, input);
+      setOrder(updated);
+      toast.success(
+        updated.courierProvider === "pathao" && updated.courierConsignmentId && !updated.courierVerifiedAt
+          ? "Saved — Pathao couldn't be reached to check the number, check it later"
+          : "Courier info saved"
+      );
+      return { result: "saved" };
+    } catch (err) {
+      const data = (err as { response?: { data?: { code?: string; message?: string } } })?.response?.data;
+      if (data?.code === "COURIER_PHONE_MISMATCH") return { result: "mismatch", message: data.message ?? "" };
+      toast.error(errorMessage(err, "Failed to save courier info"));
+      return { result: "failed" };
     } finally {
       setIsSavingCourier(false);
+    }
+  };
+
+  const markBookedOnPathaoSite = async () => {
+    setIsSavingCourier(true);
+    try {
+      setOrder(await orderService.markBookedOnPathaoSite(orderId));
+      toast.success("Marked as booked — the number fills in when Pathao confirms");
+      return true;
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't save that"));
+      return false;
+    } finally {
+      setIsSavingCourier(false);
+    }
+  };
+
+  const verifyConsignment = async () => {
+    setIsRefreshing(true);
+    try {
+      setOrder(await orderService.verifyCourierConsignment(orderId));
+      toast.success("Checked with Pathao — the number is right");
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't check the number"));
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -126,7 +165,7 @@ export function useAdminOrderDetail(orderId: string, enabled: boolean) {
     order, history, isLoading, notFound,
     isUpdatingStatus, updateStatus,
     isSavingNote, saveNote,
-    isSavingCourier, saveCourierInfo,
+    isSavingCourier, saveCourierInfo, markBookedOnPathaoSite, verifyConsignment,
     isBooking, bookWithPathao,
     isRefreshing, refreshPathaoStatus,
   };

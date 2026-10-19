@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isBdMobile } from "./phone";
+import { pathaoRefSchema } from "./pathaoAddress";
 
 export const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid ID");
 export const cartItems = z.array(z.object({
@@ -11,7 +12,7 @@ export const cartItems = z.array(z.object({
 const text = (max: number) => z.string().trim().min(1).max(max);
 export const checkoutSchema = z.object({
   items: cartItems,
-  shippingAddress: z.object({ fullName: text(120), phone: text(40).refine(isBdMobile, "Enter a valid Bangladeshi mobile number, like 01712345678"), zila: text(100), upazila: text(100), addressLine: text(500) }).strict(),
+  shippingAddress: z.object({ fullName: text(120), phone: text(40).refine(isBdMobile, "Enter a valid Bangladeshi mobile number, like 01712345678"), zila: text(100), upazila: text(100), addressLine: text(500), pathao: pathaoRefSchema.optional() }).strict(),
   promoCode: z.string().max(80).optional(),
   paymentMethod: z.enum(["cod", "bkash"]).optional(),
 }).strict();

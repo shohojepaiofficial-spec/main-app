@@ -967,4 +967,17 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "settings.pushUnsupported", en: "This browser can't show notifications. On iPhone, add the site to your Home Screen first.", bn: "এই ব্রাউজারে নোটিফিকেশন দেখানো যায় না। iPhone-এ আগে সাইটটি হোম স্ক্রিনে যোগ করুন।" },
   { key: "settings.pushNotReady", en: "Browser notifications aren't available yet.", bn: "ব্রাউজার নোটিফিকেশন এখনো চালু হয়নি।" },
   { key: "settings.pushBlocked", en: "Notifications are blocked for this site. Allow them in your browser's site settings, then try again.", bn: "এই সাইটের নোটিফিকেশন বন্ধ করা আছে। ব্রাউজারের সাইট সেটিংসে অনুমতি দিয়ে আবার চেষ্টা করুন।" },
+  // Checkout address from Pathao's lists
+  { key: "address.city", en: "District / City", bn: "জেলা / শহর" },
+  { key: "address.zone", en: "Thana / Zone", bn: "থানা / জোন" },
+  { key: "address.areaOptional", en: "Area (optional)", bn: "এলাকা (ঐচ্ছিক)" },
+  { key: "address.selectCity", en: "Select district", bn: "জেলা বেছে নিন" },
+  { key: "address.selectZone", en: "Select thana / zone", bn: "থানা / জোন বেছে নিন" },
+  { key: "address.selectArea", en: "Select area", bn: "এলাকা বেছে নিন" },
+  { key: "address.selectCityFirst", en: "Select a district first", bn: "আগে জেলা বেছে নিন" },
+  { key: "address.typeToSearch", en: "Type to search...", bn: "খুঁজতে লিখুন..." },
+  { key: "address.noMatch", en: "No match — try another spelling", bn: "মিলছে না — অন্য বানানে চেষ্টা করুন" },
+  { key: "address.loading", en: "Loading...", bn: "লোড হচ্ছে..." },
+  { key: "address.pickCity", en: "Pick your district", bn: "আপনার জেলা বেছে নিন" },
+  { key: "address.pickZone", en: "Pick your thana / zone", bn: "আপনার থানা / জোন বেছে নিন" },
 ];

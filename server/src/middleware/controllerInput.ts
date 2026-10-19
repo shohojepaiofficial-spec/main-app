@@ -4,17 +4,18 @@ import { assertSafeInput, productInput } from "./requestValidation";
 import { cartItems, objectId, checkoutSchema, parseInput } from "../utils/checkoutValidation";
 import { returnInputs } from "../utils/returnValidation";
 import { notificationInputs } from "../utils/notificationValidation";
+import { pathaoRefSchema } from "../utils/pathaoAddress";
 
 const fields: Record<string, string> = {
   register: "name email password", login: "email password", updateProfile: "name phone",
-  changePassword: "currentPassword newPassword", updateDeliveryLocation: "zila upazila addressLine",
+  changePassword: "currentPassword newPassword", updateDeliveryLocation: "zila upazila addressLine pathao",
   updateMarketingOptIn: "email sms", oauthSync: "name email provider providerId image",
   verifyEmail: "token", forgotPassword: "email", resetPassword: "token password", refreshSession: "refreshToken",
   setupTwoFactor: "", replaceTwoFactor: "code", confirmTwoFactor: "code", confirmTwoFactorReplacement: "code",
   disableTwoFactor: "code", verifyTwoFactorLogin: "tempToken code",
-  createSharedCart: "items shippingAddress promoCode", payForSharedCart: "", getDeliveryQuote: "items zila upazila",
+  createSharedCart: "items shippingAddress promoCode", payForSharedCart: "", getDeliveryQuote: "items zila upazila pathao",
   updateOrderStatus: "status", bulkUpdateStatus: "ids status", updateOrderNote: "note",
-  updateCourierInfo: "consignmentId trackingStatus note", removeCourierBooking: "", bookPathaoOrder: "cityId zoneId areaId weightKg description specialInstruction",
+  updateCourierInfo: "provider courierName consignmentId trackingStatus note confirmMismatch", removeCourierBooking: "", bookPathaoOrder: "cityId zoneId areaId weightKg description specialInstruction",
   createAd: "title sourceType productId promoCode caption link platforms", publishAd: "platforms",
   createCampaign: "title sourceType productId promoCode channels emailSubject emailBody smsMessage",
   createBanner: "eyebrow accentColor title subtitle primaryCta secondaryCta promoCodeId isActive",
@@ -27,7 +28,7 @@ const fields: Record<string, string> = {
   submitContactMessage: "name email subject message", markMessageRead: "isRead",
 };
 const numeric = new Set(["rating", "value", "cityId", "zoneId", "areaId", "weightKg"]);
-const booleans = new Set(["isRead", "sms"]);
+const booleans = new Set(["isRead", "sms", "confirmMismatch"]);
 const strings = z.string().max(32_768);
 
 export function validateControllerInput(name: string, req: Request) {
@@ -59,6 +60,8 @@ export function validateControllerInput(name: string, req: Request) {
     if (field === "isActive") schema = z.union([z.boolean(), z.enum(["true", "false"])]);
     if (field === "items") schema = cartItems;
     if (field === "shippingAddress") schema = checkoutSchema.shape.shippingAddress;
+    if (field === "pathao") schema = pathaoRefSchema;
+    if (field === "provider" && name === "updateCourierInfo") schema = z.enum(["pathao", "other"]);
     if (field === "ids") schema = z.array(objectId).min(1).max(100);
     if (field === "permissions" || field === "channels") schema = z.array(z.string().max(100)).max(30);
     if (field === "platforms") schema = z.union([z.array(z.string().max(100)).max(10), z.string().max(500)]);

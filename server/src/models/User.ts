@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
+import { IPathaoAddress, pathaoAddressSchema } from "./PathaoAddress";
 import bcrypt from "bcryptjs";
 import { PERMISSIONS, Permission } from "../utils/permissions";
 
@@ -17,6 +18,8 @@ export interface DeliveryLocation {
   zila: string;
   upazila: string;
   addressLine: string;
+  // Pathao's location for it, when picked from Pathao's lists at checkout.
+  pathao?: IPathaoAddress;
 }
 
 export interface IUser extends Document {
@@ -98,6 +101,7 @@ const userSchema = new Schema<IUser>(
       zila: { type: String, trim: true },
       upazila: { type: String, trim: true },
       addressLine: { type: String, trim: true },
+      pathao: { type: pathaoAddressSchema },
       _id: false,
     },
     wishlist: [{ type: Schema.Types.ObjectId, ref: "Product" }],

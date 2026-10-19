@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
+import { IPathaoAddress, pathaoAddressSchema } from "./PathaoAddress";
 
 interface ISharedCartItem {
   product: Types.ObjectId;
@@ -32,6 +33,7 @@ export interface ISharedCartAddress {
   zila: string;
   upazila: string;
   addressLine: string;
+  pathao?: IPathaoAddress;
 }
 
 const sharedCartSchema = new Schema<ISharedCart>(
@@ -55,6 +57,7 @@ const sharedCartSchema = new Schema<ISharedCart>(
           zila: { type: String, required: true, trim: true },
           upazila: { type: String, required: true, trim: true },
           addressLine: { type: String, required: true, trim: true },
+          pathao: { type: pathaoAddressSchema },
         },
         { _id: false }
       ),

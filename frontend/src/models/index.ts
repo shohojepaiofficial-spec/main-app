@@ -38,6 +38,8 @@ export interface DeliveryLocation {
   zila: string;
   upazila: string;
   addressLine: string;
+  // Pathao's location for it, when picked from Pathao's lists at checkout.
+  pathao?: PathaoAddress;
 }
 
 export interface User {
@@ -258,7 +260,24 @@ export interface ShippingDetails {
   zila: string;
   upazila: string;
   addressLine: string;
+  pathao?: PathaoAddress;
 }
+
+// What the browser sends: Pathao ids only (the server looks up the names).
+export interface PathaoRef {
+  cityId: number;
+  zoneId: number;
+  areaId?: number;
+}
+
+// An address in Pathao's own terms (server models/PathaoAddress.ts).
+export interface PathaoAddress extends PathaoRef {
+  cityName: string;
+  zoneName: string;
+  areaName?: string;
+}
+
+export type ShippingDetailsInput = Omit<ShippingDetails, "pathao"> & { pathao?: PathaoRef };
 
 // "manual" = an admin entered this on a phone/walk-in customer's behalf
 // (see AdminOrdersView's "New order") — see server's Order model.
@@ -298,8 +317,15 @@ export interface Order {
   statusHistory?: { status: OrderStatus; at: string; byName?: string }[];
   // Admin-only fields — absent from the customer's own getMyOrders response.
   internalNote?: string;
-  courierProvider?: "pathao";
+  // "other": another courier, typed in by hand (name in courierName).
+  courierProvider?: "pathao" | "other";
+  courierName?: string;
   courierConsignmentId?: string;
+  // Booked on Pathao's own site; waiting for Pathao's first update to
+  // fill in the consignment number.
+  courierAwaitingSince?: string;
+  // Pathao confirmed the consignment number exists.
+  courierVerifiedAt?: string;
   courierTrackingStatus?: string;
   courierNote?: string;
   courierBookedAt?: string;

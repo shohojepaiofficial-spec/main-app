@@ -1,11 +1,11 @@
 import { api } from "@/lib/api";
-import { OrderLineInput, SharedCart, ShippingDetails } from "@/models";
+import { OrderLineInput, SharedCart, ShippingDetailsInput } from "@/models";
 
 // The asker picks where it goes; whoever opens the link only pays. Returns
 // the signed link that goes after /pay/ — it is the only key to the cart.
 export const createSharedCart = async (input: {
   items: OrderLineInput[];
-  shippingAddress: ShippingDetails;
+  shippingAddress: ShippingDetailsInput;
   promoCode?: string;
 }): Promise<string> => {
   const { data } = await api.post<{ link: string }>("/shared-carts", input);

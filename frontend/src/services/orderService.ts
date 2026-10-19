@@ -10,6 +10,8 @@ import {
   PaymentMethod,
   ProductSummary,
   ShippingDetails,
+  ShippingDetailsInput,
+  PathaoRef,
 } from "@/models";
 
 export const getMyOrders = async (): Promise<Order[]> => {
@@ -19,7 +21,7 @@ export const getMyOrders = async (): Promise<Order[]> => {
 
 export interface CreateOrderInput {
   items: OrderLineInput[];
-  shippingAddress: ShippingDetails;
+  shippingAddress: ShippingDetailsInput;
   promoCode?: string;
   paymentMethod?: PaymentMethod;
 }
@@ -42,6 +44,8 @@ export interface DeliveryQuoteInput {
   items: OrderLineInput[];
   zila: string;
   upazila: string;
+  // Pathao ids picked at checkout — priced exactly, no name matching.
+  pathao?: PathaoRef;
 }
 
 export const getDeliveryQuote = async (input: DeliveryQuoteInput): Promise<DeliveryQuote> => {
@@ -123,7 +127,11 @@ export const updateOrderNote = async (id: string, note: string): Promise<Order> 
 };
 
 export interface CourierInfoInput {
+  provider?: "pathao" | "other";
+  courierName?: string;
   consignmentId?: string;
+  // Save even though Pathao has the parcel going to a different phone.
+  confirmMismatch?: boolean;
   trackingStatus?: string;
   note?: string;
 }
@@ -172,5 +180,35 @@ export const refreshPathaoStatus = async (id: string): Promise<Order> => {
 // so the order can be booked again (history is kept).
 export const removeCourierBooking = async (id: string): Promise<Order> => {
   const { data } = await api.delete<Order>(`/orders/${id}/courier`);
+  return data;
+};
+
+// Staff booked on Pathao's own site with this order's id as the Merchant
+// Order ID; Pathao's first update fills in the consignment number.
+export const markBookedOnPathaoSite = async (id: string): Promise<Order> => {
+  const { data } = await api.post<Order>(`/orders/${id}/courier/booked-on-pathao`);
+  return data;
+};
+
+// Re-check a saved Pathao number that couldn't be checked when typed.
+export const verifyCourierConsignment = async (id: string): Promise<Order> => {
+  const { data } = await api.post<Order>(`/orders/${id}/courier/verify`);
+  return data;
+};
+
+// Pathao's lists for the checkout address picker (from the server's cache).
+// Any failure means "use our own Zila/Upazila list instead".
+export const getCheckoutCities = async (): Promise<PathaoLocation[]> => {
+  const { data } = await api.get<PathaoLocation[]>("/orders/locations/cities");
+  return data;
+};
+
+export const getCheckoutZones = async (cityId: number): Promise<PathaoLocation[]> => {
+  const { data } = await api.get<PathaoLocation[]>(`/orders/locations/cities/${cityId}/zones`);
+  return data;
+};
+
+export const getCheckoutAreas = async (zoneId: number): Promise<PathaoLocation[]> => {
+  const { data } = await api.get<PathaoLocation[]>(`/orders/locations/zones/${zoneId}/areas`);
   return data;
 };

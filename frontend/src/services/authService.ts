@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { DeliveryLocation, MarketingOptIn, User } from "@/models";
+import { DeliveryLocation, MarketingOptIn, PathaoRef, User } from "@/models";
 
 export interface AuthResponse {
   token: string;
@@ -95,7 +95,7 @@ export const changePassword = async (currentPassword: string, newPassword: strin
   await api.patch("/auth/password", { currentPassword, newPassword });
 };
 
-export const updateDeliveryLocation = async (input: DeliveryLocation): Promise<User> => {
+export const updateDeliveryLocation = async (input: Omit<DeliveryLocation, "pathao"> & { pathao?: PathaoRef }): Promise<User> => {
   const { data } = await api.patch<User>("/auth/delivery-location", input);
   return data;
 };

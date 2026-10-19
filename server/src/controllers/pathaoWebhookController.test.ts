@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request, Response } from "express";
 
-const mocks = vi.hoisted(() => ({ findOne: vi.fn(), findReturn: vi.fn(), transitionOrder: vi.fn() }));
-vi.mock("../models/Order", () => ({ Order: { findOne: mocks.findOne } }));
+const mocks = vi.hoisted(() => ({ findOne: vi.fn(), findById: vi.fn(), exists: vi.fn(), findReturn: vi.fn(), transitionOrder: vi.fn() }));
+vi.mock("../models/Order", () => ({ Order: { findOne: mocks.findOne, findById: mocks.findById, exists: mocks.exists } }));
 vi.mock("../models/ReturnRequest", () => ({ ReturnRequest: { findOne: mocks.findReturn } }));
 vi.mock("../utils/orderTransitions", () => ({ transitionOrder: mocks.transitionOrder }));
 import { pathaoWebhook } from "./pathaoWebhookController";
@@ -55,5 +55,40 @@ describe("Pathao webhook endpoint", () => {
     expect(ret.save).toHaveBeenCalled();
     expect(mocks.transitionOrder).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(202);
+  });
+  describe("linking a parcel booked on Pathao's own site", () => {
+    const awaiting = () => ({ ...order(), courierProvider: "pathao", courierConsignmentId: undefined as string | undefined, courierAwaitingSince: new Date(), courierVerifiedAt: undefined as Date | undefined, courierBookedAt: undefined as Date | undefined });
+    it("saves the consignment number from the first update onto the order named by the Merchant Order ID", async () => {
+      const o = awaiting(); mocks.findOne.mockResolvedValue(null); mocks.findById.mockResolvedValue(o); mocks.exists.mockResolvedValue(null);
+      const res = response();
+      await pathaoWebhook(request({ consignment_id: "DL9", merchant_order_id: o.id, order_status: "Pickup Requested" }, "s3cret"), res as unknown as Response);
+      expect(o.courierConsignmentId).toBe("DL9");
+      expect(o.courierAwaitingSince).toBeUndefined();
+      expect(o.courierVerifiedAt).toBeInstanceOf(Date);
+      expect(o.courierEvents).toEqual([
+        expect.objectContaining({ status: "Linked by Pathao (DL9)", kind: "booked" }),
+        expect.objectContaining({ status: "Pickup Requested", kind: "webhook" }),
+      ]);
+      expect(o.save).toHaveBeenCalled();
+    });
+    it("links even if staff forgot to press 'booked on Pathao's site'", async () => {
+      const o = { ...awaiting(), courierProvider: undefined, courierAwaitingSince: undefined };
+      mocks.findOne.mockResolvedValue(null); mocks.findById.mockResolvedValue(o); mocks.exists.mockResolvedValue(null);
+      await pathaoWebhook(request({ consignment_id: "DL9", merchant_order_id: o.id, order_status: "Pickup Requested" }, "s3cret"), response() as unknown as Response);
+      expect(o.courierConsignmentId).toBe("DL9");
+    });
+    it("never takes a number another order already has", async () => {
+      const o = awaiting(); mocks.findOne.mockResolvedValue(null); mocks.findById.mockResolvedValue(o); mocks.exists.mockResolvedValue({ _id: "x" });
+      await pathaoWebhook(request({ consignment_id: "DL9", merchant_order_id: o.id, order_status: "Pickup Requested" }, "s3cret"), response() as unknown as Response);
+      expect(o.courierConsignmentId).toBeUndefined();
+      expect(o.save).not.toHaveBeenCalled();
+    });
+    it("leaves an order booked with another courier alone", async () => {
+      const o = { ...awaiting(), courierProvider: "other" };
+      mocks.findOne.mockResolvedValue(null); mocks.findById.mockResolvedValue(o);
+      await pathaoWebhook(request({ consignment_id: "DL9", merchant_order_id: o.id, order_status: "Pickup Requested" }, "s3cret"), response() as unknown as Response);
+      expect(o.courierConsignmentId).toBeUndefined();
+      expect(o.save).not.toHaveBeenCalled();
+    });
   });
 });

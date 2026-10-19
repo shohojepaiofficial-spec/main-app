@@ -48,6 +48,7 @@ const customerRoutes = new Set([
   "orders GET /my", "orders GET /reviewable", "orders PATCH /:id/cancel", "orders GET /:id",
   "products POST /:id/reviews", "wishlist GET /", "wishlist POST /:productId",
   "wishlist DELETE /:productId", "shared POST /", "returns POST /", "returns GET /my",
+  "orders GET /locations/cities", "orders GET /locations/cities/:cityId/zones", "orders GET /locations/zones/:zoneId/areas",
   "notifications GET /", "notifications PATCH /read-all", "notifications PATCH /:id/read", "notifications GET /push/config",
   "notifications POST /push/subscribe", "notifications POST /push/unsubscribe",
 ]);

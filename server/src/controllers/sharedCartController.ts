@@ -17,7 +17,7 @@ import { orderStockMovements, recordStockMovements } from "../utils/stockLedger"
 import { cartIdFromPaymentLink, paymentLink } from "../utils/paymentLinks";
 import { CHECKOUT_DAILY_LIMIT } from "../middleware/rateLimit";
 import {
-  computeOrderTotals, decrementStockAtomically, orderFieldsFromTotals, readShippingAddress, MAX_OPEN_ORDERS,
+  computeOrderTotals, decrementStockAtomically, orderFieldsFromTotals, resolveShippingAddress, pathaoIds, MAX_OPEN_ORDERS,
 } from "./orderController";
 interface CartItemInput {
   productId: string;
@@ -34,7 +34,7 @@ export const createSharedCart = async (req: AuthRequest, res: Response) => {
   if (!items || items.length === 0) {
     return res.status(400).json({ message: "Cart is empty" });
   }
-  const address = readShippingAddress(parseInput(checkoutSchema.shape.shippingAddress, req.body?.shippingAddress));
+  const address = await resolveShippingAddress(parseInput(checkoutSchema.shape.shippingAddress, req.body?.shippingAddress));
   const asker = await User.findById(req.userId).select("isEmailVerified");
   if (!asker?.isEmailVerified) {
     return res.status(403).json({
@@ -121,7 +121,7 @@ export const getSharedCart = async (req: Request, res: Response) => {
   let totals: { itemsTotal: number; deliveryFee: number; discount: number; totalAmount: number } | undefined;
   if (address && items.length > 0) {
     try {
-      const computed = await computeOrderTotals(sharedCartLines(sharedCart), address.zila, address.upazila, sharedCart.promoCode, undefined, "bkash");
+      const computed = await computeOrderTotals(sharedCartLines(sharedCart), address.zila, address.upazila, sharedCart.promoCode, undefined, "bkash", pathaoIds(address));
       totals = {
         itemsTotal: computed.itemsTotal,
         deliveryFee: computed.deliveryFee,
@@ -192,7 +192,7 @@ export const payForSharedCart = async (req: Request, res: Response) => {
   let order: InstanceType<typeof Order> | undefined;
   try {
     await session.withTransaction(async () => {
-      const totals = await computeOrderTotals(sharedCartLines(cart), address.zila, address.upazila, cart.promoCode, session, "bkash");
+      const totals = await computeOrderTotals(sharedCartLines(cart), address.zila, address.upazila, cart.promoCode, session, "bkash", pathaoIds(address));
       await decrementStockAtomically(totals.orderItems, session);
       const [created] = await Order.create(
         [

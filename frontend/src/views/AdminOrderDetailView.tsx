@@ -85,6 +85,8 @@ export function AdminOrderDetailView({ orderId }: { orderId: string }) {
             isRefreshing={detail.isRefreshing}
             onSaveManual={detail.saveCourierInfo}
             onBook={detail.bookWithPathao}
+            onBookedOnPathaoSite={detail.markBookedOnPathaoSite}
+            onVerify={detail.verifyConsignment}
             onRefresh={detail.refreshPathaoStatus}
             onRemove={detail.removeCourierBooking}
           />
@@ -216,7 +218,12 @@ export function AdminOrderDetailView({ orderId }: { orderId: string }) {
             <p className="font-medium">{order.shippingAddress.fullName}</p>
             <p className="text-muted">{order.shippingAddress.phone}</p>
             <p className="mt-1 text-muted">
-              {order.shippingAddress.addressLine}, {order.shippingAddress.upazila}, {order.shippingAddress.zila}
+              {order.shippingAddress.addressLine}
+              {order.shippingAddress.pathao?.areaName ? `, ${order.shippingAddress.pathao.areaName}` : ""}, {order.shippingAddress.upazila},{" "}
+              {order.shippingAddress.zila}
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              {order.shippingAddress.pathao ? "Picked from Pathao's list" : "Picked from our own list"}
             </p>
             {order.user && <p className="mt-2 text-xs text-muted">Account: {order.user.name} ({order.user.email})</p>}
             <OrderNoteField order={order} isSaving={detail.isSavingNote} onSave={detail.saveNote} />

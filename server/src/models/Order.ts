@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
+import { IPathaoAddress, pathaoAddressSchema } from "./PathaoAddress";
 
 interface IOrderItem {
   product: Types.ObjectId;
@@ -25,6 +26,8 @@ export interface IShippingDetails {
   zila: string;
   upazila: string;
   addressLine: string;
+  // Set when the customer picked from Pathao's lists (see PathaoAddress.ts).
+  pathao?: IPathaoAddress;
 }
 
 // "bkash" only actually charges anyone once BKASH_* env vars are set (see
@@ -117,8 +120,18 @@ export interface IOrder extends Document {
   // admin booked outside the site, e.g. via Pathao's own dashboard) or by a
   // real API call once integrations/pathao.ts is configured — see
   // docs/ARCHITECTURE.md's "Courier & delivery" section.
-  courierProvider?: "pathao";
+  // "other": booked with a different courier (name in courierName), typed
+  // in by hand — never checked or tracked automatically.
+  courierProvider?: "pathao" | "other";
+  courierName?: string;
   courierConsignmentId?: string;
+  // Staff booked on Pathao's own site with this order's id as the
+  // Merchant Order ID, and are waiting for Pathao's first status update to
+  // fill in the consignment number (pathaoWebhookController.ts).
+  courierAwaitingSince?: Date;
+  // Pathao confirmed this consignment number exists (booked through the
+  // API, linked by a webhook, or checked when typed in).
+  courierVerifiedAt?: Date;
   courierTrackingStatus?: string;
   courierNote?: string;
   courierBookedAt?: Date;
@@ -140,6 +153,7 @@ const shippingDetailsSchema = new Schema<IShippingDetails>(
     zila: { type: String, required: true, trim: true },
     upazila: { type: String, required: true, trim: true },
     addressLine: { type: String, required: true, trim: true },
+    pathao: { type: pathaoAddressSchema },
   },
   { _id: false }
 );
@@ -213,8 +227,11 @@ const orderSchema = new Schema<IOrder>(
     shippingAddress: { type: shippingDetailsSchema, required: true },
     sharedCartId: { type: Schema.Types.ObjectId, ref: "SharedCart" },
     internalNote: { type: String, trim: true },
-    courierProvider: { type: String, enum: ["pathao"] },
+    courierProvider: { type: String, enum: ["pathao", "other"] },
+    courierName: { type: String, trim: true, maxlength: 80 },
     courierConsignmentId: { type: String, trim: true },
+    courierAwaitingSince: { type: Date },
+    courierVerifiedAt: { type: Date },
     courierTrackingStatus: { type: String, trim: true },
     courierNote: { type: String, trim: true },
     courierBookedAt: { type: Date },
@@ -251,4 +268,6 @@ orderSchema.index({ createdAt: -1 }, { partialFilterExpression: { paymentReviewR
 // Checkout's open-order cap and the order SMS per-phone daily cap.
 orderSchema.index({ user: 1, status: 1 });
 orderSchema.index({ "shippingAddress.phone": 1, createdAt: -1 });
+// Pathao webhooks and the duplicate check look orders up by consignment.
+orderSchema.index({ courierConsignmentId: 1 }, { sparse: true });
 export const Order = model<IOrder>("Order", orderSchema);

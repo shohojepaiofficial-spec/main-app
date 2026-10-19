@@ -178,6 +178,22 @@ async function getCachedZones(cityId: number): Promise<PathaoLocation[]> {
   return zones;
 }
 
+const cachedAreasByZone = new Map<number, { areas: PathaoLocation[]; expiresAt: number }>();
+
+async function getCachedAreas(zoneId: number): Promise<PathaoLocation[]> {
+  const cached = cachedAreasByZone.get(zoneId);
+  if (cached && cached.expiresAt > Date.now()) return cached.areas;
+  const areas = await getPathaoAreas(zoneId);
+  if (areas.length > 0) cachedAreasByZone.set(zoneId, { areas, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS });
+  return areas;
+}
+
+// The same cached lists, for the checkout address picker and for checking
+// the ids a checkout sends back (utils/pathaoAddress.ts).
+export const getCachedPathaoCities = getCachedCities;
+export const getCachedPathaoZones = getCachedZones;
+export const getCachedPathaoAreas = getCachedAreas;
+
 export interface PathaoLocationMatch {
   cityId: number;
   zoneId: number;
@@ -309,6 +325,39 @@ export async function createPathaoOrder(input: CreatePathaoOrderInput): Promise<
     orderStatus: res.data.order_status ?? "Pending",
     deliveryFee: res.data.delivery_fee,
   };
+}
+
+// Checks a consignment number staff typed in. "not_found": Pathao answered
+// but has no such parcel on this merchant account (most likely a typo).
+// "unreachable": no usable answer (down, timeout, login failed) — the
+// number can't be judged either way.
+export type PathaoConsignmentLookup =
+  | { result: "found"; orderStatus: string; merchantOrderId?: string; recipientPhone?: string }
+  | { result: "not_found" }
+  | { result: "unreachable" };
+
+export async function lookupPathaoConsignment(consignmentId: string): Promise<PathaoConsignmentLookup> {
+  const config = readConfig();
+  if (!config) return { result: "unreachable" };
+  try {
+    const res = await authedRequest<PathaoEnvelope<{ order_status?: string; merchant_order_id?: string; recipient_phone?: string }>>(
+      config,
+      "GET",
+      `${ORDERS_PATH}/${encodeURIComponent(consignmentId)}/info`
+    );
+    if (res.data?.order_status) {
+      return {
+        result: "found",
+        orderStatus: res.data.order_status,
+        merchantOrderId: res.data.merchant_order_id || undefined,
+        recipientPhone: res.data.recipient_phone || undefined,
+      };
+    }
+    // A clear answer without a parcel. Server errors count as unreachable.
+    return res.code && res.code >= 500 ? { result: "unreachable" } : { result: "not_found" };
+  } catch {
+    return { result: "unreachable" };
+  }
 }
 
 export async function getPathaoOrderStatus(consignmentId: string): Promise<{ orderStatus: string }> {

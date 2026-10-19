@@ -1,3 +1,4 @@
+import { verifyPathaoRef, PathaoRef } from "../utils/pathaoAddress";
 import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { User } from "../models/User";
@@ -203,10 +204,11 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
 
 export const updateDeliveryLocation = async (req: AuthRequest, res: Response) => {
   validateControllerInput("updateDeliveryLocation", req);
-  const { zila, upazila, addressLine } = req.body as {
+  const { zila, upazila, addressLine, pathao } = req.body as {
     zila?: string;
     upazila?: string;
     addressLine?: string;
+    pathao?: PathaoRef;
   };
 
   if (!zila?.trim()) return res.status(400).json({ message: "Zila is required" });
@@ -216,11 +218,12 @@ export const updateDeliveryLocation = async (req: AuthRequest, res: Response) =>
   const user = await User.findById(req.userId);
   if (!user) return res.status(404).json({ message: "User not found" });
 
-  user.deliveryLocation = {
-    zila: zila.trim(),
-    upazila: upazila.trim(),
-    addressLine: addressLine.trim(),
-  };
+  // Pathao's location only when sent and checked (checkout's "save for
+  // next time"); Settings sends none, so editing there clears it.
+  const pathaoLocation = await verifyPathaoRef(pathao);
+  user.deliveryLocation = pathaoLocation
+    ? { zila: pathaoLocation.cityName, upazila: pathaoLocation.zoneName, addressLine: addressLine.trim(), pathao: pathaoLocation }
+    : { zila: zila.trim(), upazila: upazila.trim(), addressLine: addressLine.trim() };
   await user.save();
 
   res.json(shapeUser(user));

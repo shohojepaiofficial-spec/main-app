@@ -25,7 +25,10 @@ import { recordCourierStatus } from "../utils/courierEvents";
 import { ReturnRequest } from "../models/ReturnRequest";
 import { reconcilePayment } from "../utils/paymentReconciliation";
 import { customerOrderView } from "../utils/customerOrder";
+import { verifyPathaoRef, PathaoRef } from "../utils/pathaoAddress";
+import type { IPathaoAddress } from "../models/PathaoAddress";
 import { alertLowStockAfterSale } from "../utils/lowStockAlert";
+import { normalizeConsignmentId, isValidConsignmentId, consignmentInUse, samePhone } from "../utils/courierConsignment";
 import { flagPaymentReview } from "../utils/paymentReview";
 import { notifyStaff } from "../utils/notify";
 import { staffNewOrderNotification } from "../utils/notificationMessages";
@@ -41,6 +44,7 @@ import {
   getPathaoAreas,
   createPathaoOrder,
   getPathaoOrderStatus,
+  lookupPathaoConsignment,
   matchPathaoLocation,
   getPathaoPriceQuote,
 } from "../integrations/pathao";
@@ -87,6 +91,7 @@ interface ShippingInput {
   zila?: string;
   upazila?: string;
   addressLine?: string;
+  pathao?: PathaoRef;
 }
 
 const ORDER_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"] as const;
@@ -102,11 +107,14 @@ async function resolveDeliveryFee(
   flatFee: number,
   totalWeightKg: number,
   zila: string,
-  upazila: string
+  upazila: string,
+  // Pathao ids the customer picked at checkout (already checked). Used as-is
+  // instead of guessing them from zila/upazila.
+  pathao?: { cityId: number; zoneId: number }
 ): Promise<{ deliveryFee: number; deliveryFeeSource: "pathao" | "flat" }> {
   if (isPathaoConfigured()) {
     try {
-      const match = await matchPathaoLocation(zila, upazila);
+      const match = pathao ?? (await matchPathaoLocation(zila, upazila));
       if (match) {
         const itemWeightKg = Math.min(
           MAX_ITEM_WEIGHT_KG,
@@ -142,7 +150,8 @@ export async function computeOrderTotals(
   upazila: string,
   promoCode?: string,
   session?: ClientSession,
-  paymentMethod: PaymentMethod = "cod"
+  paymentMethod: PaymentMethod = "cod",
+  pathao?: { cityId: number; zoneId: number }
 ) {
   const isInsideCity = zila.trim() === STORE_CITY;
 
@@ -216,7 +225,8 @@ export async function computeOrderTotals(
     flatDeliveryFee,
     totalWeightKg,
     zila,
-    upazila
+    upazila,
+    pathao
   );
 
   let discount = 0;
@@ -290,10 +300,11 @@ export async function computeOrderTotals(
 export const getDeliveryQuote = async (req: AuthRequest, res: Response) => {
   validateControllerInput("getDeliveryQuote", req);
   parseInput(cartItems, req.body?.items);
-  const { items, zila, upazila } = req.body as {
+  const { items, zila, upazila, pathao } = req.body as {
     items?: CheckoutItemInput[];
     zila?: string;
     upazila?: string;
+    pathao?: PathaoRef;
   };
 
   if (!items || items.length === 0) {
@@ -331,7 +342,8 @@ export const getDeliveryQuote = async (req: AuthRequest, res: Response) => {
     flatFee,
     totalWeightKg,
     zila,
-    upazila
+    upazila,
+    (await verifyPathaoRef(pathao)) ?? undefined
   );
   res.json({ deliveryFee, source: deliveryFeeSource });
 };
@@ -434,6 +446,20 @@ export function readShippingAddress(input?: ShippingInput) {
   };
 }
 
+// readShippingAddress plus the Pathao location, when the customer picked
+// one: checked against Pathao's lists, with Pathao's names becoming the
+// zila/upazila so every other part of the app reads it the same way. If it
+// can't be checked, the address simply keeps what was typed. Call it before
+// a transaction — it may wait on Pathao.
+export async function resolveShippingAddress(input?: ShippingInput): Promise<ReturnType<typeof readShippingAddress> & { pathao?: IPathaoAddress }> {
+  const address = readShippingAddress(input);
+  const pathao = await verifyPathaoRef(input?.pathao);
+  return pathao ? { ...address, zila: pathao.cityName, upazila: pathao.zoneName, pathao } : address;
+}
+
+export const pathaoIds = (address: { pathao?: { cityId: number; zoneId: number } }) =>
+  address.pathao ? { cityId: address.pathao.cityId, zoneId: address.pathao.zoneId } : undefined;
+
 // createOrder's reply: the customer's view of the order plus, for a bKash
 // order, where to send the browser to pay.
 function checkoutResponse(order: InstanceType<typeof Order>) {
@@ -482,13 +508,19 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     return res.status(429).json({ code: "TOO_MANY_OPEN_ORDERS", message: `You already have ${openOrders} orders waiting for confirmation. Please wait for those to be confirmed, or cancel one, before placing another.` });
   }
 
+  let address: Awaited<ReturnType<typeof resolveShippingAddress>>;
+  try {
+    address = await resolveShippingAddress(shippingAddress);
+  } catch (err) {
+    const { status, message } = err as { status?: number; message?: string };
+    return res.status(status ?? 400).json({ message: message ?? "Full shipping details are required" });
+  }
+
   const session = await mongoose.startSession();
   let order: InstanceType<typeof Order> | undefined;
-  let address: ReturnType<typeof readShippingAddress> | undefined;
   try {
     await session.withTransaction(async () => {
-      address = readShippingAddress(shippingAddress);
-      const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method);
+      const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method, pathaoIds(address));
 
       await decrementStockAtomically(totals.orderItems, session);
 
@@ -893,25 +925,118 @@ export const updateOrderNote = async (req: AuthRequest, res: Response) => {
 // on Pathao's own merchant site) rather than through this site's "Book with
 // Pathao" button. Clearing every field drops courierProvider too, so an
 // order can go back to "no courier yet".
+//
+// A typed consignment number is tidied (utils/courierConsignment.ts), must
+// not already be on another order, and — for Pathao, when it's connected —
+// is checked with Pathao first: an unknown number is refused (most likely a
+// typo), and a parcel for a different phone needs `confirmMismatch`. If
+// Pathao can't be reached the number is saved unverified, to check later.
 export const updateCourierInfo = async (req: AuthRequest, res: Response) => {
   validateControllerInput("updateCourierInfo", req);
-  const { consignmentId, trackingStatus, note } = req.body as {
+  const { provider = "pathao", courierName, consignmentId, trackingStatus, note, confirmMismatch } = req.body as {
+    provider?: "pathao" | "other";
+    courierName?: string;
     consignmentId?: string;
     trackingStatus?: string;
     note?: string;
+    confirmMismatch?: boolean;
   };
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ message: "Order not found" });
 
-  const hasAny = !!(consignmentId?.trim() || trackingStatus?.trim() || note?.trim());
-  order.courierProvider = hasAny ? "pathao" : undefined;
-  order.courierConsignmentId = consignmentId?.trim() || undefined;
+  const consignment = consignmentId ? normalizeConsignmentId(consignmentId) : "";
+  const hasAny = !!(consignment || trackingStatus?.trim() || note?.trim());
+  if (consignment && !isValidConsignmentId(consignment)) {
+    return res.status(400).json({ message: "A consignment number is only letters and digits — check what was pasted" });
+  }
+  if (hasAny && provider === "other" && !courierName?.trim()) {
+    return res.status(400).json({ message: "Name the courier you booked with" });
+  }
+  if (consignment) {
+    const inUse = await consignmentInUse(consignment, order._id);
+    if (inUse) return res.status(409).json({ message: `This consignment number is already on ${inUse}` });
+  }
+
+  const changed = consignment !== (order.courierConsignmentId ?? "");
+  let pathaoStatus: string | undefined;
+  let verified = changed ? false : !!order.courierVerifiedAt;
+  if (consignment && changed && provider === "pathao" && isPathaoConfigured()) {
+    const lookup = await lookupPathaoConsignment(consignment);
+    if (lookup.result === "not_found") {
+      return res.status(400).json({ code: "CONSIGNMENT_NOT_FOUND", message: `Pathao has no parcel ${consignment} on this account — check for a typo` });
+    }
+    if (lookup.result === "found") {
+      if (lookup.merchantOrderId && Types.ObjectId.isValid(lookup.merchantOrderId) && lookup.merchantOrderId !== order.id) {
+        return res.status(409).json({ message: `Pathao says this parcel is for order #${lookup.merchantOrderId.slice(-6).toUpperCase()}` });
+      }
+      if (lookup.recipientPhone && !samePhone(lookup.recipientPhone, order.shippingAddress.phone) && !confirmMismatch) {
+        return res.status(409).json({
+          code: "COURIER_PHONE_MISMATCH",
+          message: `Pathao has this parcel going to ${lookup.recipientPhone}, but this order's phone is ${order.shippingAddress.phone}`,
+        });
+      }
+      pathaoStatus = lookup.orderStatus;
+      verified = true;
+    }
+  }
+
+  const byName = (await staffActor(req))?.name;
+  order.courierProvider = hasAny ? provider : undefined;
+  order.courierName = hasAny && provider === "other" ? courierName!.trim() : undefined;
+  order.courierConsignmentId = consignment || undefined;
+  if (consignment) order.courierAwaitingSince = undefined;
+  order.courierVerifiedAt = consignment && provider === "pathao" && verified ? order.courierVerifiedAt ?? new Date() : undefined;
+  if (changed && consignment && !order.courierBookedAt) order.courierBookedAt = new Date();
   if (trackingStatus?.trim() && trackingStatus.trim() !== order.courierTrackingStatus) {
-    recordCourierStatus(order, { status: trackingStatus, source: "manual", kind: "manual", byName: (await staffActor(req))?.name });
+    recordCourierStatus(order, { status: trackingStatus, source: "manual", kind: "manual", byName });
+  } else if (pathaoStatus) {
+    recordCourierStatus(order, { status: pathaoStatus, source: "pathao", kind: "refresh" });
+    order.courierCheckedAt = new Date();
   } else if (!trackingStatus?.trim()) {
     order.courierTrackingStatus = undefined;
   }
   order.courierNote = note?.trim() || undefined;
+  await order.save();
+  res.json(await populatedOrder(order.id));
+};
+
+// Staff booked the parcel on Pathao's own site, pasting this order's id as
+// the Merchant Order ID. Pathao's first status update (webhook) then fills
+// in the consignment number by itself — nothing to type.
+export const markBookedOnPathaoSite = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("markBookedOnPathaoSite", req);
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+  if (order.courierConsignmentId) return res.status(409).json({ message: "This order already has a courier booking" });
+  if (order.courierAwaitingSince) return res.json(await populatedOrder(order.id));
+
+  order.courierProvider = "pathao";
+  order.courierName = undefined;
+  order.courierAwaitingSince = new Date();
+  recordCourierStatus(order, { status: "Booked on Pathao's site — waiting for Pathao", source: "manual", kind: "manual", byName: (await staffActor(req))?.name });
+  await order.save();
+  res.json(await populatedOrder(order.id));
+};
+
+// Re-checks a saved Pathao number that couldn't be checked when it was
+// typed (Pathao was unreachable then).
+export const verifyCourierConsignment = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("verifyCourierConsignment", req);
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+  if (!order.courierConsignmentId || order.courierProvider !== "pathao") {
+    return res.status(409).json({ message: "This order has no Pathao consignment number to check" });
+  }
+  if (!isPathaoConfigured()) return res.status(400).json({ message: "Pathao isn't connected yet." });
+
+  const lookup = await lookupPathaoConsignment(order.courierConsignmentId);
+  if (lookup.result === "unreachable") return res.status(502).json({ message: "Couldn't reach Pathao — try again in a minute" });
+  if (lookup.result === "not_found") {
+    return res.status(400).json({ code: "CONSIGNMENT_NOT_FOUND", message: `Pathao has no parcel ${order.courierConsignmentId} — edit the number` });
+  }
+  order.courierVerifiedAt = new Date();
+  recordCourierStatus(order, { status: lookup.orderStatus, source: "pathao", kind: "refresh" });
+  order.courierCheckedAt = new Date();
   await order.save();
   res.json(await populatedOrder(order.id));
 };
@@ -923,11 +1048,15 @@ export const removeCourierBooking = async (req: AuthRequest, res: Response) => {
   validateControllerInput("removeCourierBooking", req);
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ message: "Order not found" });
-  if (!order.courierConsignmentId) return res.status(409).json({ message: "This order has no courier booking" });
+  // Also undoes "booked on Pathao's site" while still waiting for Pathao.
+  if (!order.courierConsignmentId && !order.courierAwaitingSince) return res.status(409).json({ message: "This order has no courier booking" });
 
-  const removed = order.courierConsignmentId;
+  const removed = order.courierConsignmentId ?? "waiting for Pathao";
   recordCourierStatus(order, { status: `Booking removed (${removed})`, source: "manual", kind: "manual", byName: (await staffActor(req))?.name });
   order.courierProvider = undefined;
+  order.courierName = undefined;
+  order.courierAwaitingSince = undefined;
+  order.courierVerifiedAt = undefined;
   order.courierConsignmentId = undefined;
   order.courierTrackingStatus = undefined;
   order.courierBookedAt = undefined;
@@ -994,6 +1123,9 @@ export const bookPathaoOrder = async (req: AuthRequest, res: Response) => {
   if (order.courierConsignmentId) {
     return res.status(400).json({ message: "This order already has a courier booking" });
   }
+  if (order.courierAwaitingSince) {
+    return res.status(409).json({ message: "This order was booked on Pathao's site and is waiting for Pathao — remove that first so it isn't booked twice" });
+  }
 
   const { cityId, zoneId, areaId, weightKg, description, specialInstruction } = req.body as {
     cityId?: number;
@@ -1026,6 +1158,8 @@ export const bookPathaoOrder = async (req: AuthRequest, res: Response) => {
 
     order.courierProvider = "pathao";
     order.courierConsignmentId = result.consignmentId;
+    order.courierName = undefined;
+    order.courierVerifiedAt = new Date();
     order.courierBookedAt = new Date();
     if (result.deliveryFee !== undefined) order.courierDeliveryFee = result.deliveryFee;
     recordCourierStatus(order, { status: result.orderStatus, source: "pathao", kind: "booked", byName: (await staffActor(req))?.name });

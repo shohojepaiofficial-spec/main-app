@@ -1459,3 +1459,9 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - New server dependency `web-push` (+ `@types/web-push`). New env vars `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (optional).
 - Checks: server typecheck + 518 tests (new `utils/notifications.test.ts`, route-protection list extended), frontend typecheck + lint + 110 tests, `git diff --check`. Not yet tried in a browser.
 - Left: deploy, sync translations, set VAPID keys in Railway, try bell + push on a phone and a computer.
+
+## 2026-10-19 (Pathao locations at checkout, courier booking without typing, WORK-19)
+- Checkout's address now uses Pathao's own district → thana/zone → area lists (searchable picker), served from the server's cache; our own Zila/Upazila list is the automatic fallback when Pathao's lists can't load. Orders, payment links and saved details store Pathao's ids + names (`shippingAddress.pathao`); the server checks the ids and uses them for the delivery quote directly. Staff booking is pre-filled and the order page says where the location came from.
+- Courier entry: "Booked on Pathao's site" (copy order id → Pathao's Merchant Order ID → the webhook links the consignment number); typed numbers tidied, duplicate numbers refused, "another courier" option with its name, Pathao numbers looked up before saving (unknown refused, other-phone asks first, unreachable saved unverified with "Check number").
+- Checks: server typecheck + 542 tests (new `controllers/courierEntry.test.ts`, webhook linking tests, route-protection list extended), frontend typecheck + lint + 110 tests. Not tried in a browser or against live Pathao.
+- Left: deploy, sync translations, live checks listed under WORK-19.

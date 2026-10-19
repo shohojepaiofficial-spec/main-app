@@ -20,6 +20,8 @@ import { calculateDeliveryTotal, isInsideStoreCity } from "@/lib/delivery";
 import { SITE_URL, SITE_NAME } from "@/lib/seo";
 import { BANGLADESH_ZILAS } from "@/lib/bangladeshGeo";
 import { ZilaUpazilaFields } from "@/views/ZilaUpazilaFields";
+import { PathaoLocationFields } from "@/views/PathaoLocationFields";
+import { useCheckoutLocations } from "@/controllers/useCheckoutLocations";
 import { PAYMENT_METHODS, PaymentMethodPicker } from "@/views/PaymentMethodPicker";
 import { ShareLinkModal } from "@/views/ShareLinkModal";
 import { DeliveryQuote, Order, PaymentMethod } from "@/models";
@@ -211,6 +213,8 @@ export function CheckoutView({
     hasSavedDeliveryLocation(user) ? "saved" : "new"
   );
   const [saveForNextTime, setSaveForNextTime] = useState(true);
+  // Pathao's own place names when its lists load; our Zila/Upazila list if not.
+  const locations = useCheckoutLocations(hasSavedDeliveryLocation(user) ? user?.deliveryLocation?.pathao : undefined);
   // Opt-in only, never on by default — see ARCHITECTURE.md's "Marketing
   // campaigns" section. Only offered when not already opted in.
   const [smsOptIn, setSmsOptIn] = useState(false);
@@ -221,7 +225,7 @@ export function CheckoutView({
     control,
     setValue,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isSubmitted },
   } = useForm<CheckoutValues>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
@@ -250,8 +254,10 @@ export function CheckoutView({
         addressLine: hasSaved ? user.deliveryLocation!.addressLine : "",
       });
       setAddressMode(hasSaved ? "saved" : "new");
+      locations.reset(hasSaved ? user.deliveryLocation?.pathao : undefined);
     }
     prevUserRef.current = user;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, reset]);
 
   const zila = useWatch({ control, name: "zila" });
@@ -274,6 +280,7 @@ export function CheckoutView({
       addressLine: user.deliveryLocation?.addressLine ?? "",
       paymentMethod,
     });
+    locations.reset(user.deliveryLocation?.pathao);
     setAddressMode("saved");
   };
 
@@ -286,16 +293,37 @@ export function CheckoutView({
       addressLine: "",
       paymentMethod,
     });
+    locations.reset();
     setSaveForNextTime(true);
     setAddressMode("new");
   };
 
+  // Our own list only: an upazila that isn't in the newly picked zila is
+  // cleared. Pathao's names aren't in that list, so this stays off for them.
   useEffect(() => {
-    if (!zila || !upazila) return;
+    if (locations.mode === "pathao" || !zila || !upazila) return;
     const valid = BANGLADESH_ZILAS.find((z) => z.zila === zila)?.upazilas.includes(upazila);
     if (!valid) setValue("upazila", "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zila]);
+
+  // Pathao picks fill the form's zila/upazila with Pathao's names, so the
+  // rest of checkout (validation, delivery-fee zone, summary) is unchanged.
+  const pickCity = (id?: number) => {
+    const city = locations.chooseCity(id);
+    setValue("zila", city?.name ?? "", { shouldValidate: isSubmitted });
+    setValue("upazila", "", { shouldValidate: isSubmitted });
+  };
+  const pickZone = (id?: number) => {
+    const zone = locations.chooseZone(id);
+    setValue("upazila", zone?.name ?? "", { shouldValidate: isSubmitted });
+  };
+
+  // Saved details picked from Pathao's list keep their Pathao location;
+  // older saved details (our own list) simply have none.
+  const pathaoRef = addressMode === "saved" && !user?.deliveryLocation?.pathao ? undefined : locations.pathaoRef;
+  const quoteCityId = pathaoRef?.cityId;
+  const quoteZoneId = pathaoRef?.zoneId;
 
   // Live Pathao delivery quote — a real courier price for this exact
   // zila/upazila once both are picked, falling back to the flat per-product
@@ -319,6 +347,7 @@ export function CheckoutView({
           items: toOrderLineInputs(items),
           zila,
           upazila,
+          ...(quoteCityId && quoteZoneId ? { pathao: { cityId: quoteCityId, zoneId: quoteZoneId } } : {}),
         })
         .then((quote) => {
           if (!ignore) setLiveQuote({ ...quote, zila, upazila });
@@ -336,7 +365,7 @@ export function CheckoutView({
       clearTimeout(timer);
       setIsQuoteLoading(false);
     };
-  }, [zila, upazila, items]);
+  }, [zila, upazila, items, quoteCityId, quoteZoneId]);
 
   const itemsTotal = totalPrice();
   const promoDiscount = discountAmount();
@@ -357,7 +386,8 @@ export function CheckoutView({
   const grandTotal = Math.max(0, itemsTotal + deliveryFee - discount - preorderDiscount);
 
   const onSubmit = async (values: CheckoutValues, event?: BaseSyntheticEvent) => {
-    const { paymentMethod: method, ...shippingAddress } = values;
+    const { paymentMethod: method, ...typedAddress } = values;
+    const shippingAddress = pathaoRef ? { ...typedAddress, pathao: pathaoRef } : typedAddress;
     const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
     if (submitter?.dataset.mode === "link") {
       try {
@@ -434,6 +464,7 @@ export function CheckoutView({
               zila: values.zila,
               upazila: values.upazila,
               addressLine: values.addressLine,
+              ...(pathaoRef ? { pathao: pathaoRef } : {}),
             })
           )
           .then((updatedUser) => useAuthStore.getState().updateUser(updatedUser))
@@ -537,14 +568,38 @@ export function CheckoutView({
             </div>
           </div>
 
-          <ZilaUpazilaFields
-            zilaRegister={register("zila")}
-            upazilaRegister={register("upazila")}
-            selectedZila={zila}
-            zilaError={errors.zila?.message}
-            upazilaError={errors.upazila?.message}
-            disabled={addressMode === "saved"}
-          />
+          {locations.mode === "loading" ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-busy="true">
+              <div className="h-[62px] animate-pulse rounded bg-background" />
+              <div className="h-[62px] animate-pulse rounded bg-background" />
+            </div>
+          ) : locations.mode === "pathao" && !(addressMode === "saved" && !user?.deliveryLocation?.pathao) ? (
+            <PathaoLocationFields
+              cities={locations.cities}
+              zones={locations.zones}
+              areas={locations.areas}
+              selection={locations.selection}
+              isLoadingZones={locations.isLoadingZones}
+              isLoadingAreas={locations.isLoadingAreas}
+              onCity={pickCity}
+              onZone={pickZone}
+              onArea={locations.chooseArea}
+              cityError={errors.zila ? t("address.pickCity", "Pick your district") : undefined}
+              zoneError={errors.upazila ? t("address.pickZone", "Pick your thana / zone") : undefined}
+              disabled={addressMode === "saved"}
+            />
+          ) : (
+            // Pathao's lists didn't load (or these are older saved details
+            // from our own list): our Zila/Upazila list, as before.
+            <ZilaUpazilaFields
+              zilaRegister={register("zila")}
+              upazilaRegister={register("upazila")}
+              selectedZila={zila}
+              zilaError={errors.zila?.message}
+              upazilaError={errors.upazila?.message}
+              disabled={addressMode === "saved"}
+            />
+          )}
 
           <div>
             <label className="text-sm font-medium">{t("checkout.houseRoadArea", "House / Road / Area")}</label>
