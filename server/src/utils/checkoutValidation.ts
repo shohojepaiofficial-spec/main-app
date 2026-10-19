@@ -12,7 +12,7 @@ const text = (max: number) => z.string().trim().min(1).max(max);
 export const checkoutSchema = z.object({
   items: cartItems,
   shippingAddress: z.object({ fullName: text(120), phone: text(40).refine(isBdMobile, "Enter a valid Bangladeshi mobile number, like 01712345678"), zila: text(100), upazila: text(100), addressLine: text(500) }).strict(),
-  promoCode: z.string().max(80).optional(), sharedCartId: objectId.optional(),
+  promoCode: z.string().max(80).optional(),
   paymentMethod: z.enum(["cod", "bkash"]).optional(),
 }).strict();
 

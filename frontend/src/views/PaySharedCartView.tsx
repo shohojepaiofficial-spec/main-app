@@ -14,7 +14,7 @@ import { PreorderLineTag } from "@/views/PreorderLineTag";
 // it sends the payer back here.
 export function PaySharedCartView({ sharedCart, result }: { sharedCart: SharedCart; result?: string }) {
   const { t } = useTranslations();
-  const { isPaying, pay } = usePayForSharedCart(sharedCart.id);
+  const { isPaying, pay } = usePayForSharedCart(sharedCart.link);
   const { totals, deliverTo } = sharedCart;
   const itemsTotal = sharedCart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const paid = sharedCart.isFulfilled || result === "success";

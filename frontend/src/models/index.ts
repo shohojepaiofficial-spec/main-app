@@ -444,7 +444,9 @@ export interface SharedCartItem {
 }
 
 export interface SharedCart {
-  id: string;
+  // The signed link (`/pay/<link>`), never a bare id — see the server's
+  // utils/paymentLinks.ts.
+  link: string;
   items: SharedCartItem[];
   createdByName: string;
   isFulfilled: boolean;

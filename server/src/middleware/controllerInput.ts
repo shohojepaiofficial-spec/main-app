@@ -36,7 +36,7 @@ export function validateControllerInput(name: string, req: Request) {
   }
   assertSafeInput(req.body);
   if (["createProduct", "updateProduct"].includes(name)) { productInput(req.body); return; }
-  if (name === "createOrder" || name === "adminCreateOrder") { parseInput(name === "createOrder" ? checkoutSchema : checkoutSchema.omit({ sharedCartId: true }), req.body); return; }
+  if (name === "createOrder" || name === "adminCreateOrder") { parseInput(checkoutSchema, req.body); return; }
   if (name in returnInputs) {
     if (!["GET", "HEAD"].includes(req.method ?? "GET")) parseInput(returnInputs[name], req.body ?? {});
     return;

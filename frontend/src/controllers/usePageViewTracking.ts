@@ -20,7 +20,10 @@ export function usePageViewTracking() {
 
   useEffect(() => {
     if (pathname.startsWith("/admin")) return;
-    trackPageView(pathname);
-    pushToDataLayer({ event: "page_view", page_path: pathname });
+    // A payment link is a secret (anyone holding it can pay or see who it
+    // is for), so it is never recorded or handed to tags as a path.
+    const path = pathname.startsWith("/pay/") ? "/pay" : pathname;
+    trackPageView(path);
+    pushToDataLayer({ event: "page_view", page_path: path });
   }, [pathname]);
 }

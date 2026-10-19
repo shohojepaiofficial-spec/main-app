@@ -7,7 +7,7 @@ import { Order, OrderSource, PaymentMethod } from "../models/Order";
 import { Review } from "../models/Review";
 import { Product } from "../models/Product";
 import { PromoCode } from "../models/PromoCode";
-import { SharedCart } from "../models/SharedCart";
+import { paymentLink } from "../utils/paymentLinks";
 import { User } from "../models/User";
 import { STORE_CITY } from "../utils/store";
 import { isNonEmptyString } from "../utils/validate";
@@ -437,9 +437,9 @@ function checkoutResponse(order: InstanceType<typeof Order>) {
 }
 
 // Decrements stock only after every line has been validated, so a bad item
-// further down the cart can't leave earlier ones partially deducted) and,
-// when checking out via a shared "ask someone else to pay" link, marks that
-// link fulfilled so it can't be completed twice.
+// further down the cart can't leave earlier ones partially deducted.
+// Payment links ("ask someone else to pay") are paid through
+// sharedCartController#payForSharedCart, never through here (SEC-21).
 // Unconfirmed ("pending") orders one customer account may have at once.
 export const MAX_OPEN_ORDERS = 3;
 
@@ -448,7 +448,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   const input = parseInput(checkoutSchema, req.body);
   const buyer = await User.findById(req.userId).select("provider isEmailVerified");
   if (!buyer || !buyer.isEmailVerified) return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "Verify your email before checkout. You can resend the verification email from Settings." });
-  const { items, shippingAddress, promoCode, sharedCartId, paymentMethod } = input;
+  const { items, shippingAddress, promoCode, paymentMethod } = input;
   const idempotencyKey = req.get("Idempotency-Key");
   if (!idempotencyKey || !/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) return res.status(400).json({ message: "A valid Idempotency-Key header is required" });
   const requestFingerprint = createHash("sha256").update(JSON.stringify({ ...input, items: cartFingerprint(items) })).digest("hex");
@@ -484,14 +484,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     await session.withTransaction(async () => {
       address = readShippingAddress(shippingAddress);
-      let authoritativeItems = items;
-      if (sharedCartId) {
-        const cart = await SharedCart.findOne({ _id: sharedCartId, expiresAt: { $gt: new Date() }, fulfilledOrder: { $exists: false }, claimedOrder: { $exists: false } }).session(session);
-        if (!cart) throw Object.assign(new Error("Shared cart is expired or already claimed"), { status: 409 });
-        authoritativeItems = cart.items.map(i => ({ productId: i.product.toString(), variantId: i.variant?.toString(), quantity: i.quantity }));
-        if (cartFingerprint(items) !== cartFingerprint(authoritativeItems)) throw Object.assign(new Error("Shared cart contents have changed"), { status: 400 });
-      }
-      const totals = await computeOrderTotals(authoritativeItems, address.zila, address.upazila, promoCode, session, method);
+      const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method);
 
       await decrementStockAtomically(totals.orderItems, session);
 
@@ -505,22 +498,12 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
             paymentMethod: method,
             source: "online",
             shippingAddress: address,
-            sharedCartId: sharedCartId || undefined,
           },
         ],
         { session }
       );
       order = created;
       await recordStockMovements(orderStockMovements(totals.orderItems, "sale", { order: created._id }), session);
-
-      if (sharedCartId) {
-        const claimed = await SharedCart.findOneAndUpdate(
-          { _id: sharedCartId, expiresAt: { $gt: new Date() }, fulfilledOrder: { $exists: false }, claimedOrder: { $exists: false } },
-          { $set: { claimedOrder: created._id, ...(method === "cod" ? { fulfilledBy: req.userId, fulfilledOrder: created._id } : {}) } },
-          { session }
-        );
-        if (!claimed) throw Object.assign(new Error("Shared cart already claimed"), { status: 409 });
-      }
     });
   } catch (err) {
     if ((err as { code?: number }).code === 11000) {
@@ -578,7 +561,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 // buyer account required. See docs/ARCHITECTURE.md's "Checkout & Orders".
 export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
   validateControllerInput("adminCreateOrder", req);
-  parseInput(checkoutSchema.omit({ sharedCartId: true }), req.body);
+  parseInput(checkoutSchema, req.body);
   const key = req.get("Idempotency-Key");
   if (!key || !/^[A-Za-z0-9_-]{16,128}$/.test(key)) return res.status(400).json({ message: "A valid Idempotency-Key header is required" });
   const idempotencyKey = `${req.userId}:${key}`;
@@ -659,7 +642,7 @@ export const bkashCallback = async (req: Request, res: Response) => {
   // back to the link's page, which needs no sign-in.
   const finish = (queryStatus: string) =>
     order.sharedCartId
-      ? res.redirect(`${process.env.CLIENT_URL || "http://localhost:3000"}/pay/${order.sharedCartId}?status=${queryStatus}`)
+      ? res.redirect(`${process.env.CLIENT_URL || "http://localhost:3000"}/pay/${paymentLink(String(order.sharedCartId))}?status=${queryStatus}`)
       : res.redirect(`${redirectBase}?status=${queryStatus}&order=${order.id}`);
 
   // Already resolved by an earlier hit of this same callback (e.g. the

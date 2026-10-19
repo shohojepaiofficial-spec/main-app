@@ -14,11 +14,11 @@ export default async function PaySharedCartPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ link: string }>;
   searchParams: Promise<{ status?: string }>;
 }) {
-  const [{ id }, { status }] = await Promise.all([params, searchParams]);
-  const sharedCart = await getSharedCart(id);
+  const [{ link }, { status }] = await Promise.all([params, searchParams]);
+  const sharedCart = await getSharedCart(link);
   if (!sharedCart) notFound();
 
   return <PaySharedCartView sharedCart={sharedCart} result={status} />;

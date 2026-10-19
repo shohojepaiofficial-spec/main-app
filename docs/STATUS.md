@@ -6,7 +6,7 @@ row here and add a dated entry to [PROGRESS.md](PROGRESS.md) (the full history
 log: what changed and how it was verified). How things are built lives in
 [ARCHITECTURE.md](ARCHITECTURE.md); costs in [LAUNCH_COSTS.md](LAUNCH_COSTS.md).
 
-Updated: 2026-10-13. Launch target: end of October 2026 (3 products, Cash on
+Updated: 2026-10-19. Launch target: end of October 2026 (3 products, Cash on
 Delivery + Pathao).
 
 A task is **Done** only after its acceptance checks pass. "Done locally" means
@@ -42,7 +42,7 @@ the user deferred them on 2026-10-09.
 | SEC-01/02/03 | Tokens, 2FA changes, sessions | Live Google + password + staff-2FA login; factor replace/disable; logout vs. "sign out on all devices"; password reset kills old sessions in a second browser; refresh after 15 min; multi-tab. |
 | SEC-04 | Cancellation + restock | Race cancellations on a real replica set: exactly one restock, cancelled orders never reopen. |
 | SEC-05 | Checkout abuse / payment reservations | Checked 2026-10-12: indexes present, replica set, no old pending online orders (0 orders). Duplicate-submit verified live: two simultaneous requests + a retry gave one order and one stock decrement; same key with a different cart got 409. Left: 30-min reservation worker releases once (needs live bKash, WORK-01). |
-| SEC-06 | Shared carts | Two payers on one link; expired/legacy links rejected. |
+| SEC-06 | Shared carts | Two payers on one payment link (needs live bKash); expired and unsigned links rejected (see SEC-21). |
 | SEC-08 | HttpOnly cookies + proxy | Checked 2026-10-12: cross-site / wrong-origin / header-less POSTs get 403, forged bearer ignored, blocked routes 404. Signed-in check passed: JavaScript sees only `not-a-credential` markers, requests work through the hidden cookies, the API rejects the marker. Left: old browser sessions must sign in again (no old session was available to try). |
 | SEC-09 | Image re-encoding | Product photo upload verified live (2026-10-12). Left: banner/profile uploads; corrupt/animated/oversized files rejected. |
 | SEC-10 | Input validation | Verified live 2026-10-12: a product edited to add variants + pre-order saved correctly. Nothing left. |
@@ -54,6 +54,10 @@ the user deferred them on 2026-10-09.
 | SEC-18 | Name injection in account emails | **Done locally** (2026-10-18): names escaped in emails, 80 chars, no links/markup. Left: deploy; sign up with a link in the name and see it refused. |
 | SEC-19 | Staff two-step verification required | **Done locally** (2026-10-18): staff routes refuse admins/coadmins without 2FA; dashboard banner points to Settings. Left: deploy; every coadmin turns on 2FA. |
 | SEC-20 | SMS balance never sends API/secret key | **Done locally** (2026-10-18): only `SMS_CLIENT_ID` is used. Left: deploy; tile still shows the balance. |
+| SEC-21 | Guessable payment links | **Done locally** (2026-10-19, audit). `/pay/<id>` used the bare cart id, which is partly predictable, so a stranger could see who a link was for and press Pay to hold stock, block the link and use up the asker's open orders. Links are now `<id>-<signature>` (HMAC with `JWT_SECRET`); a bare id is a 404; pay calls also count against the asker's 10 orders a day; `createOrder` no longer takes `sharedCartId`; page tracking records `/pay` without the link. Left: deploy (frontend and backend together, with the unpushed `35ccb9b`); make a link and open it in a private window; check the old `/pay/<id>` form is "not found". Links made before this stop working. The Meta pixel still sees the full page address through GTM. |
+| SEC-22 | Promo codes are all public, no use limits | **Open** (2026-10-19 audit). `GET /api/promo-codes/active` lists every active code, so a code meant for one person (or a test code) is visible to anyone; codes have no total or per-customer limit. Plan: a "show on site" flag (default off) and optional usage limits. |
+| SEC-23 | Staff 2FA code guessing | **Open** (2026-10-19 audit). `/api/auth/2fa/verify-login` is limited per IP only (20 per 15 min), so many IPs can keep guessing one account's code; a used code works again inside its 30-second window. Plan: per-account limit keyed by the challenge's user id, remember the last used time-step. |
+| SEC-24 | Low-risk hardening | **Open** (2026-10-19 audit). Banner button link and `accentColor` unvalidated; login/register say which emails have accounts; reviews from unverified accounts; `dangerouslyAllowLocalIP` on in production plus leftover `picsum.photos`/`fbsbx.com` image hosts in `next.config.ts`; oauth-sync secret compared with `!==`; Pathao webhook accepts the raw secret as a signature; wishlist has no size cap; two return requests at once can claim the same item. |
 
 ## 4. Proposed features (not started unless noted)
 

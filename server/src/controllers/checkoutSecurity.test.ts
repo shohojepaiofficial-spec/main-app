@@ -63,20 +63,10 @@ describe("checkout security", () => {
     await createOrder(request(undefined, { items: [{ ...item, quantity: 3 }] }), res as unknown as Response);
     expect(res.status).toHaveBeenCalledWith(409); expect(state.stock).toBe(8);
   });
-  it("allows only one payer to fulfill a shared cart", async () => {
-    state.cart = { items: [{ product: item.productId, quantity: 2 }], expiresAt: new Date(Date.now() + 60000) };
-    const input = { sharedCartId: "507f1f77bcf86cd799439012" };
-    const first = response(), second = response();
-    await Promise.all([createOrder(request("first-key-123456789", input), first as unknown as Response), createOrder(request("second-key-123456789", input), second as unknown as Response)]);
-    expect(state.orders).toHaveLength(1); expect(state.stock).toBe(8);
-    expect(state.cart.fulfilledOrder).toBe(state.orders[0]._id);
-    expect(second.status).toHaveBeenCalledWith(409);
-  });
-  it("rejects altered shared carts without reserving inventory", async () => {
-    state.cart = { items: [{ product: item.productId, quantity: 1 }], expiresAt: new Date(Date.now() + 60000) };
-    const res = response();
-    await createOrder(request(undefined, { sharedCartId: "507f1f77bcf86cd799439012" }), res as unknown as Response);
-    expect(res.status).toHaveBeenCalledWith(400); expect(state.stock).toBe(10);
+  it("refuses the old pay-by-cart-id checkout (SEC-21)", async () => {
+    // Payment links are paid only through POST /api/shared-carts/:link/pay.
+    await expect(createOrder(request(undefined, { sharedCartId: "507f1f77bcf86cd799439012" }), response() as unknown as Response)).rejects.toMatchObject({ status: 400 });
+    expect(state.orders).toHaveLength(0); expect(state.stock).toBe(10);
   });
   it("rejects checkout for unverified accounts", async () => {
     state.verified = false; const res = response();

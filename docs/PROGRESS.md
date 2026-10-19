@@ -1428,3 +1428,14 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Owner's choices: no sign-in for the payer; before bKash is live, links can be made and show "bKash payment is coming soon" (pay call 503 `BKASH_UNAVAILABLE`).
 - 23 new Bangla rows. Verified: server `tsc` + 496 tests (3 new), frontend `tsc` + lint + build. Not tried in a browser; the bKash part can't be tested until bKash is live (WORK-01).
 - Left: deploy, `npm run sync-translations`, make a link and open it in a private window.
+
+## 2026-10-19 — Security audit; payment links can no longer be guessed (SEC-21)
+
+- Read-only audit of server and frontend. `npm audit` 0 findings on both; HSTS and the other headers live; order/return ownership checks, injection guards, image re-encoding and sessions held up. Findings recorded as SEC-21 (fixed here), SEC-22 (public promo codes, no use limits), SEC-23 (2FA code guessing limited per IP only) and SEC-24 (low-risk items) in STATUS.md.
+- SEC-21: a payment link was `/pay/<cart id>`, and ids are partly predictable from one's own link. Anyone could see who a link was for and, once bKash is live, press Pay to hold the stock 30 minutes, block the link and use up the asker's 3 open orders, repeatedly.
+  - Links are now `/pay/<id>-<signature>`: an HMAC of the id with `JWT_SECRET` (`server/src/utils/paymentLinks.ts`). `GET /api/shared-carts/:link` and `POST /api/shared-carts/:link/pay` return 404 for a bare id or a bad signature before touching the database. Create and view return `link`, never the id; the bKash callback rebuilds the link from the order's `sharedCartId`.
+  - The pay call also refuses once the asker has 10 orders in 24 hours (`CHECKOUT_DAILY_LIMIT`, shared with `checkoutDailyLimiter`), so links can't get around the daily checkout cap.
+  - Removed `createOrder`'s old `sharedCartId` path (unused by the frontend since the payment-link change, and it took the bare id); sending it is now a 400.
+  - Frontend: route folder `pay/[id]` → `pay/[link]`; services, model, checkout and pay page use `link`; page-view tracking and the GTM `page_path` record `/pay` without the link. GTM tags that read the browser address themselves (Meta pixel) still see it.
+- Verified: server `tsc` + 500 tests (new `paymentLinks.test.ts`, 2 new shared-cart tests, the two old shared-cart checkout tests replaced by one that checks `sharedCartId` is refused); frontend `tsc` + lint + 110 tests + build. Not tried in a browser.
+- Left: deploy together with `35ccb9b` (not pushed yet), make a link and open it in a private window, check the bare-id form is "not found". Links made before this stop working.

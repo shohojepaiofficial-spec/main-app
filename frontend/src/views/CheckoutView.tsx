@@ -43,7 +43,7 @@ function extractErrorMessage(err: unknown, fallback: string) {
 // "Ask someone else to pay": switches checkout to filling in where it goes;
 // the form's button then creates a payment link instead of an order. The
 // person who opens the link only pays (bKash, no account) — see
-// app/(public)/pay/[id].
+// app/(public)/pay/[link].
 function SomeoneElsePaysCard({ active, onChange }: { active: boolean; onChange: (active: boolean) => void }) {
   const { t } = useTranslations();
   return (
@@ -412,12 +412,12 @@ export function CheckoutView({
     const { paymentMethod: method, ...shippingAddress } = values;
     if (someoneElsePays) {
       try {
-        const id = await sharedCartService.createSharedCart({
+        const link = await sharedCartService.createSharedCart({
           items: toOrderLineInputs(items),
           shippingAddress,
           promoCode: promo?.code,
         });
-        setPaymentLink(`${SITE_URL}/pay/${id}`);
+        setPaymentLink(`${SITE_URL}/pay/${link}`);
       } catch (err) {
         toast.error(extractErrorMessage(err, t("checkout.failedToCreateLink", "Failed to create link")));
       }

@@ -21,7 +21,6 @@ export interface CreateOrderInput {
   items: OrderLineInput[];
   shippingAddress: ShippingDetails;
   promoCode?: string;
-  sharedCartId?: string;
   paymentMethod?: PaymentMethod;
 }
 

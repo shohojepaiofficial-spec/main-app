@@ -6,8 +6,9 @@ import { checkoutIpLimiter, checkoutAccountLimiter } from "../middleware/rateLim
 const router = Router();
 
 router.post("/", checkoutIpLimiter, protect, checkoutAccountLimiter, createSharedCart);
-router.get("/:id", getSharedCart);
-// Public: the payer needs no account. Rate-limited like checkout.
-router.post("/:id/pay", checkoutIpLimiter, payForSharedCart);
+// Public, so `:link` is the signed payment link, never a bare cart id
+// (utils/paymentLinks.ts). The payer needs no account; rate-limited like checkout.
+router.get("/:link", getSharedCart);
+router.post("/:link/pay", checkoutIpLimiter, payForSharedCart);
 
 export default router;

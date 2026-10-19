@@ -13,6 +13,8 @@ import { User } from "../models/User";
 import { isBkashLive, createBkashPayment } from "../integrations/bkash";
 import { transitionOrder } from "../utils/orderTransitions";
 import { orderStockMovements, recordStockMovements } from "../utils/stockLedger";
+import { cartIdFromPaymentLink, paymentLink } from "../utils/paymentLinks";
+import { CHECKOUT_DAILY_LIMIT } from "../middleware/rateLimit";
 import {
   computeOrderTotals, decrementStockAtomically, orderFieldsFromTotals, readShippingAddress, MAX_OPEN_ORDERS,
 } from "./orderController";
@@ -52,15 +54,21 @@ export const createSharedCart = async (req: AuthRequest, res: Response) => {
     createdBy: req.userId,
   });
 
-  res.status(201).json({ id: sharedCart.id });
+  // The signed link, never the bare id: anyone holding it can see and pay.
+  res.status(201).json({ link: paymentLink(sharedCart.id) });
 };
 
-// Public — whoever receives the link needs to see what's being asked of
-// them before deciding to log in and pay for it.
+const LINK_NOT_VALID = { message: "This link is no longer valid" };
+
+// Public — whoever receives the link sees what's being asked of them
+// before deciding to pay. An unsigned or forged link is the same 404 as an
+// expired one.
 export const getSharedCart = async (req: Request, res: Response) => {
   validateControllerInput("getSharedCart", req);
-  const sharedCart = await SharedCart.findById(req.params.id).populate("createdBy", "name");
-  if (!sharedCart || !sharedCart.expiresAt || sharedCart.expiresAt <= new Date()) return res.status(404).json({ message: "This link is no longer valid" });
+  const cartId = cartIdFromPaymentLink(req.params.link);
+  if (!cartId) return res.status(404).json(LINK_NOT_VALID);
+  const sharedCart = await SharedCart.findById(cartId).populate("createdBy", "name");
+  if (!sharedCart || !sharedCart.expiresAt || sharedCart.expiresAt <= new Date()) return res.status(404).json(LINK_NOT_VALID);
 
   const productIds = sharedCart.items.map((i) => i.product);
   const products = await Product.find({ _id: { $in: productIds } });
@@ -125,7 +133,7 @@ export const getSharedCart = async (req: Request, res: Response) => {
   }
 
   res.json({
-    id: sharedCart.id,
+    link: paymentLink(sharedCart.id),
     items,
     createdByName: createdBy?.name ?? "Someone",
     isFulfilled: !!sharedCart.fulfilledOrder,
@@ -149,11 +157,13 @@ const claimable = (id: Types.ObjectId) => ({ _id: id, expiresAt: { $gt: new Date
 // tried again; a retry while one is still open reuses its bKash page.
 export const payForSharedCart = async (req: Request, res: Response) => {
   validateControllerInput("payForSharedCart", req);
+  const cartId = cartIdFromPaymentLink(req.params.link);
+  if (!cartId) return res.status(404).json(LINK_NOT_VALID);
   if (!isBkashLive()) {
     return res.status(503).json({ code: "BKASH_UNAVAILABLE", message: "bKash payment is coming soon." });
   }
-  const cart = await SharedCart.findById(req.params.id);
-  if (!cart || cart.expiresAt <= new Date()) return res.status(404).json({ message: "This link is no longer valid" });
+  const cart = await SharedCart.findById(cartId);
+  if (!cart || cart.expiresAt <= new Date()) return res.status(404).json(LINK_NOT_VALID);
   if (cart.fulfilledOrder) return res.status(409).json({ message: "This has already been paid for." });
   if (!cart.shippingAddress) {
     return res.status(410).json({ message: "This link is out of date. Ask for a new one." });
@@ -168,6 +178,12 @@ export const payForSharedCart = async (req: Request, res: Response) => {
   const openOrders = await Order.countDocuments({ user: cart.createdBy, status: "pending" });
   if (openOrders >= MAX_OPEN_ORDERS) {
     return res.status(429).json({ message: "This order can't be paid right now. Please ask the person who sent the link." });
+  }
+  // The same daily cap as the asker's own checkouts (checkoutDailyLimiter):
+  // otherwise links would let one account hold stock around the clock.
+  const ordersToday = await Order.countDocuments({ user: cart.createdBy, createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } });
+  if (ordersToday >= CHECKOUT_DAILY_LIMIT) {
+    return res.status(429).json({ message: "This order can't be paid today. Please try again tomorrow or ask the person who sent the link." });
   }
 
   const address = cart.shippingAddress;
