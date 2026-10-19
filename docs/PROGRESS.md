@@ -1472,3 +1472,8 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Fix: under the session lock, a browser that already holds a login for the same person skips the handoff, and a failed handoff never wipes that login (another person's login is still replaced). 3 new tests.
 - Logs added for the other quiet endings: proxy "no refresh cookie", server "token didn't verify" / "account signed out everywhere" / "renewal pass used twice". If it happens again, Vercel/Railway logs show which.
 - Checks: server 542 tests, frontend 113 tests, typecheck, lint. Needs live confirmation: sign in with Google, let the device sleep > 15 min, come back.
+
+## 2026-10-20 (logged out on reload — renewal reply lost)
+- Report (live, 00:53): logged in, reloaded a little later, login gone. Session records: the session was renewed at 18:52:47 UTC and ended by the server at 18:52:49 with "renewal pass used twice". The browser reloaded while a renewal was in flight: the server swapped the pass but the reply (and its new cookie) never arrived, so the next page load sent the old pass and was treated as theft.
+- Fix (`server/src/utils/sessions.ts`): the pass replaced by the last renewal is accepted again for 60 seconds (`RENEWAL_GRACE_MS`) and renewed instead of ending the session. The window is not extended by reuse, and older passes or replays after 60 s still end the session. `AuthSession` gains `previousRefreshTokenHash` and `rotatedAt`. Logged as "replaced pass reused within grace period".
+- Checks: server 544 tests, typecheck. Left: deploy backend; sign in, reload repeatedly around the 15-minute mark and see the login stay.

@@ -6,6 +6,8 @@ import { alertIfNewDevice } from "./signInAlert";
 import { User } from "../models/User";
 import { hashToken, SESSION_SECONDS, signAccessToken, signRefreshToken, verifyAccessToken, verifyTypedToken } from "./authTokens";
 
+export const RENEWAL_GRACE_MS = 60_000;
+
 export class SessionError extends Error {
   status = 401;
   code = "SESSION_REVOKED";
@@ -58,10 +60,21 @@ export async function rotateSession(refreshToken: string, device: SessionDevice 
     throw new SessionError();
   }
   const nextRefreshToken = signRefreshToken(user.id, { sid: claims.sid, version: claims.version }, claims.exp!);
-  const session = await AuthSession.findOneAndUpdate({
-    _id: claims.sid, user: user.id, version: claims.version,
-    refreshTokenHash: hashToken(refreshToken), revokedAt: null, expiresAt: { $gt: new Date() },
-  }, { $set: { refreshTokenHash: hashToken(nextRefreshToken), lastUsedAt: new Date() } }, { returnDocument: "after" });
+  const now = new Date(), presented = hashToken(refreshToken);
+  const live = { _id: claims.sid, user: user.id, version: claims.version, revokedAt: null, expiresAt: { $gt: now } };
+  let session = await AuthSession.findOneAndUpdate({ ...live, refreshTokenHash: presented },
+    { $set: { refreshTokenHash: hashToken(nextRefreshToken), previousRefreshTokenHash: presented, rotatedAt: now, lastUsedAt: now } },
+    { returnDocument: "after" });
+  if (!session) {
+    // The pass the last renewal replaced, shortly after: the browser reloaded
+    // or navigated while that renewal was in flight and never got the reply
+    // (or its cookie). Renew again instead of ending a real customer's login.
+    // The window is not extended, so replays after it still end the session.
+    session = await AuthSession.findOneAndUpdate({ ...live, previousRefreshTokenHash: presented,
+      rotatedAt: { $gt: new Date(now.getTime() - RENEWAL_GRACE_MS) } },
+    { $set: { refreshTokenHash: hashToken(nextRefreshToken), lastUsedAt: now } }, { returnDocument: "after" });
+    if (session) console.warn(`Session refresh: replaced pass reused within grace period (session ${claims.sid})`);
+  }
   if (!session) {
     // A correctly signed but spent refresh token proves replay, so revoke
     // its session as well as refusing to mint any more credentials.

@@ -100,18 +100,40 @@ describe("server-side session lifecycle", () => {
     expect((await gate(second.token)).req.userId).toBe(id);
   });
 
-  it("revokes the whole session when a spent refresh token is replayed", async () => {
+  it("revokes the whole session when a spent refresh token is replayed after the grace period", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
     const first = await issue(), second = await rotateSession(first.refreshToken);
+    vi.setSystemTime(Date.now() + 61_000);
     await expect(rotateSession(first.refreshToken)).rejects.toMatchObject({ code: "SESSION_REVOKED" });
     expect((await gate(second.token)).res.status).toHaveBeenCalledWith(401);
     await expect(rotateSession(second.refreshToken)).rejects.toThrow();
   });
 
-  it("allows only one concurrent refresh and revokes the session upon reuse", async () => {
+  it("renews again when the replaced pass returns within the grace period (reply lost on reload)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
     const first = await issue();
-    const results = await Promise.allSettled([rotateSession(first.refreshToken), rotateSession(first.refreshToken)]);
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    await rotateSession(first.refreshToken); // reply never reached the browser
+    vi.setSystemTime(Date.now() + 2_000);
+    const retried = await rotateSession(first.refreshToken);
+    expect((await gate(retried.token)).req.userId).toBe(id);
+    await expect(rotateSession(retried.refreshToken)).resolves.toHaveProperty("token");
+  });
+
+  it("does not stretch the grace period by reusing the replaced pass", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const first = await issue();
+    await rotateSession(first.refreshToken);
+    vi.setSystemTime(Date.now() + 40_000);
+    await rotateSession(first.refreshToken);
+    vi.setSystemTime(Date.now() + 40_000);
+    await expect(rotateSession(first.refreshToken)).rejects.toMatchObject({ code: "SESSION_REVOKED" });
     expect(await isSessionActive(verifyAccessToken(first.token))).toBe(false);
+  });
+
+  it("revokes when a pass older than the replaced one is replayed", async () => {
+    const first = await issue(), second = await rotateSession(first.refreshToken);
+    await rotateSession(second.refreshToken);
+    await expect(rotateSession(first.refreshToken)).rejects.toMatchObject({ code: "SESSION_REVOKED" });
   });
 
   it("does not let invalid signatures or the wrong token purpose revoke a session", async () => {

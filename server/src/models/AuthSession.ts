@@ -6,6 +6,10 @@ const authSessionSchema = new Schema({
   version: { type: Number, required: true },
   authenticatedAt: Number,
   refreshTokenHash: { type: String, required: true, select: false },
+  // The pass replaced by the last renewal, accepted again for a short grace
+  // period in case the browser never received the reply (see rotateSession).
+  previousRefreshTokenHash: { type: String, select: false },
+  rotatedAt: Date,
   expiresAt: { type: Date, required: true },
   revokedAt: { type: Date, default: null },
   // Shown on the "Active sessions" list; never used for authentication.
