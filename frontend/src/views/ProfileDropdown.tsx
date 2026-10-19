@@ -35,7 +35,7 @@ export function ProfileDropdown() {
       {/* Label + arrow so it's clear this opens a menu, not just an avatar. */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-full border border-border py-0.5 pl-0.5 pr-2 hover:bg-background"
+        className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-2.5 text-primary hover:bg-primary/20"
         aria-label={t("nav.openAccountMenu", "Open account menu")}
         aria-haspopup="menu"
         aria-expanded={isOpen}
