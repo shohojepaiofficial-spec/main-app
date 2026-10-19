@@ -11,7 +11,7 @@ const fields: Record<string, string> = {
   verifyEmail: "token", forgotPassword: "email", resetPassword: "token password", refreshSession: "refreshToken",
   setupTwoFactor: "", replaceTwoFactor: "code", confirmTwoFactor: "code", confirmTwoFactorReplacement: "code",
   disableTwoFactor: "code", verifyTwoFactorLogin: "tempToken code",
-  createSharedCart: "items", getDeliveryQuote: "items zila upazila",
+  createSharedCart: "items shippingAddress promoCode", payForSharedCart: "", getDeliveryQuote: "items zila upazila",
   updateOrderStatus: "status", bulkUpdateStatus: "ids status", updateOrderNote: "note",
   updateCourierInfo: "consignmentId trackingStatus note", removeCourierBooking: "", bookPathaoOrder: "cityId zoneId areaId weightKg description specialInstruction",
   createAd: "title sourceType productId promoCode caption link platforms", publishAd: "platforms",
@@ -56,6 +56,7 @@ export function validateControllerInput(name: string, req: Request) {
     if (booleans.has(field) || name === "updateMarketingOptIn") schema = z.boolean();
     if (field === "isActive") schema = z.union([z.boolean(), z.enum(["true", "false"])]);
     if (field === "items") schema = cartItems;
+    if (field === "shippingAddress") schema = checkoutSchema.shape.shippingAddress;
     if (field === "ids") schema = z.array(objectId).min(1).max(100);
     if (field === "permissions" || field === "channels") schema = z.array(z.string().max(100)).max(30);
     if (field === "platforms") schema = z.union([z.array(z.string().max(100)).max(10), z.string().max(500)]);

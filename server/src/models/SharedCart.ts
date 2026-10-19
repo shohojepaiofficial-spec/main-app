@@ -17,8 +17,21 @@ export interface ISharedCart extends Document {
   fulfilledBy?: Types.ObjectId;
   fulfilledOrder?: Types.ObjectId;
   claimedOrder?: Types.ObjectId;
+  // Where the order goes, set by the person asking. The payer only pays
+  // (bKash) — they never see or change the full address. Links made before
+  // this existed have none and can no longer be paid.
+  shippingAddress?: ISharedCartAddress;
+  promoCode?: string;
   expiresAt: Date;
   createdAt: Date;
+}
+
+export interface ISharedCartAddress {
+  fullName: string;
+  phone: string;
+  zila: string;
+  upazila: string;
+  addressLine: string;
 }
 
 const sharedCartSchema = new Schema<ISharedCart>(
@@ -34,6 +47,20 @@ const sharedCartSchema = new Schema<ISharedCart>(
     fulfilledBy: { type: Schema.Types.ObjectId, ref: "User" },
     fulfilledOrder: { type: Schema.Types.ObjectId, ref: "Order" },
     claimedOrder: { type: Schema.Types.ObjectId, ref: "Order" },
+    shippingAddress: {
+      type: new Schema<ISharedCartAddress>(
+        {
+          fullName: { type: String, required: true, trim: true },
+          phone: { type: String, required: true, trim: true },
+          zila: { type: String, required: true, trim: true },
+          upazila: { type: String, required: true, trim: true },
+          addressLine: { type: String, required: true, trim: true },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
+    promoCode: { type: String, trim: true },
     expiresAt: { type: Date, default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), index: true },
   },
   { timestamps: { createdAt: true, updatedAt: false } }

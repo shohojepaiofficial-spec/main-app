@@ -35,7 +35,7 @@ const publicRoutes = new Set([
   "auth GET /unsubscribe", "auth POST /2fa/verify-login",
   "products GET /", "products GET /categories", "products GET /:id", "products GET /:id/reviews",
   "orders GET /bkash/callback", "orders POST /pathao/webhook", "banners GET /", "promos POST /validate", "promos GET /active",
-  "analytics POST /track", "contact POST /", "shared GET /:id", "translations GET /", "stats GET /",
+  "analytics POST /track", "contact POST /", "shared GET /:id", "shared POST /:id/pay", "translations GET /", "stats GET /",
 ]);
 const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, sms, stats, auditLogs, returns, payments, categories };
 const protectedRoutes: { name: string; method: string; path: string }[] = [];

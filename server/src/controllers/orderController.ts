@@ -401,7 +401,7 @@ export async function decrementStockAtomically(
 
 // The Order fields computeOrderTotals decides — shared by createOrder and
 // adminCreateOrder so the two can't store different things.
-function orderFieldsFromTotals(totals: Awaited<ReturnType<typeof computeOrderTotals>>) {
+export function orderFieldsFromTotals(totals: Awaited<ReturnType<typeof computeOrderTotals>>) {
   return {
     items: totals.orderItems,
     itemsTotal: totals.itemsTotal,
@@ -416,7 +416,7 @@ function orderFieldsFromTotals(totals: Awaited<ReturnType<typeof computeOrderTot
   };
 }
 
-function readShippingAddress(input?: ShippingInput) {
+export function readShippingAddress(input?: ShippingInput) {
   const { fullName, phone, zila, upazila, addressLine } = input ?? {};
   if (!fullName?.trim() || !phone?.trim() || !zila?.trim() || !upazila?.trim() || !addressLine?.trim()) {
     throw { status: 400, message: "Full shipping details are required" };
@@ -655,7 +655,12 @@ export const bkashCallback = async (req: Request, res: Response) => {
   const order = paymentID ? await Order.findOne({ bkashPaymentID: paymentID }) : null;
   if (!order) return res.redirect(`${redirectBase}?status=error`);
 
-  const finish = (queryStatus: string) => res.redirect(`${redirectBase}?status=${queryStatus}&order=${order.id}`);
+  // A payment-link order was paid by someone without an account: send them
+  // back to the link's page, which needs no sign-in.
+  const finish = (queryStatus: string) =>
+    order.sharedCartId
+      ? res.redirect(`${process.env.CLIENT_URL || "http://localhost:3000"}/pay/${order.sharedCartId}?status=${queryStatus}`)
+      : res.redirect(`${redirectBase}?status=${queryStatus}&order=${order.id}`);
 
   // Already resolved by an earlier hit of this same callback (e.g. the
   // customer reloading the redirect page) — nothing left to do.

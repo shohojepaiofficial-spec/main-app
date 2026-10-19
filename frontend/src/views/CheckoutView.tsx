@@ -40,38 +40,71 @@ function extractErrorMessage(err: unknown, fallback: string) {
   );
 }
 
-// "Ask someone else to pay" — snapshots the current cart into a shareable
-// link. Doesn't touch or clear the buyer's own cart; whoever opens the link
-// completes their own checkout with these items (see app/(public)/pay/[id]).
-function AskSomeoneElseToPay() {
-  const items = useCartStore((s) => s.items);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
+// "Ask someone else to pay": switches checkout to filling in where it goes;
+// the form's button then creates a payment link instead of an order. The
+// person who opens the link only pays (bKash, no account) — see
+// app/(public)/pay/[id].
+function SomeoneElsePaysCard({ active, onChange }: { active: boolean; onChange: (active: boolean) => void }) {
   const { t } = useTranslations();
+  return (
+    <div className="mb-6 rounded-lg border border-primary/40 bg-primary/5 p-4 sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <Share2 size={18} aria-hidden="true" />
+        </span>
+        <div className="flex-1">
+          {active ? (
+            <>
+              <p className="text-base font-semibold">{t("checkout.someonePaysActiveTitle", "Someone else is paying")}</p>
+              <p className="mt-0.5 text-sm text-muted">
+                {t(
+                  "checkout.someonePaysActiveSubtitle",
+                  "Fill in where to send it below, then create the link. They'll see the items and total and pay with bKash — no account needed."
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => onChange(false)}
+                className="mt-3 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-background"
+              >
+                {t("checkout.illPayMyself", "I'll pay myself")}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-base font-semibold">{t("checkout.askSomeoneElseTitle", "Want someone else to pay for this?")}</p>
+              <p className="mt-0.5 text-sm text-muted">
+                {t(
+                  "checkout.askSomeoneElseSubtitleBkash",
+                  "Tell us where to send it, and we'll make a link. Whoever opens it pays with bKash — no account needed."
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(true);
+                  document.getElementById("checkout-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              >
+                {t("checkout.askSomeoneElseButton", "Ask someone else to pay")}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const onCreate = async () => {
-    if (items.length === 0) {
-      toast.error(t("cart.empty", "Your cart is empty."));
-      return;
-    }
-    setIsCreating(true);
-    try {
-      const id = await sharedCartService.createSharedCart(
-        toOrderLineInputs(items)
-      );
-      setShareUrl(`${SITE_URL}/pay/${id}`);
-    } catch (err) {
-      toast.error(extractErrorMessage(err, t("checkout.failedToCreateLink", "Failed to create link")));
-    } finally {
-      setIsCreating(false);
-    }
-  };
+// After the link is made: copy it or share it straight to WhatsApp etc.
+function PaymentLinkCreated({ url }: { url: string }) {
+  const { t } = useTranslations();
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   const onCopy = async () => {
-    if (!shareUrl) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(url);
       toast.success(t("checkout.linkCopied", "Link copied"));
     } catch {
       toast.error(t("checkout.copyManually", "Couldn't copy — copy it manually"));
@@ -79,63 +112,42 @@ function AskSomeoneElseToPay() {
   };
 
   return (
-    <div className="mb-6 rounded-lg border border-primary/40 bg-primary/5 p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"><Share2 size={18} aria-hidden="true" /></span>
-        <div className="flex-1">
-          <p className="text-base font-semibold">
-            {t("checkout.askSomeoneElseTitle", "Want someone else to pay for this?")}
-          </p>
-          <p className="mt-0.5 text-sm text-muted">
-            {t(
-              "checkout.askSomeoneElseSubtitle",
-              "Share a link to this cart — whoever opens it can check out and pay for it themselves."
-            )}
-          </p>
-
-          {shareUrl ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <input
-                readOnly
-                value={shareUrl}
-                onFocus={(e) => e.target.select()}
-                className="min-w-0 flex-1 basis-48 rounded border border-border bg-background px-2 py-1.5 text-xs"
-              />
-              <button
-                onClick={onCopy}
-                className="flex shrink-0 items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
-              >
-                <Copy size={12} /> {t("common.copy", "Copy")}
-              </button>
-              <button
-                onClick={() => setIsShareOpen(true)}
-                className="flex shrink-0 items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
-              >
-                <Share2 size={12} /> {t("common.share", "Share")}
-              </button>
-              <ShareLinkModal
-                isOpen={isShareOpen}
-                onClose={() => setIsShareOpen(false)}
-                url={shareUrl}
-                text={t("checkout.pleasePayFor", "Please pay for my order on {siteName}:", {
-                  siteName: SITE_NAME,
-                })}
-              />
-            </div>
-          ) : (
-            <button
-              onClick={onCreate}
-              disabled={isCreating}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {isCreating
-                ? t("checkout.creatingLink", "Creating link...")
-                : t("checkout.createShareableLink", "Create shareable link")}
-            </button>
-          )}
-        </div>
+    <main className="mx-auto max-w-lg p-6 pb-16 text-center">
+      <CheckCircle2 size={40} className="mx-auto mb-3 text-primary" aria-hidden="true" />
+      <h1 className="mb-1 text-xl font-semibold">{t("checkout.paymentLinkReady", "Payment link ready")}</h1>
+      <p className="mb-6 text-sm text-muted">
+        {t(
+          "checkout.paymentLinkReadySubtitle",
+          "Send it to the person paying. Once they pay with bKash, the order shows in your My Orders. The link works for 7 days."
+        )}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          readOnly
+          value={url}
+          onFocus={(e) => e.target.select()}
+          className="min-w-0 flex-1 basis-48 rounded border border-border bg-background px-2 py-2 text-xs"
+        />
+        <button
+          onClick={onCopy}
+          className="flex shrink-0 items-center gap-1 rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-background"
+        >
+          <Copy size={12} aria-hidden="true" /> {t("common.copy", "Copy")}
+        </button>
+        <button
+          onClick={() => setIsShareOpen(true)}
+          className="flex shrink-0 items-center gap-1 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90"
+        >
+          <Share2 size={12} aria-hidden="true" /> {t("common.share", "Share")}
+        </button>
       </div>
-    </div>
+      <ShareLinkModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        url={url}
+        text={t("checkout.pleasePayFor", "Please pay for my order on {siteName}:", { siteName: SITE_NAME })}
+      />
+    </main>
   );
 }
 
@@ -217,6 +229,10 @@ export function CheckoutView({
   const { user } = useAuthController();
   const { t } = useTranslations();
   const { items, promo, totalPrice, discountAmount, clear } = useCartStore();
+  // "Ask someone else to pay": the form then makes a payment link (they pay
+  // by bKash) instead of placing the order.
+  const [someoneElsePays, setSomeoneElsePays] = useState(false);
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
 
   // Fires once the cart (hydrated post-mount, see useCartStore's
@@ -381,7 +397,7 @@ export function CheckoutView({
   const deliveryFee = hasLiveQuote ? liveQuote!.deliveryFee : flatDeliveryFee;
   // Preview only — computeOrderTotals on the server decides the real one,
   // from the product's current pre-order settings.
-  const fullPreorderDiscount = calculatePreorderDiscount(items, paymentMethod);
+  const fullPreorderDiscount = calculatePreorderDiscount(items, someoneElsePays ? "bkash" : paymentMethod);
   // The two don't stack — the bigger wins, ties go to pre-order (same rule
   // as computeOrderTotals).
   const promoWins = promoDiscount > fullPreorderDiscount;
@@ -394,6 +410,19 @@ export function CheckoutView({
 
   const onSubmit = async (values: CheckoutValues) => {
     const { paymentMethod: method, ...shippingAddress } = values;
+    if (someoneElsePays) {
+      try {
+        const id = await sharedCartService.createSharedCart({
+          items: toOrderLineInputs(items),
+          shippingAddress,
+          promoCode: promo?.code,
+        });
+        setPaymentLink(`${SITE_URL}/pay/${id}`);
+      } catch (err) {
+        toast.error(extractErrorMessage(err, t("checkout.failedToCreateLink", "Failed to create link")));
+      }
+      return;
+    }
     try {
       const order = await orderService.createOrder({
         items: toOrderLineInputs(items),
@@ -474,6 +503,7 @@ export function CheckoutView({
   };
 
   if (placedOrder) return <OrderPlaced order={placedOrder} />;
+  if (paymentLink) return <PaymentLinkCreated url={paymentLink} />;
 
   if (items.length === 0) {
     return (
@@ -497,7 +527,7 @@ export function CheckoutView({
         {t("checkout.subtitle", "Choose how you'd like to pay below.")}
       </p>
 
-      <AskSomeoneElseToPay />
+      <SomeoneElsePaysCard active={someoneElsePays} onChange={setSomeoneElsePays} />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <form
@@ -616,11 +646,19 @@ export function CheckoutView({
           )}
 
           <h2 className="mt-2 text-sm font-semibold">{t("checkout.paymentMethod", "Payment method")}</h2>
-          <PaymentMethodPicker
-            value={paymentMethod}
-            onChange={(method) => setValue("paymentMethod", method)}
-            methods={PAYMENT_METHODS.map((method) => ({ ...method, available: paymentMethods.includes(method.id) }))}
-          />
+          {someoneElsePays ? (
+            <p className="rounded-md border border-border bg-surface p-3 text-sm text-muted">
+              {paymentMethods.includes("bkash")
+                ? t("checkout.payerPaysBkash", "The person you send the link to pays with bKash.")
+                : t("checkout.payerPaysBkashSoon", "The person you send the link to pays with bKash. bKash is coming soon, so the link can't be paid just yet.")}
+            </p>
+          ) : (
+            <PaymentMethodPicker
+              value={paymentMethod}
+              onChange={(method) => setValue("paymentMethod", method)}
+              methods={PAYMENT_METHODS.map((method) => ({ ...method, available: paymentMethods.includes(method.id) }))}
+            />
+          )}
 
           {hasPreorder && (
             <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
@@ -715,7 +753,11 @@ export function CheckoutView({
             disabled={isSubmitting}
             className="rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
           >
-            {isSubmitting
+            {someoneElsePays
+              ? isSubmitting
+                ? t("checkout.creatingLink", "Creating link...")
+                : t("checkout.createPaymentLink", "Create payment link")
+              : isSubmitting
               ? t("checkout.placingOrder", "Placing order...")
               : t("checkout.placeOrder", "Place order ({method})", {
                   method:

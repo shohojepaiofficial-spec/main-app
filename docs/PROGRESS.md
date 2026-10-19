@@ -1419,3 +1419,12 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Pathao's API has no cancel, so a parcel is cancelled in the Pathao merchant panel. New "Remove booking" on the order's courier panel (with an inline "It's cancelled in Pathao — remove" confirm) calls `DELETE /api/orders/:id/courier` (`removeCourierBooking`, audited): clears provider, consignment, status, booked-at, Pathao fee and last-checked, and adds a "Booking removed (<consignment>)" entry to the courier history, so the order can be booked again.
 - Verified: server `tsc` + tests, frontend `tsc` + lint on changed files. Not tried in a browser.
 - Pathao sandbox (`courier-api-sandbox.pathao.com`) answered 522 for every request on 2026-10-19, so Railway's Pathao variables were not switched to sandbox.
+
+## 2026-10-19 — Payment links: the asker sets the address, the payer pays by bKash without an account
+
+- Checkout's "Ask someone else to pay" now switches the page to *where to send it* (same delivery form, payment section replaced by "the person you send the link to pays with bKash", button "Create payment link"). The link is made with the cart, address and promo code; a "Payment link ready" screen offers Copy and Share.
+- `SharedCart` gained `shippingAddress` and `promoCode`. Creating a link needs a verified email, since the order will be on the asker's account.
+- `/pay/<id>` (now dynamic) shows items, delivery, discount and the bKash total from `computeOrderTotals`, plus "Delivers to <name>, <upazila, zila>" (no phone or street: the link is public). One "Pay ৳X with bKash" button, no sign-in. `POST /api/shared-carts/:id/pay` creates the order for the asker, claims the link, starts bKash; a retry reuses the open bKash page; failure/expiry releases the link. bKash returns link payers to `/pay/<id>?status=…` (thank-you / "didn't go through, try again").
+- Owner's choices: no sign-in for the payer; before bKash is live, links can be made and show "bKash payment is coming soon" (pay call 503 `BKASH_UNAVAILABLE`).
+- 23 new Bangla rows. Verified: server `tsc` + 496 tests (3 new), frontend `tsc` + lint + build. Not tried in a browser; the bKash part can't be tested until bKash is live (WORK-01).
+- Left: deploy, `npm run sync-translations`, make a link and open it in a private window.

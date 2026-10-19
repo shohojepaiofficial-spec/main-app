@@ -448,6 +448,13 @@ export interface SharedCart {
   items: SharedCartItem[];
   createdByName: string;
   isFulfilled: boolean;
+  isPaymentPending: boolean;
+  // Only the name and area of where it goes (the link is public). Null for a
+  // link made before links carried an address: it can't be paid.
+  deliverTo: { fullName: string; area: string } | null;
+  // What bKash will charge; null if the cart can't be bought any more.
+  totals: { itemsTotal: number; deliveryFee: number; discount: number; totalAmount: number } | null;
+  bkashAvailable: boolean;
 }
 
 export type Locale = "en" | "bn";
