@@ -1446,3 +1446,6 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 
 ## 2026-10-19 (share via Messenger)
 - Share sheet: replaced the Facebook option (it always opened a timeline post) with Messenger. Phones open the Messenger app's chat picker (`fb-messenger://share`), falling back to messenger.com. Computers use Facebook's Send dialog if `NEXT_PUBLIC_FACEBOOK_APP_ID` is set, otherwise the link is copied and messenger.com opens. Typecheck and lint clean; not yet tried on a phone.
+
+## 2026-10-19 (plain password messages)
+- Replaced "Use at least 12 characters and at most 72 UTF-8 bytes" with two plain messages: "Password must be at least 12 characters" / "Password is too long — please use a shorter one" (server `passwordPolicyError`, frontend `newPasswordSchema`). Rule unchanged. Reset-password hint now "Use at least 12 characters." Server tests pass (152).

@@ -500,7 +500,7 @@ export const translationSeed: TranslationSeedEntry[] = [
   { key: "auth.passwordUpdatedSignIn", en: "Password updated. Please sign in again on your devices.", bn: "পাসওয়ার্ড আপডেট হয়েছে। আপনার ডিভাইসগুলোতে আবার সাইন ইন করুন।" },
   { key: "settings.logoutAll", en: "Sign out on all devices", bn: "সব ডিভাইস থেকে সাইন আউট করুন" },
   { key: "auth.invalidCode", en: "Invalid code", bn: "কোডটি সঠিক নয়" },
-  { key: "auth.passwordPolicy", en: "Use at least 12 characters and at most 72 UTF-8 bytes.", bn: "কমপক্ষে ১২টি অক্ষর ব্যবহার করুন (সর্বোচ্চ ৭২ বাইট)।" },
+  { key: "auth.passwordPolicy", en: "Use at least 12 characters.", bn: "কমপক্ষে ১২টি অক্ষর ব্যবহার করুন।" },
   { key: "auth.twoFactorCodePlaceholder", en: "123456 or XXXXX-XXXXX", bn: "123456 অথবা XXXXX-XXXXX" },
   { key: "auth.twoFactorExpired", en: "This code has expired — please sign in again", bn: "এই কোডের মেয়াদ শেষ — আবার সাইন ইন করুন" },
   { key: "auth.twoFactorTitle", en: "Two-step verification", bn: "দুই ধাপের যাচাই" },

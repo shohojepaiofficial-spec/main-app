@@ -171,7 +171,7 @@ export function ResetPasswordView({ token }: { token: string | null }) {
       <KeyRound size={28} className="mx-auto mb-3 text-primary" />
       <h1 className="mb-1 text-center text-xl font-semibold">{t("auth.chooseNewPassword", "Choose a new password")}</h1>
       <p className="mb-6 text-center text-sm text-muted">
-        {t("auth.passwordPolicy", "Use at least 12 characters and at most 72 UTF-8 bytes.")}
+        {t("auth.passwordPolicy", "Use at least 12 characters.")}
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">

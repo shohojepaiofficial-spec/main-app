@@ -11,7 +11,7 @@ import { signTwoFactorChallenge } from "../utils/twoFactor";
 import { isNonEmptyString, isValidPersonName, NAME_RULE_MESSAGE, safePersonName } from "../utils/validate";
 import { escapeHtml } from "../utils/escapeHtml";
 import { AuthRequest } from "../middleware/auth";
-import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../utils/passwordPolicy";
+import { passwordPolicyError } from "../utils/passwordPolicy";
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -91,7 +91,8 @@ export const register = async (req: Request, res: Response) => {
     return res.status(409).json({ message: "Email already registered" });
   }
 
-  if (!validNewPassword(password)) return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+  const passwordError = passwordPolicyError(password);
+  if (passwordError) return res.status(400).json({ message: passwordError });
   const user = await User.create({ name: name.trim(), email: normalizedEmail, password });
   const credentials = await createSession(user, undefined, sessionDevice(req));
 
@@ -173,8 +174,9 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
   if (!isNonEmptyString(currentPassword) || !isNonEmptyString(newPassword)) {
     return res.status(400).json({ message: "currentPassword and newPassword are required" });
   }
-  if (!validNewPassword(newPassword)) {
-    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+  const passwordError = passwordPolicyError(newPassword);
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
   }
 
   const user = await User.findById(req.userId).select("+password");
@@ -420,8 +422,9 @@ export const resetPassword = async (req: Request, res: Response) => {
   if (!isNonEmptyString(token) || !isNonEmptyString(password)) {
     return res.status(400).json({ message: "Token and password are required" });
   }
-  if (!validNewPassword(password)) {
-    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+  const passwordError = passwordPolicyError(password);
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
   }
 
   const user = await User.findOne({
