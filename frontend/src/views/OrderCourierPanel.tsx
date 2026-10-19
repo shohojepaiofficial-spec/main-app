@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Truck, RefreshCw, Pencil } from "lucide-react";
+import { Truck, RefreshCw, Pencil, Trash2 } from "lucide-react";
 import * as orderService from "@/services/orderService";
 import { Order, PathaoLocation } from "@/models";
 
@@ -13,6 +13,7 @@ interface OrderCourierPanelProps {
   onSaveManual: (input: orderService.CourierInfoInput) => void;
   onBook: (input: orderService.BookPathaoOrderInput) => Promise<boolean>;
   onRefresh: () => void;
+  onRemove: () => void;
 }
 
 type Mode = "idle" | "manual" | "booking";
@@ -283,8 +284,10 @@ export function OrderCourierPanel({
   onSaveManual,
   onBook,
   onRefresh,
+  onRemove,
 }: OrderCourierPanelProps) {
   const [mode, setMode] = useState<Mode>("idle");
+  const [isConfirmingRemove, setIsConfirmingRemove] = useState(false);
   const hasCourier = !!order.courierConsignmentId;
 
   return (
@@ -319,7 +322,36 @@ export function OrderCourierPanel({
             >
               <Pencil size={12} /> Edit
             </button>
+            <button
+              onClick={() => setIsConfirmingRemove(true)}
+              className="flex items-center gap-1 rounded-md border border-border px-2 py-1 font-medium text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={12} /> Remove booking
+            </button>
           </div>
+          {isConfirmingRemove && (
+            <div className="w-full rounded-md border border-red-200 bg-red-50 p-2 text-red-700">
+              <p>
+                Cancel the parcel in the Pathao merchant panel first — this only removes it here. The history is kept and
+                the order can be booked again.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => {
+                    setIsConfirmingRemove(false);
+                    onRemove();
+                  }}
+                  disabled={isSavingCourier}
+                  className="rounded-md bg-red-600 px-2 py-1 font-medium text-white disabled:opacity-50"
+                >
+                  It&apos;s cancelled in Pathao — remove
+                </button>
+                <button onClick={() => setIsConfirmingRemove(false)} className="rounded-md px-2 py-1 text-muted hover:text-foreground">
+                  Keep it
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

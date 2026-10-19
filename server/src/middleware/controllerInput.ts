@@ -13,7 +13,7 @@ const fields: Record<string, string> = {
   disableTwoFactor: "code", verifyTwoFactorLogin: "tempToken code",
   createSharedCart: "items", getDeliveryQuote: "items zila upazila",
   updateOrderStatus: "status", bulkUpdateStatus: "ids status", updateOrderNote: "note",
-  updateCourierInfo: "consignmentId trackingStatus note", bookPathaoOrder: "cityId zoneId areaId weightKg description specialInstruction",
+  updateCourierInfo: "consignmentId trackingStatus note", removeCourierBooking: "", bookPathaoOrder: "cityId zoneId areaId weightKg description specialInstruction",
   createAd: "title sourceType productId promoCode caption link platforms", publishAd: "platforms",
   createCampaign: "title sourceType productId promoCode channels emailSubject emailBody smsMessage",
   createBanner: "eyebrow accentColor title subtitle primaryCta secondaryCta promoCodeId isActive",

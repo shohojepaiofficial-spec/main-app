@@ -921,6 +921,27 @@ export const updateCourierInfo = async (req: AuthRequest, res: Response) => {
   res.json(await populatedOrder(order.id));
 };
 
+// Staff cancelled the parcel in Pathao's merchant panel (Pathao's API has no
+// cancel), so drop the booking here and the order can be booked again. The
+// courier history is kept, with a "Booking removed" entry.
+export const removeCourierBooking = async (req: AuthRequest, res: Response) => {
+  validateControllerInput("removeCourierBooking", req);
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+  if (!order.courierConsignmentId) return res.status(409).json({ message: "This order has no courier booking" });
+
+  const removed = order.courierConsignmentId;
+  recordCourierStatus(order, { status: `Booking removed (${removed})`, source: "manual", kind: "manual", byName: (await staffActor(req))?.name });
+  order.courierProvider = undefined;
+  order.courierConsignmentId = undefined;
+  order.courierTrackingStatus = undefined;
+  order.courierBookedAt = undefined;
+  order.courierDeliveryFee = undefined;
+  order.courierCheckedAt = undefined;
+  await order.save();
+  res.json(await populatedOrder(order.id));
+};
+
 export const listPathaoCities = async (_req: AuthRequest, res: Response) => {
   if (!isPathaoConfigured()) {
     return res.status(400).json({ message: "Pathao isn't connected yet — see server/.env.example's PATHAO_* vars." });

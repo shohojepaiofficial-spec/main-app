@@ -109,7 +109,20 @@ export function useAdminOrderDetail(orderId: string, enabled: boolean) {
     }
   };
 
+  const removeCourierBooking = async () => {
+    setIsSavingCourier(true);
+    try {
+      setOrder(await orderService.removeCourierBooking(orderId));
+      toast.success("Booking removed — you can book again");
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to remove the booking"));
+    } finally {
+      setIsSavingCourier(false);
+    }
+  };
+
   return {
+    removeCourierBooking,
     order, history, isLoading, notFound,
     isUpdatingStatus, updateStatus,
     isSavingNote, saveNote,

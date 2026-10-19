@@ -168,3 +168,10 @@ export const refreshPathaoStatus = async (id: string): Promise<Order> => {
   const { data } = await api.post<Order>(`/orders/${id}/pathao/refresh`);
   return data;
 };
+
+// After cancelling the parcel in Pathao's merchant panel: drop the booking
+// so the order can be booked again (history is kept).
+export const removeCourierBooking = async (id: string): Promise<Order> => {
+  const { data } = await api.delete<Order>(`/orders/${id}/courier`);
+  return data;
+};

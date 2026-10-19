@@ -1413,3 +1413,9 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - New `lib/whatsapp.ts#openWhatsAppDirect`, a click handler on every wa.me link (chat button, Contact page, order page help, staff "WhatsApp customer", share modal). It skips WhatsApp's "Continue to chat" page: phones open `whatsapp://send` (falling back to the wa.me page after 1.5s if the app didn't open), computers open WhatsApp Web on the chat. Links keep their wa.me href, so middle-click and no-JS still work.
 - Checkout's "Want someone else to pay for this?" is now a tinted card with a larger title and a solid primary "Create shareable link" button (was a dashed box with a small outline button); the link row wraps on phones.
 - Verified: frontend `tsc` + lint on changed files. Not tried on a phone.
+
+## 2026-10-19 — Remove a Pathao booking
+
+- Pathao's API has no cancel, so a parcel is cancelled in the Pathao merchant panel. New "Remove booking" on the order's courier panel (with an inline "It's cancelled in Pathao — remove" confirm) calls `DELETE /api/orders/:id/courier` (`removeCourierBooking`, audited): clears provider, consignment, status, booked-at, Pathao fee and last-checked, and adds a "Booking removed (<consignment>)" entry to the courier history, so the order can be booked again.
+- Verified: server `tsc` + tests, frontend `tsc` + lint on changed files. Not tried in a browser.
+- Pathao sandbox (`courier-api-sandbox.pathao.com`) answered 522 for every request on 2026-10-19, so Railway's Pathao variables were not switched to sandbox.

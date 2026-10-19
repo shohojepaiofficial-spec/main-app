@@ -13,6 +13,7 @@ import {
   getOrderStats,
   updateOrderNote,
   updateCourierInfo,
+  removeCourierBooking,
   listPathaoCities,
   listPathaoZones,
   listPathaoAreas,
@@ -46,6 +47,7 @@ router.patch("/:id/status", protect, canManageOrders, auditTrail({ entityType: "
 router.patch("/:id/cancel", protect, cancelMyOrder);
 router.patch("/:id/note", protect, canManageOrders, auditTrail({ entityType: "order", action: "updated", target: { from: "param" } }), updateOrderNote);
 router.patch("/:id/courier", protect, canManageOrders, auditTrail({ entityType: "order", action: "updated", target: { from: "param" } }), updateCourierInfo);
+router.delete("/:id/courier", protect, canManageOrders, auditTrail({ entityType: "order", action: "updated", target: { from: "param" } }), removeCourierBooking);
 router.post("/:id/pathao", protect, canManageOrders, auditTrail({ entityType: "order", action: "booked", target: { from: "param" } }), bookPathaoOrder);
 router.post("/:id/pathao/refresh", protect, canManageOrders, refreshPathaoStatus);
 router.get("/:id/customer-history", protect, canManageOrders, getCustomerHistory);

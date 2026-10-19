@@ -86,6 +86,7 @@ export function AdminOrderDetailView({ orderId }: { orderId: string }) {
             onSaveManual={detail.saveCourierInfo}
             onBook={detail.bookWithPathao}
             onRefresh={detail.refreshPathaoStatus}
+            onRemove={detail.removeCourierBooking}
           />
         );
       case "shipped":
