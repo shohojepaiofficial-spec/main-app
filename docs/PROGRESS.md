@@ -1439,3 +1439,7 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
   - Frontend: route folder `pay/[id]` → `pay/[link]`; services, model, checkout and pay page use `link`; page-view tracking and the GTM `page_path` record `/pay` without the link. GTM tags that read the browser address themselves (Meta pixel) still see it.
 - Verified: server `tsc` + 500 tests (new `paymentLinks.test.ts`, 2 new shared-cart tests, the two old shared-cart checkout tests replaced by one that checks `sharedCartId` is refused); frontend `tsc` + lint + 110 tests + build. Not tried in a browser.
 - Left: deploy together with `35ccb9b` (not pushed yet), make a link and open it in a private window, check the bare-id form is "not found". Links made before this stop working.
+
+## 2026-10-19 (checkout buttons, sandbox bKash)
+- Checkout: removed the "Want someone else to pay?" card at the top. "Ask someone else to pay" is now a second button under "Place order"; both stay disabled until the delivery details pass validation. Typecheck and lint clean; not yet tried in a browser.
+- bKash: new `BKASH_ALLOW_SANDBOX=true` env flag lets production accept sandbox credentials so the full bKash flow can be tested on the live site. Remove it before launch (sandbox payments would mark real orders paid).

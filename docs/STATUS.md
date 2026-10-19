@@ -28,7 +28,7 @@ the code and tests are finished but a live/staging check is still owed.
 
 | ID | Task | What's left |
 | --- | --- | --- |
-| WORK-01 | Live bKash | Waiting on merchant approval. Put live `BKASH_*` in Railway; bKash stops showing "Coming soon" within a minute. Then test success / cancel / failure / reconciliation with small real payments. |
+| WORK-01 | Live bKash | Waiting on merchant approval. 2026-10-19: `BKASH_ALLOW_SANDBOX=true` lets production use sandbox credentials for testing — remove it before taking real orders. Put live `BKASH_*` in Railway; bKash stops showing "Coming soon" within a minute. Then test success / cancel / failure / reconciliation with small real payments. |
 | WORK-02 | SMS — **live** (send verified 2026-10-18) | REVE SMS (revesms.com) wired in (2026-10-18): order status texts (placed, confirmed/paid, shipped, delivered, cancelled) to the order's shipping phone, plus the existing campaign SMS. Deployed `805c5a4`; a confirmed test order texted the owner. Dashboard SMS balance tile also built. Balance tile verified live (৳1999.36, via `SMS_CLIENT_ID`). Left: check the other status events. |
 
 ## 3. Open — security checks owed on staging/live

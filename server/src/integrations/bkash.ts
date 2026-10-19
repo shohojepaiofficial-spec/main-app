@@ -39,10 +39,13 @@ export function isBkashConfigured(): boolean {
 // Whether customers may actually pay with bKash. In production that needs
 // real merchant credentials: bKash's sandbox moves test money only, so a
 // sandbox payment would still mark a real order "paid". Local development
-// keeps the sandbox usable for testing the flow.
+// keeps the sandbox usable for testing the flow. BKASH_ALLOW_SANDBOX=true
+// opts production into the sandbox too, for testing on the live site while
+// waiting for merchant credentials — remove it before taking real orders.
 export function isBkashLive(): boolean {
   const config = readConfig();
   if (!config) return false;
+  if (process.env.BKASH_ALLOW_SANDBOX === "true") return true;
   return process.env.NODE_ENV !== "production" || !config.baseUrl.includes("sandbox");
 }
 

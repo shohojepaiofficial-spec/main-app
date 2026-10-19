@@ -1,7 +1,7 @@
 "use client";
 
 import { isBdMobile, BD_MOBILE_MESSAGE } from "@/lib/phone";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type BaseSyntheticEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useForm, useWatch } from "react-hook-form";
@@ -37,63 +37,6 @@ const DELIVERY_QUOTE_DEBOUNCE_MS = 500;
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
     (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback
-  );
-}
-
-// "Ask someone else to pay": switches checkout to filling in where it goes;
-// the form's button then creates a payment link instead of an order. The
-// person who opens the link only pays (bKash, no account) — see
-// app/(public)/pay/[link].
-function SomeoneElsePaysCard({ active, onChange }: { active: boolean; onChange: (active: boolean) => void }) {
-  const { t } = useTranslations();
-  return (
-    <div className="mb-6 rounded-lg border border-primary/40 bg-primary/5 p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <Share2 size={18} aria-hidden="true" />
-        </span>
-        <div className="flex-1">
-          {active ? (
-            <>
-              <p className="text-base font-semibold">{t("checkout.someonePaysActiveTitle", "Someone else is paying")}</p>
-              <p className="mt-0.5 text-sm text-muted">
-                {t(
-                  "checkout.someonePaysActiveSubtitle",
-                  "Fill in where to send it below, then create the link. They'll see the items and total and pay with bKash — no account needed."
-                )}
-              </p>
-              <button
-                type="button"
-                onClick={() => onChange(false)}
-                className="mt-3 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-background"
-              >
-                {t("checkout.illPayMyself", "I'll pay myself")}
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="text-base font-semibold">{t("checkout.askSomeoneElseTitle", "Want someone else to pay for this?")}</p>
-              <p className="mt-0.5 text-sm text-muted">
-                {t(
-                  "checkout.askSomeoneElseSubtitleBkash",
-                  "Tell us where to send it, and we'll make a link. Whoever opens it pays with bKash — no account needed."
-                )}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(true);
-                  document.getElementById("checkout-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-              >
-                {t("checkout.askSomeoneElseButton", "Ask someone else to pay")}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -229,9 +172,11 @@ export function CheckoutView({
   const { user } = useAuthController();
   const { t } = useTranslations();
   const { items, promo, totalPrice, discountAmount, clear } = useCartStore();
-  // "Ask someone else to pay": the form then makes a payment link (they pay
-  // by bKash) instead of placing the order.
-  const [someoneElsePays, setSomeoneElsePays] = useState(false);
+  // Which bottom button submitted the form: "order" places it, "link" makes
+  // a payment link for someone else to pay (by bKash) instead.
+  // onSubmit reads the clicked button off the submit event; this state only
+  // drives the "Placing order..." / "Creating link..." label.
+  const [submitMode, setSubmitMode] = useState<"order" | "link">("order");
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
 
@@ -312,6 +257,9 @@ export function CheckoutView({
   const zila = useWatch({ control, name: "zila" });
   const upazila = useWatch({ control, name: "upazila" });
   const paymentMethod = useWatch({ control, name: "paymentMethod" });
+  // Both bottom buttons stay disabled until the delivery details are valid.
+  const watchedValues = useWatch({ control });
+  const detailsComplete = checkoutSchema.safeParse(watchedValues).success;
 
   // Switching between the two radio options — re-mounts the relevant field
   // values rather than just toggling `disabled`, so "new" always starts from
@@ -397,7 +345,7 @@ export function CheckoutView({
   const deliveryFee = hasLiveQuote ? liveQuote!.deliveryFee : flatDeliveryFee;
   // Preview only — computeOrderTotals on the server decides the real one,
   // from the product's current pre-order settings.
-  const fullPreorderDiscount = calculatePreorderDiscount(items, someoneElsePays ? "bkash" : paymentMethod);
+  const fullPreorderDiscount = calculatePreorderDiscount(items, paymentMethod);
   // The two don't stack — the bigger wins, ties go to pre-order (same rule
   // as computeOrderTotals).
   const promoWins = promoDiscount > fullPreorderDiscount;
@@ -408,9 +356,10 @@ export function CheckoutView({
   const preorderPercents = bestPreorderPercents(items);
   const grandTotal = Math.max(0, itemsTotal + deliveryFee - discount - preorderDiscount);
 
-  const onSubmit = async (values: CheckoutValues) => {
+  const onSubmit = async (values: CheckoutValues, event?: BaseSyntheticEvent) => {
     const { paymentMethod: method, ...shippingAddress } = values;
-    if (someoneElsePays) {
+    const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
+    if (submitter?.dataset.mode === "link") {
       try {
         const link = await sharedCartService.createSharedCart({
           items: toOrderLineInputs(items),
@@ -526,8 +475,6 @@ export function CheckoutView({
       <p className="mb-6 text-sm text-muted">
         {t("checkout.subtitle", "Choose how you'd like to pay below.")}
       </p>
-
-      <SomeoneElsePaysCard active={someoneElsePays} onChange={setSomeoneElsePays} />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <form
@@ -646,19 +593,11 @@ export function CheckoutView({
           )}
 
           <h2 className="mt-2 text-sm font-semibold">{t("checkout.paymentMethod", "Payment method")}</h2>
-          {someoneElsePays ? (
-            <p className="rounded-md border border-border bg-surface p-3 text-sm text-muted">
-              {paymentMethods.includes("bkash")
-                ? t("checkout.payerPaysBkash", "The person you send the link to pays with bKash.")
-                : t("checkout.payerPaysBkashSoon", "The person you send the link to pays with bKash. bKash is coming soon, so the link can't be paid just yet.")}
-            </p>
-          ) : (
-            <PaymentMethodPicker
-              value={paymentMethod}
-              onChange={(method) => setValue("paymentMethod", method)}
-              methods={PAYMENT_METHODS.map((method) => ({ ...method, available: paymentMethods.includes(method.id) }))}
-            />
-          )}
+          <PaymentMethodPicker
+            value={paymentMethod}
+            onChange={(method) => setValue("paymentMethod", method)}
+            methods={PAYMENT_METHODS.map((method) => ({ ...method, available: paymentMethods.includes(method.id) }))}
+          />
 
           {hasPreorder && (
             <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
@@ -673,7 +612,7 @@ export function CheckoutView({
                 <p className="mt-1 text-xs text-muted">
                   {t(
                     "checkout.preorderDiscounts",
-                    "Pre-order discount: {cod}% with Cash on Delivery, {online}% paying online with bKash (coming soon).",
+                    "Pre-order discount: {cod}% with Cash on Delivery, {online}% paying online with bKash.",
                     { cod: preorderPercents.cod, online: preorderPercents.online }
                   )}
                 </p>
@@ -750,14 +689,11 @@ export function CheckoutView({
           <button
             type="submit"
             form="checkout-form"
-            disabled={isSubmitting}
-            className="rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+            disabled={isSubmitting || !detailsComplete}
+            onClick={() => setSubmitMode("order")}
+            className="rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {someoneElsePays
-              ? isSubmitting
-                ? t("checkout.creatingLink", "Creating link...")
-                : t("checkout.createPaymentLink", "Create payment link")
-              : isSubmitting
+            {isSubmitting && submitMode === "order"
               ? t("checkout.placingOrder", "Placing order...")
               : t("checkout.placeOrder", "Place order ({method})", {
                   method:
@@ -766,6 +702,27 @@ export function CheckoutView({
                       : "bKash",
                 })}
           </button>
+
+          {/* Makes a payment link instead of an order; whoever opens it pays
+              with bKash, no account needed — see app/(public)/pay/[link]. */}
+          <button
+            type="submit"
+            form="checkout-form"
+            disabled={isSubmitting || !detailsComplete}
+            data-mode="link"
+            onClick={() => setSubmitMode("link")}
+            className="flex items-center justify-center gap-1.5 rounded-md border border-primary px-4 py-3 text-sm font-medium text-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Share2 size={16} aria-hidden="true" />
+            {isSubmitting && submitMode === "link"
+              ? t("checkout.creatingLink", "Creating link...")
+              : t("checkout.askSomeoneElseButton", "Ask someone else to pay")}
+          </button>
+          {!detailsComplete && (
+            <p className="text-center text-xs text-muted">
+              {t("checkout.fillDetailsFirst", "Fill in your delivery details to continue.")}
+            </p>
+          )}
         </div>
       </div>
     </main>
