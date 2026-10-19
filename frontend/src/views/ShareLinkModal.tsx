@@ -1,9 +1,10 @@
 import { Mail, MessageSquareText, LucideIcon } from "lucide-react";
-import { FaWhatsapp, FaFacebook, FaTelegram, FaXTwitter } from "react-icons/fa6";
+import { FaWhatsapp, FaFacebookMessenger, FaTelegram, FaXTwitter } from "react-icons/fa6";
 import { IconType } from "react-icons";
 import { Modal } from "@/components/ui/Modal";
 import { useTranslations } from "@/controllers/useTranslations";
 import { openWhatsAppDirect } from "@/lib/whatsapp";
+import { messengerHref, openMessengerDirect } from "@/lib/messenger";
 
 interface ShareOption {
   id: string;
@@ -22,11 +23,12 @@ const SHARE_OPTIONS: ShareOption[] = [
     buildHref: (url, text) => `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
   },
   {
-    id: "facebook",
-    label: "Facebook",
-    Icon: FaFacebook,
-    color: "#1877F2",
-    buildHref: (url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    // Sends in a chat, not a timeline post — see lib/messenger.ts.
+    id: "messenger",
+    label: "Messenger",
+    Icon: FaFacebookMessenger,
+    color: "#0084FF",
+    buildHref: (url) => messengerHref(url),
   },
   {
     id: "telegram",
@@ -80,7 +82,14 @@ export function ShareLinkModal({ isOpen, onClose, url, text }: ShareLinkModalPro
             href={buildHref(url, text)}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(event) => { openWhatsAppDirect(event); onClose(); }}
+            onClick={(event) => {
+              if (id === "messenger") {
+                openMessengerDirect(event, url, t("common.linkCopiedPasteInChat", "Link copied — paste it in a chat"));
+              } else {
+                openWhatsAppDirect(event);
+              }
+              onClose();
+            }}
             className="flex flex-col items-center gap-1.5 rounded-md border border-border p-3 text-center hover:bg-background"
           >
             <Icon size={22} style={{ color }} />

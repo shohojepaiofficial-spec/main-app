@@ -1443,3 +1443,6 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 ## 2026-10-19 (checkout buttons, sandbox bKash)
 - Checkout: removed the "Want someone else to pay?" card at the top. "Ask someone else to pay" is now a second button under "Place order"; both stay disabled until the delivery details pass validation. Typecheck and lint clean; not yet tried in a browser.
 - bKash: new `BKASH_ALLOW_SANDBOX=true` env flag lets production accept sandbox credentials so the full bKash flow can be tested on the live site. Remove it before launch (sandbox payments would mark real orders paid).
+
+## 2026-10-19 (share via Messenger)
+- Share sheet: replaced the Facebook option (it always opened a timeline post) with Messenger. Phones open the Messenger app's chat picker (`fb-messenger://share`), falling back to messenger.com. Computers use Facebook's Send dialog if `NEXT_PUBLIC_FACEBOOK_APP_ID` is set, otherwise the link is copied and messenger.com opens. Typecheck and lint clean; not yet tried on a phone.
