@@ -1491,3 +1491,9 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Fixed SEC-23: per-account limit on the 2FA sign-in step and one-time use of each authenticator code (`twoFactor.lastUsedStep`). Fixed SEC-25: max 10 push devices per account.
 - Still open: SEC-22 (promo codes public, no limits — no active codes live today), SEC-24 low-risk list, SEC-13 backups (restore test), SEC-11 edge/WAF.
 - Checks: server 548 tests, typecheck.
+
+## 2026-10-20 (open security items finished: SEC-22, SEC-24)
+- SEC-22 promo codes: "Show on site" switch (default off; the one existing code becomes private until switched on), optional total / per-customer use limits claimed inside the checkout transaction (`utils/promoUsage.ts`), cancelled orders give the use back, admin list shows Private/Shown and uses, `/promo-codes/validate` limited to 30 per 15 min per IP.
+- SEC-24: banner links/colour validated (server + form); Next image optimizer local-IP exception dev-only and unused hosts removed (checked live data: only Cloudinary + Google avatars); constant-time oauth-sync secret; reviews need a verified email and a real product; wishlist cap 200; return requests claim items in a transaction; Pathao webhook logs which signature form matched, `PATHAO_WEBHOOK_SIGNATURE` pins one. Accepted: login/sign-up still say whether an email has an account.
+- Not done in code (owner's accounts): SEC-13 backup secrets + restore test, SEC-11 Cloudflare in front of the API, Pathao merchant 2FA.
+- Checks: server 571 tests, frontend 113 tests, both typechecks, lint on changed views, `next build`.
