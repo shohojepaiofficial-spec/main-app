@@ -13,6 +13,14 @@ export interface IPromoCode extends Document {
   product?: Types.ObjectId;
   isActive: boolean;
   expiresAt?: Date;
+  // Listed publicly (announcement strip, product badges) only when true.
+  // Off by default, so a code meant for one person stays private (SEC-22).
+  showOnSite: boolean;
+  // Optional caps, checked when an order is placed (utils/promoUsage.ts).
+  maxUses?: number;
+  maxUsesPerCustomer?: number;
+  // Orders currently holding a use; a cancelled order gives its use back.
+  usedCount: number;
   createdAt: Date;
 }
 
@@ -25,6 +33,10 @@ const promoCodeSchema = new Schema<IPromoCode>(
     product: { type: Schema.Types.ObjectId, ref: "Product" },
     isActive: { type: Boolean, default: true },
     expiresAt: { type: Date },
+    showOnSite: { type: Boolean, default: false },
+    maxUses: { type: Number, min: 1 },
+    maxUsesPerCustomer: { type: Number, min: 1 },
+    usedCount: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

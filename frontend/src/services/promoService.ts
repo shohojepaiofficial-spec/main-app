@@ -26,6 +26,9 @@ export interface PromoCodeInput {
   productId?: string;
   isActive: boolean;
   expiresAt?: string | null;
+  showOnSite: boolean;
+  maxUses: number | null;
+  maxUsesPerCustomer: number | null;
 }
 
 export const createPromoCode = async (input: PromoCodeInput): Promise<PromoCode> => {

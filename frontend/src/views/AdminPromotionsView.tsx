@@ -116,9 +116,15 @@ export function AdminPromotionsView() {
                       <span className="text-muted">Inactive</span>
                     ) : promo.expiresAt && new Date(promo.expiresAt).getTime() < NOW ? (
                       <span className="text-red-600">Expired</span>
+                    ) : promo.maxUses && promo.usedCount >= promo.maxUses ? (
+                      <span className="text-red-600">Used up</span>
                     ) : (
                       <span className="text-green-700">Active</span>
                     )}
+                    <span className="block text-xs text-muted">
+                      {promo.showOnSite ? "Shown on site" : "Private"} · used {promo.usedCount}
+                      {promo.maxUses ? ` of ${promo.maxUses}` : ""}
+                    </span>
                   </td>
                   <td className="py-3 pr-4 align-top">
                     <div className="flex items-center gap-3">

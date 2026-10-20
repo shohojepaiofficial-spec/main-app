@@ -16,6 +16,7 @@ import { transitionOrder } from "../utils/orderTransitions";
 import { orderStockMovements, recordStockMovements } from "../utils/stockLedger";
 import { cartIdFromPaymentLink, paymentLink } from "../utils/paymentLinks";
 import { CHECKOUT_DAILY_LIMIT } from "../middleware/rateLimit";
+import { claimPromoUse } from "../utils/promoUsage";
 import {
   computeOrderTotals, decrementStockAtomically, orderFieldsFromTotals, resolveShippingAddress, pathaoIds, MAX_OPEN_ORDERS,
 } from "./orderController";
@@ -193,6 +194,7 @@ export const payForSharedCart = async (req: Request, res: Response) => {
   try {
     await session.withTransaction(async () => {
       const totals = await computeOrderTotals(sharedCartLines(cart), address.zila, address.upazila, cart.promoCode, session, "bkash", pathaoIds(address));
+      await claimPromoUse(totals.appliedCode, cart.createdBy, session);
       await decrementStockAtomically(totals.orderItems, session);
       const [created] = await Order.create(
         [

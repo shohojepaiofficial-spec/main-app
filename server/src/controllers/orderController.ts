@@ -7,6 +7,7 @@ import { Order, OrderSource, PaymentMethod } from "../models/Order";
 import { Review } from "../models/Review";
 import { Product } from "../models/Product";
 import { PromoCode } from "../models/PromoCode";
+import { claimPromoUse } from "../utils/promoUsage";
 import { paymentLink } from "../utils/paymentLinks";
 import { User } from "../models/User";
 import { STORE_CITY } from "../utils/store";
@@ -521,6 +522,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     await session.withTransaction(async () => {
       const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method, pathaoIds(address));
+      await claimPromoUse(totals.appliedCode, req.userId, session);
 
       await decrementStockAtomically(totals.orderItems, session);
 
@@ -629,6 +631,8 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
     await session.withTransaction(async () => {
       const address = readShippingAddress(shippingAddress);
       const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method);
+      // A phone/walk-in order has no customer account: only the total cap applies.
+      await claimPromoUse(totals.appliedCode, undefined, session);
 
       await decrementStockAtomically(totals.orderItems, session);
 

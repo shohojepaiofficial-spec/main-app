@@ -154,3 +154,14 @@ export const twoFactorLoginLimiter = rateLimit({
   keyGenerator: twoFactorChallengeKey,
   message: { message: "Too many two-step verification attempts. Please try again later." },
 });
+
+// The public "check this promo code" box. Private codes aren't listed
+// anywhere (SEC-22), so this stops a script trying names one by one; a
+// shopper typing a code or two never comes close.
+export const promoValidateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many promo code attempts. Please try again later." },
+});

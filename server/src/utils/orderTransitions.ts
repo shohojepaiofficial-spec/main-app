@@ -5,6 +5,7 @@ import { SharedCart } from "../models/SharedCart";
 import { orderStockMovements, recordStockMovements } from "./stockLedger";
 import { notifyOrderStatus } from "./orderStatusEmail";
 import { notifyStaff } from "./notify";
+import { releasePromoUse } from "./promoUsage";
 import { staffNewOrderNotification, staffPaymentReviewNotification } from "./notificationMessages";
 
 export async function restoreInventory(order: Pick<IOrder, "_id" | "items">, session: ClientSession) {
@@ -60,6 +61,7 @@ export async function transitionOrder(
       if (!updated) throw Object.assign(new Error("Order changed; please retry"), { status: 409 });
       if (status === "cancelled") {
         await restoreInventory(current, session);
+        await releasePromoUse(current.promoCode, session);
         // Only a still-pending online payment may release its own cart claim.
         if (current.sharedCartId && current.paymentMethod !== "cod") {
           await SharedCart.updateOne(

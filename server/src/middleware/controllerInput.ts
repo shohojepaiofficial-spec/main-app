@@ -20,7 +20,7 @@ const fields: Record<string, string> = {
   createCampaign: "title sourceType productId promoCode channels emailSubject emailBody smsMessage",
   createBanner: "eyebrow accentColor title subtitle primaryCta secondaryCta promoCodeId isActive",
   updateBanner: "eyebrow accentColor title subtitle primaryCta secondaryCta promoCodeId isActive", reorderBanner: "direction",
-  createPromoCode: "code discountType value scope productId isActive expiresAt", updatePromoCode: "code discountType value scope productId isActive expiresAt",
+  createPromoCode: "code discountType value scope productId isActive expiresAt showOnSite maxUses maxUsesPerCustomer", updatePromoCode: "code discountType value scope productId isActive expiresAt showOnSite maxUses maxUsesPerCustomer",
   validatePromoCode: "code productId", trackEvent: "type path productId sessionId referrer",
   submitReview: "rating comment", replyToReview: "text", updateReviewReply: "text",
   updateUserAccess: "role permissions", updateTranslation: "bn", moveBanner: "direction",
@@ -28,7 +28,7 @@ const fields: Record<string, string> = {
   submitContactMessage: "name email subject message", markMessageRead: "isRead",
 };
 const numeric = new Set(["rating", "value", "cityId", "zoneId", "areaId", "weightKg"]);
-const booleans = new Set(["isRead", "sms", "confirmMismatch"]);
+const booleans = new Set(["isRead", "sms", "confirmMismatch", "showOnSite"]);
 const strings = z.string().max(32_768);
 
 export function validateControllerInput(name: string, req: Request) {
@@ -66,6 +66,7 @@ export function validateControllerInput(name: string, req: Request) {
     if (field === "permissions" || field === "channels") schema = z.array(z.string().max(100)).max(30);
     if (field === "platforms") schema = z.union([z.array(z.string().max(100)).max(10), z.string().max(500)]);
     if (field === "expiresAt") schema = z.string().datetime().nullable();
+    if (field === "maxUses" || field === "maxUsesPerCustomer") schema = z.number().int().min(1).max(1_000_000).nullable();
     if (["productId", "promoCodeId"].includes(field)) schema = z.union([objectId, z.literal("")]);
     shape[field] = schema.optional();
   }

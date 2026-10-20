@@ -17,6 +17,10 @@ const promoSchema = z
     productId: z.string().optional(),
     isActive: z.boolean(),
     expiresAt: z.string().optional(),
+    showOnSite: z.boolean(),
+    // Empty = no limit.
+    maxUses: z.string().regex(/^\d*$/, "Whole number, or leave empty").optional(),
+    maxUsesPerCustomer: z.string().regex(/^\d*$/, "Whole number, or leave empty").optional(),
   })
   .superRefine((values, ctx) => {
     if (values.discountType === "percentage" && values.value > 100) {
@@ -69,6 +73,9 @@ function PromoForm({ editingPromo, products, onSaved, onClose }: PromoFormProps)
           productId: editingPromo.productId,
           isActive: editingPromo.isActive,
           expiresAt: editingPromo.expiresAt ? editingPromo.expiresAt.slice(0, 10) : "",
+          showOnSite: editingPromo.showOnSite,
+          maxUses: editingPromo.maxUses ? String(editingPromo.maxUses) : "",
+          maxUsesPerCustomer: editingPromo.maxUsesPerCustomer ? String(editingPromo.maxUsesPerCustomer) : "",
         }
       : {
           code: "",
@@ -78,6 +85,9 @@ function PromoForm({ editingPromo, products, onSaved, onClose }: PromoFormProps)
           productId: undefined,
           isActive: true,
           expiresAt: "",
+          showOnSite: false,
+          maxUses: "",
+          maxUsesPerCustomer: "1",
         },
   });
 
@@ -92,6 +102,9 @@ function PromoForm({ editingPromo, products, onSaved, onClose }: PromoFormProps)
       productId: values.scope === "product" ? values.productId : undefined,
       isActive: values.isActive,
       expiresAt: values.expiresAt || null,
+      showOnSite: values.showOnSite,
+      maxUses: Number(values.maxUses) > 0 ? Number(values.maxUses) : null,
+      maxUsesPerCustomer: Number(values.maxUsesPerCustomer) > 0 ? Number(values.maxUsesPerCustomer) : null,
     };
 
     try {
@@ -182,9 +195,48 @@ function PromoForm({ editingPromo, products, onSaved, onClose }: PromoFormProps)
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-sm font-medium">Total uses (optional)</label>
+          <input
+            {...register("maxUses")}
+            inputMode="numeric"
+            placeholder="No limit"
+            className="w-full border border-border rounded px-3 py-2 bg-background mt-1"
+          />
+          {errors.maxUses && <p className="text-red-600 text-sm mt-1">{errors.maxUses.message}</p>}
+        </div>
+        <div>
+          <label className="text-sm font-medium">Uses per customer</label>
+          <input
+            {...register("maxUsesPerCustomer")}
+            inputMode="numeric"
+            placeholder="No limit"
+            className="w-full border border-border rounded px-3 py-2 bg-background mt-1"
+          />
+          {errors.maxUsesPerCustomer && <p className="text-red-600 text-sm mt-1">{errors.maxUsesPerCustomer.message}</p>}
+        </div>
+      </div>
+      {editingPromo && (
+        <p className="text-xs text-muted">
+          Used {editingPromo.usedCount} time{editingPromo.usedCount === 1 ? "" : "s"} so far (cancelled orders don&apos;t count).
+        </p>
+      )}
+
       <label className="flex items-center gap-2 text-sm font-medium">
         <input type="checkbox" {...register("isActive")} />
         Active
+      </label>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" {...register("showOnSite")} className="mt-1" />
+        <span>
+          <span className="font-medium">Show on site</span>
+          <span className="block text-xs text-muted">
+            Lists the code in the site&apos;s announcement strip and product badges. Leave off for a code you only
+            give to some people — they can still type it at checkout.
+          </span>
+        </span>
       </label>
 
       <button

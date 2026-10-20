@@ -23,10 +23,12 @@ vi.mock("../models/StockMovement", () => ({ StockMovement: { insertMany: vi.fn()
 vi.mock("./orderStatusEmail", () => ({ notifyOrderStatus: vi.fn() }));
 vi.mock("./notify", () => ({ notifyStaff: vi.fn() }));
 vi.mock("../models/SharedCart", () => ({ SharedCart: { updateOne: vi.fn().mockResolvedValue({ matchedCount: 1 }) } }));
+vi.mock("./promoUsage", () => ({ releasePromoUse: vi.fn() }));
 import { transitionOrder } from "./orderTransitions";
 import { Product } from "../models/Product";
 import { StockMovement } from "../models/StockMovement";
 import { notifyOrderStatus } from "./orderStatusEmail";
+import { releasePromoUse } from "./promoUsage";
 
 beforeEach(() => { vi.clearAllMocks(); state.order = { _id: "order", id: "order", status: "pending", user: "buyer", items: [{ product: "product", quantity: 2 }] }; state.inventory = 3; state.writes = []; state.fail = false; });
 describe("transactional order transitions", () => {
@@ -34,6 +36,12 @@ describe("transactional order transitions", () => {
     await transitionOrder("order", "cancelled"); await transitionOrder("order", "cancelled");
     expect(state.inventory).toBe(5); expect(Product.updateOne).toHaveBeenCalledOnce();
     await expect(transitionOrder("order", "paid")).rejects.toMatchObject({ status: 409 });
+  });
+  it("gives back the promo code use of a cancelled order, once (SEC-22)", async () => {
+    state.order.promoCode = "SAVE10";
+    await transitionOrder("order", "cancelled"); await transitionOrder("order", "cancelled");
+    expect(releasePromoUse).toHaveBeenCalledOnce();
+    expect(releasePromoUse).toHaveBeenCalledWith("SAVE10", session);
   });
   it("rolls back status and stock when inventory writes fail", async () => {
     state.fail = true;

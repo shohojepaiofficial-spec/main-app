@@ -4,6 +4,7 @@ import { Types } from "mongoose";
 import { PromoCode, DiscountType, PromoScope } from "../models/PromoCode";
 import { Product } from "../models/Product";
 import { isNonEmptyString } from "../utils/validate";
+import { promoFullyUsed } from "../utils/promoUsage";
 
 const shapePromo = (promo: InstanceType<typeof PromoCode>) => ({
   id: promo.id,
@@ -14,6 +15,10 @@ const shapePromo = (promo: InstanceType<typeof PromoCode>) => ({
   productId: promo.product?.toString(),
   isActive: promo.isActive,
   expiresAt: promo.expiresAt,
+  showOnSite: promo.showOnSite ?? false,
+  maxUses: promo.maxUses ?? null,
+  maxUsesPerCustomer: promo.maxUsesPerCustomer ?? null,
+  usedCount: promo.usedCount ?? 0,
   createdAt: promo.createdAt,
 });
 
@@ -33,17 +38,19 @@ export const getPromoCodes = async (_req: Request, res: Response) => {
 
 // Public — feeds on-site promo discovery: a sitewide announcement strip
 // (scope "all") and per-product "use code X for Y% off" badges (scope
-// "product"). Deliberately minimal shape — no id/createdAt, nothing an admin
-// needs but a customer doesn't.
+// "product"). Only codes staff marked "show on site" are listed (SEC-22):
+// a code made for one customer, or a test code, never appears here.
+// Deliberately minimal shape — nothing an admin needs but a customer doesn't.
 export const getActivePromoCodes = async (_req: Request, res: Response) => {
   const now = new Date();
   const promos = await PromoCode.find({
     isActive: true,
+    showOnSite: true,
     $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: now } }],
   });
 
   res.json(
-    promos.map((promo) => ({
+    promos.filter((promo) => !promoFullyUsed(promo)).map((promo) => ({
       code: promo.code,
       discountType: promo.discountType,
       value: promo.value,
@@ -54,7 +61,7 @@ export const getActivePromoCodes = async (_req: Request, res: Response) => {
 };
 
 const validateInput = (body: Record<string, unknown>) => {
-  const { code, discountType, value, scope, productId, isActive, expiresAt } = body as {
+  const { code, discountType, value, scope, productId, isActive, expiresAt, showOnSite, maxUses, maxUsesPerCustomer } = body as {
     code?: string;
     discountType?: DiscountType;
     value?: number;
@@ -62,6 +69,9 @@ const validateInput = (body: Record<string, unknown>) => {
     productId?: string;
     isActive?: boolean;
     expiresAt?: string | null;
+    showOnSite?: boolean;
+    maxUses?: number | null;
+    maxUsesPerCustomer?: number | null;
   };
 
   if (!isNonEmptyString(code)) return { error: "Code is required" };
@@ -86,6 +96,9 @@ const validateInput = (body: Record<string, unknown>) => {
       product: scope === "product" ? productId : undefined,
       isActive: isActive ?? true,
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      showOnSite: showOnSite === true,
+      maxUses: maxUses ?? undefined,
+      maxUsesPerCustomer: maxUsesPerCustomer ?? undefined,
     },
   };
 };
@@ -110,7 +123,10 @@ export const updatePromoCode = async (req: Request, res: Response) => {
   const existing = await PromoCode.findOne({ code: data!.code, _id: { $ne: req.params.id } });
   if (existing) return res.status(409).json({ message: "That code already exists" });
 
-  const promo = await PromoCode.findByIdAndUpdate(req.params.id, data!, {
+  // A field left empty on the form (no expiry, no limit) is removed, not kept.
+  const set = Object.fromEntries(Object.entries(data!).filter(([, v]) => v !== undefined));
+  const unset = Object.fromEntries((["expiresAt", "maxUses", "maxUsesPerCustomer", "product"] as const).filter((k) => data![k] === undefined).map((k) => [k, 1]));
+  const promo = await PromoCode.findByIdAndUpdate(req.params.id, { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) }, {
     returnDocument: "after",
     runValidators: true,
   });
@@ -142,6 +158,9 @@ export const validatePromoCode = async (req: Request, res: Response) => {
   }
   if (promo.expiresAt && promo.expiresAt.getTime() < Date.now()) {
     return res.status(404).json({ message: "Invalid or expired promo code" });
+  }
+  if (promoFullyUsed(promo)) {
+    return res.status(409).json({ message: "This promo code has been fully used" });
   }
   // Only enforce the product match when a productId was actually given (e.g.
   // applying from that product's page). Applying from the cart's generic

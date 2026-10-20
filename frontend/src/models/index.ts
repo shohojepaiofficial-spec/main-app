@@ -543,6 +543,11 @@ export interface PromoCode {
   productName?: string;
   isActive: boolean;
   expiresAt?: string | null;
+  // Listed in the public announcement strip / product badges only when true.
+  showOnSite: boolean;
+  maxUses: number | null;
+  maxUsesPerCustomer: number | null;
+  usedCount: number;
   createdAt: string;
 }
 
