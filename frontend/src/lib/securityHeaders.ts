@@ -15,4 +15,12 @@ export const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // A page we open (or one that opened us) can't reach back into this tab.
+  // Safe: Google sign-in and bKash are full-page redirects, not popups, and
+  // WhatsApp/Messenger links already open with noopener.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  // Vercel's default HSTS covers only this host; this also pins every
+  // subdomain (api. already serves HTTPS only; webmail is on privateemail.com).
+  // No "preload": that list is hard to leave, so it's a separate decision.
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
 ];

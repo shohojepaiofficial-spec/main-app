@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -52,12 +51,10 @@ app.use(
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    credentials: true,
-  })
-);
+// No CORS: browsers never call this API directly — every request goes
+// through the storefront's same-origin /api/backend proxy (or its server-side
+// rendering), and <img> tags for /uploads don't need it. Without CORS headers
+// no other site's page can read a response from here.
 app.use("/api", storefrontOnly);
 app.use("/api", apiLimiter);
 // The Pathao webhook signature may be an HMAC of the exact bytes received.

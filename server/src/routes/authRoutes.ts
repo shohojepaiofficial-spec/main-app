@@ -62,7 +62,9 @@ router.post("/verify-email", verifyEmail);
 router.post("/resend-verification", protect, authLimiter, resendVerificationEmail);
 router.post("/forgot-password", authLimiter, authTargetLimiter, forgotPassword);
 router.post("/reset-password", authLimiter, resetPassword);
-router.get("/unsubscribe", unsubscribeFromMarketing);
+// A POST from the button on /unsubscribe, never a GET: email link scanners
+// open links, and opening one must not change anything.
+router.post("/unsubscribe", authLimiter, unsubscribeFromMarketing);
 
 // Two-step verification (admin/co-admin only — see twoFactorController.ts).
 // `verify-login` is deliberately public + rate-limited, same as login

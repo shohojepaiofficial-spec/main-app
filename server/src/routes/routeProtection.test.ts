@@ -33,7 +33,7 @@ import notifications from "./notificationRoutes";
 const publicRoutes = new Set([
   "auth POST /refresh", "auth POST /register", "auth POST /login", "auth POST /oauth-sync",
   "auth POST /verify-email", "auth POST /forgot-password", "auth POST /reset-password",
-  "auth GET /unsubscribe", "auth POST /2fa/verify-login",
+  "auth POST /unsubscribe", "auth POST /2fa/verify-login",
   "products GET /", "products GET /categories", "products GET /:id", "products GET /:id/reviews",
   "orders GET /bkash/callback", "orders POST /pathao/webhook", "banners GET /", "promos POST /validate", "promos GET /active",
   "analytics POST /track", "contact POST /", "shared GET /:link", "shared POST /:link/pay", "translations GET /", "stats GET /",

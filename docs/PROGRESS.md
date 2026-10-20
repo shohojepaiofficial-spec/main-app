@@ -1512,3 +1512,10 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - URL-sourced order/product ids are encoded in `orderService`, `productService`, `reviewService`; `public/sw.js` refuses `/\host` links.
 - Settings phone must be a BD mobile (server `updateProfile` + `SettingsView` form), stored normalized.
 - Checks: server 585 tests (new `profilePhone.test.ts`), frontend 118 tests (new `shopCategory.test.ts`), both typechecks, lint on changed files, `next build`.
+
+## 2026-10-21 (audit: CSRF, CORS, security headers — SEC-28)
+- Pushed SEC-27 (`4dc79c9`).
+- Audited the `/api/backend` proxy's CSRF checks, cookies, NextAuth, every GET route, CORS on both servers and the live headers. Live probes against shohojepai.com: wrong/missing/null Origin, missing `X-Requested-With`, form-encoded posts and `Sec-Fetch-Site: cross-site` GETs all got 403; a cross-site preflight gets no CORS headers; HTTP and `www` redirect to `https://shohojepai.com`. `INTERNAL_API_SECRET` confirmed absent from `.next/static`.
+- Unsubscribe is now a button on `/unsubscribe` that POSTs (`controllers/useUnsubscribe.ts`, `POST /auth/unsubscribe` with `authLimiter`), instead of a GET fired on page load.
+- Frontend headers add `Cross-Origin-Opener-Policy: same-origin` and HSTS `includeSubDomains`. API `cors()` and the `cors` / `@types/cors` packages removed.
+- Checks: server 590 tests (new `unsubscribe.test.ts`), frontend 119 tests, both typechecks, lint on changed files, `next build`.

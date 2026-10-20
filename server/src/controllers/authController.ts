@@ -257,15 +257,15 @@ export const updateMarketingOptIn = async (req: AuthRequest, res: Response) => {
   res.json(shapeUser(user));
 };
 
-// The one-click link at the bottom of every marketing campaign email (see
-// campaignController.ts#createCampaign) — public, no login required, since
-// clicking a link in an email shouldn't require having an active session on
-// whatever device opens it. Only ever turns email marketing off, never the
-// whole account or SMS opt-in.
+// The link at the bottom of every marketing campaign email (see
+// campaignController.ts#createCampaign) opens /unsubscribe, whose button
+// posts here — public, no login required, since clicking a link in an email
+// shouldn't require having an active session on whatever device opens it.
+// Only ever turns email marketing off, never the whole account or SMS opt-in.
 export const unsubscribeFromMarketing = async (req: Request, res: Response) => {
   validateControllerInput("unsubscribeFromMarketing", req);
-  const { uid, token } = req.query as { uid?: string; token?: string };
-  if (!isNonEmptyString(uid) || !isNonEmptyString(token) || !verifyUnsubscribeToken(uid, token)) {
+  const { uid, token } = req.body as { uid?: string; token?: string };
+  if (!isNonEmptyString(uid) || !isNonEmptyString(token) || !/^[a-f\d]{24}$/i.test(uid) || !verifyUnsubscribeToken(uid, token)) {
     return res.status(400).json({ message: "This unsubscribe link is invalid." });
   }
 

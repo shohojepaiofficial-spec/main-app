@@ -14,6 +14,10 @@ describe("security headers", () => {
     expect(value("Content-Security-Policy")).toContain("object-src 'none'");
     expect(value("X-Content-Type-Options")).toBe("nosniff");
   });
+  it("isolates the tab from pages it opens and pins HTTPS on every subdomain", () => {
+    expect(value("Cross-Origin-Opener-Policy")).toBe("same-origin");
+    expect(value("Strict-Transport-Security")).toBe("max-age=63072000; includeSubDomains");
+  });
   it("is applied to every path", async () => {
     expect(await nextConfig.headers?.()).toEqual([{ source: "/:path*", headers: securityHeaders }]);
     expect(nextConfig.poweredByHeader).toBe(false);

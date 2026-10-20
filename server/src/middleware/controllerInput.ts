@@ -10,7 +10,7 @@ const fields: Record<string, string> = {
   register: "name email password", login: "email password", updateProfile: "name phone",
   changePassword: "currentPassword newPassword", updateDeliveryLocation: "zila upazila addressLine pathao",
   updateMarketingOptIn: "email sms", oauthSync: "name email provider providerId image",
-  verifyEmail: "token", forgotPassword: "email", resetPassword: "token password", refreshSession: "refreshToken",
+  verifyEmail: "token", unsubscribeFromMarketing: "uid token", forgotPassword: "email", resetPassword: "token password", refreshSession: "refreshToken",
   setupTwoFactor: "", replaceTwoFactor: "code", confirmTwoFactor: "code", confirmTwoFactorReplacement: "code",
   disableTwoFactor: "code", verifyTwoFactorLogin: "tempToken code",
   createSharedCart: "items shippingAddress promoCode", payForSharedCart: "", getDeliveryQuote: "items zila upazila pathao",

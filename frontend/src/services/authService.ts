@@ -127,12 +127,13 @@ export const updateMarketingOptIn = async (input: Partial<MarketingOptIn>): Prom
   return data;
 };
 
-// The one-click link at the bottom of a campaign email — public, no login
-// required. Only ever turns off email marketing for the linked account.
+// The button on the page a campaign email's unsubscribe link opens — public,
+// no login required. A POST, so merely opening the link (as email link
+// scanners do) changes nothing. Only ever turns off email marketing.
 export const unsubscribeFromMarketing = async (
   uid: string,
   token: string
 ): Promise<{ message: string }> => {
-  const { data } = await api.get<{ message: string }>("/auth/unsubscribe", { params: { uid, token } });
+  const { data } = await api.post<{ message: string }>("/auth/unsubscribe", { uid, token });
   return data;
 };
