@@ -1477,3 +1477,9 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Report (live, 00:53): logged in, reloaded a little later, login gone. Session records: the session was renewed at 18:52:47 UTC and ended by the server at 18:52:49 with "renewal pass used twice". The browser reloaded while a renewal was in flight: the server swapped the pass but the reply (and its new cookie) never arrived, so the next page load sent the old pass and was treated as theft.
 - Fix (`server/src/utils/sessions.ts`): the pass replaced by the last renewal is accepted again for 60 seconds (`RENEWAL_GRACE_MS`) and renewed instead of ending the session. The window is not extended by reuse, and older passes or replays after 60 s still end the session. `AuthSession` gains `previousRefreshTokenHash` and `rotatedAt`. Logged as "replaced pass reused within grace period".
 - Checks: server 544 tests, typecheck. Left: deploy backend; sign in, reload repeatedly around the 15-minute mark and see the login stay.
+
+## 2026-10-20 (looks logged out after a night away — header flash)
+- Report (live, morning): customer (Google) account "logged out" after sleeping. Session records and Railway logs: the session was never ended; the browser's renewal at 04:41 UTC returned 200 and `/auth/me` returned 200 right after. No 401 all morning.
+- Cause: while the login is renewed on page load (longest after a long break), the header's auth area rendered the "Sign in" button, which reads as a logout.
+- Fix (`views/Navbar.tsx`, `controllers/useAuthController.ts`): the auth area shows a neutral placeholder while `isHydrating`, then the account menu or "Sign in". Server and first client render agree (both start hydrating).
+- Checks: frontend 113 tests, typecheck. Left: deploy; open the site after a night away and see no "Sign in" flash.

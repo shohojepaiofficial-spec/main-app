@@ -81,9 +81,15 @@ function CartButton() {
 }
 
 function AuthArea() {
-  const { isAuthenticated } = useAuthController();
+  const { isAuthenticated, isHydrating } = useAuthController();
   const openAuthModal = useUIStore((s) => s.openAuthModal);
   const { t } = useTranslations();
+
+  // While a returning customer's login is being renewed (a second or more
+  // after a long break), don't flash "Sign in" — it looks like a logout.
+  if (isHydrating) {
+    return <span aria-hidden="true" className="inline-block h-8 w-20 rounded-full bg-border animate-pulse" />;
+  }
 
   if (isAuthenticated) {
     return (

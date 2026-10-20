@@ -12,7 +12,7 @@ import { disablePush } from "@/lib/push";
 // NextAuth too, so a stale OAuth session cookie doesn't silently log the user
 // back in via useOAuthBridge on the next page load.
 export function useAuthController() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isHydrating } = useAuthStore();
 
   const logout = async (allDevices = false) => {
     try {
@@ -33,5 +33,5 @@ export function useAuthController() {
   const hasPermission = (permission: Permission) =>
     user?.role === "admin" || (user?.role === "coadmin" && !!user.permissions?.includes(permission));
 
-  return { user, isAuthenticated: isAuthenticated(), logout: () => logout(false), logoutAll: () => logout(true), hasPermission };
+  return { user, isAuthenticated: isAuthenticated(), isHydrating, logout: () => logout(false), logoutAll: () => logout(true), hasPermission };
 }
