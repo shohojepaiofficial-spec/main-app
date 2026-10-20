@@ -1,9 +1,10 @@
 // Service worker for browser push notifications (see src/lib/push.ts).
 // Only handles push — no caching, so it never serves stale pages.
 
-// Only same-site paths ("/orders/…"), never another site.
+// Only same-site paths ("/orders/…"), never another site. "//host" and
+// "/\host" both resolve to another site, so neither is a path.
 function safePath(link) {
-  return typeof link === "string" && link.startsWith("/") && !link.startsWith("//") ? link : "/dashboard";
+  return typeof link === "string" && /^\/(?![/\\])/.test(link) ? link : "/dashboard";
 }
 
 self.addEventListener("push", (event) => {

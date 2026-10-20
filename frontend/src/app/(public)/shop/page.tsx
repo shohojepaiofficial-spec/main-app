@@ -1,29 +1,48 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getProducts } from "@/services/productService";
+import { cache } from "react";
+import { getProductCategories, getProducts } from "@/services/productService";
 import { getActivePromoCodes } from "@/services/promoService";
 import { ProductGrid } from "@/views/ProductGrid";
 import { Pagination } from "@/views/Pagination";
 import { PromoAutoApply } from "@/views/PromoAutoApply";
 import { AppliedPromo } from "@/models";
 import { T } from "@/components/ui/T";
+import { matchShopCategory } from "@/lib/shopCategory";
 
 type ShopSearchParams = { category?: string; page?: string; promo?: string };
+
+// One categories request per render, shared by the metadata and the page.
+const loadCategories = cache(getProductCategories);
+
+// Only a real category is shown (see lib/shopCategory.ts); anything else is
+// the plain shop.
+async function resolveCategory(requested: string | undefined) {
+  return requested ? matchShopCategory(requested, await loadCategories()) : undefined;
+}
+
+const parsePage = (value: string | undefined) => Math.max(1, parseInt(value ?? "1", 10) || 1);
 
 export async function generateMetadata({
   searchParams,
 }: {
   searchParams: Promise<ShopSearchParams>;
 }): Promise<Metadata> {
-  const { category } = await searchParams;
+  const { category: requested, page: pageParam } = await searchParams;
+  const category = await resolveCategory(requested);
+  const page = parsePage(pageParam);
   const title = category ? `${category} — Shop` : "Shop";
   const description = category
     ? `Browse our ${category} products.`
     : "Browse our full catalog of products.";
+  const query = new URLSearchParams({ ...(category ? { category } : {}), ...(page > 1 ? { page: String(page) } : {}) }).toString();
 
   return {
     title,
     description,
+    // Unknown categories and ?promo= links all point search engines at the
+    // real page, so they never index a URL someone made up.
+    alternates: { canonical: query ? `/shop?${query}` : "/shop" },
     // Falls back to the site's default OG image (not inherited automatically
     // from layout.tsx — see the shop/[id] product page for why).
     openGraph: {
@@ -40,8 +59,9 @@ export default async function ShopPage({
 }: {
   searchParams: Promise<ShopSearchParams>;
 }) {
-  const { category, page: pageParam, promo } = await searchParams;
-  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+  const { category: requested, page: pageParam, promo } = await searchParams;
+  const page = parsePage(pageParam);
+  const category = await resolveCategory(requested);
   const [{ items, totalPages }, activePromos] = await Promise.all([
     getProducts({ category, page }),
     getActivePromoCodes(),

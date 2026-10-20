@@ -13,6 +13,7 @@ import { isNonEmptyString, isValidPersonName, NAME_RULE_MESSAGE, safePersonName 
 import { escapeHtml } from "../utils/escapeHtml";
 import { AuthRequest } from "../middleware/auth";
 import { passwordPolicyError } from "../utils/passwordPolicy";
+import { isBdMobile, normalizeBdPhone } from "../utils/phone";
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -146,7 +147,14 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     if (!isValidPersonName(name)) return res.status(400).json({ message: NAME_RULE_MESSAGE });
     user.name = name.trim();
   }
-  if (phone !== undefined) user.phone = phone.trim() || undefined;
+  // Same rule as checkout, stored in one spelling. It prefills checkout and
+  // receives marketing SMS, so it must be a real Bangladeshi mobile number.
+  if (phone !== undefined) {
+    if (phone.trim() && (phone.length > 40 || !isBdMobile(phone))) {
+      return res.status(400).json({ message: "Enter a valid Bangladeshi mobile number, like 01712345678" });
+    }
+    user.phone = phone.trim() ? normalizeBdPhone(phone) : undefined;
+  }
 
   // `user.image` may be a self-uploaded file or a Google OAuth avatar URL —
   // deleteUploadedFile below only ever acts on our own Cloudinary folder or

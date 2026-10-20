@@ -40,7 +40,7 @@ export const getStockHistory = async (productId: string, page = 1): Promise<Pagi
 
 export const getProductById = async (id: string): Promise<Product | null> => {
   try {
-    const { data } = await api.get<Product>(`/products/${id}`);
+    const { data } = await api.get<Product>(`/products/${encodeURIComponent(id)}`);
     return data;
   } catch (err) {
     if ((err as { response?: { status?: number } })?.response?.status === 404) return null;

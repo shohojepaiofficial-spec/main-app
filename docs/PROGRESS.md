@@ -1504,3 +1504,11 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Per-customer promo limit now matches the account or the delivery phone (`claimPromoUse(code, { user, phone }, session)`); staff phone/walk-in orders count by phone.
 - `GET /orders/:id` and cancel return 404 for someone else's order (was 403).
 - Checks: server 580 tests (new `orderLookup.test.ts`, promo/rounding/reconciliation cases), frontend 116 tests (new `useCartStore.test.ts`), both typechecks, lint on changed frontend files.
+
+## 2026-10-21 (audit: injection, XSS, uploads — SEC-27)
+- Pushed SEC-26 (`2fccec6`).
+- Audited every entry point for NoSQL injection (body/query/params/multipart/webhook), XSS (reviews, search, shop filters, JSON-LD, emails, links, push notifications) and file uploads (all 7 upload routes). No hole found; three low items fixed.
+- Shop `?category=` is matched against the store's categories before it reaches the heading/title (`lib/shopCategory.ts`); `/shop` canonical added.
+- URL-sourced order/product ids are encoded in `orderService`, `productService`, `reviewService`; `public/sw.js` refuses `/\host` links.
+- Settings phone must be a BD mobile (server `updateProfile` + `SettingsView` form), stored normalized.
+- Checks: server 585 tests (new `profilePhone.test.ts`), frontend 118 tests (new `shopCategory.test.ts`), both typechecks, lint on changed files, `next build`.

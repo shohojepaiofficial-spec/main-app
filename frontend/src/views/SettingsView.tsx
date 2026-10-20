@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { newPasswordSchema } from "@/lib/passwordPolicy";
+import { isBdMobile, BD_MOBILE_MESSAGE } from "@/lib/phone";
 import { BrowserPushSection } from "@/views/BrowserPushSection";
 import toast from "react-hot-toast";
 import { IMAGE_ACCEPT, imageUploadError } from "@/lib/imageUpload";
@@ -29,7 +30,8 @@ function extractErrorMessage(err: unknown, fallback: string) {
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "Name is too short").max(80, "Name is too long"),
-  phone: z.string().optional(),
+  // Optional, but when given it must be a real BD mobile — same rule as checkout and the server.
+  phone: z.string().trim().refine((v) => v === "" || isBdMobile(v), BD_MOBILE_MESSAGE).optional(),
 });
 type ProfileValues = z.infer<typeof profileSchema>;
 
@@ -133,6 +135,7 @@ function ProfileSection() {
           placeholder={t("settings.phonePlaceholder", "e.g. 01XXXXXXXXX")}
           className="mt-1 w-full rounded border border-border bg-background px-3 py-2"
         />
+        {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>}
         <p className="mt-1 text-xs text-muted">
           {t("settings.phoneHint", "Used as your default contact number at checkout.")}
         </p>

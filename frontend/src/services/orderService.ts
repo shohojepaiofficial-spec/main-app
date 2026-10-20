@@ -61,7 +61,7 @@ export const getReviewableProducts = async (): Promise<ProductSummary[]> => {
 
 // Self-service cancellation — only works while the order is still "pending".
 export const cancelOrder = async (id: string): Promise<Order> => {
-  const { data } = await api.patch<Order>(`/orders/${id}/cancel`);
+  const { data } = await api.patch<Order>(`/orders/${encodeURIComponent(id)}/cancel`);
   return data;
 };
 
@@ -79,7 +79,7 @@ export const getAllOrders = async (): Promise<Order[]> => {
 
 export const getOrderById = async (id: string): Promise<Order | null> => {
   try {
-    const { data } = await api.get<Order>(`/orders/${id}`);
+    const { data } = await api.get<Order>(`/orders/${encodeURIComponent(id)}`);
     return data;
   } catch (err) {
     if ((err as { response?: { status?: number } })?.response?.status === 404) return null;
