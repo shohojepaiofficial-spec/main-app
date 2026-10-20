@@ -128,6 +128,28 @@ describe("computeOrderTotals", () => {
     expect(result.totalAmount).toBe(190); // 200 + 10 delivery - 20
   });
 
+  it("rounds a percentage promo to whole taka so the total survives bKash's 2-decimal amount", async () => {
+    // 18% of 107 is 19.26 in decimal but 87.74000000000001 left over in floats.
+    vi.mocked(Product.find).mockReturnValue(queryResult([fakeProduct({ price: 107, deliveryFeeInsideCity: 0 })]) as never);
+    vi.mocked(PromoCode.findOne).mockReturnValue(
+      queryResult({ code: "SAVE18", discountType: "percentage", value: 18, scope: "all", isActive: true }) as never
+    );
+
+    const result = await computeOrderTotals([{ productId: "p1", quantity: 1 }], STORE_CITY_ZILA, TEST_UPAZILA, "SAVE18");
+
+    expect(result.discount).toBe(19);
+    expect(result.totalAmount).toBe(88);
+    expect(Number(result.totalAmount.toFixed(2))).toBe(result.totalAmount);
+  });
+
+  it("keeps the total to the paisa for fractional prices", async () => {
+    vi.mocked(Product.find).mockReturnValue(queryResult([fakeProduct({ price: 0.1, deliveryFeeInsideCity: 0.2 })]) as never);
+
+    const result = await computeOrderTotals([{ productId: "p1", quantity: 1 }], STORE_CITY_ZILA, TEST_UPAZILA);
+
+    expect(result.totalAmount).toBe(0.3); // not 0.30000000000000004
+  });
+
   it("applies a product-scoped flat promo only to its own line", async () => {
     vi.mocked(Product.find).mockReturnValue(
       queryResult([fakeProduct(), fakeProduct({ id: "p2", name: "Other", price: 500 })]) as never

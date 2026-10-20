@@ -5,7 +5,9 @@ import { flagPaymentReview } from "./paymentReview";
 
 export async function reconcilePayment(order: InstanceType<typeof Order>, result: BkashPaymentResult) {
   if (result.transactionStatus === "Completed") {
-    if (!result.trxID || !result.amount || Number(result.amount) !== order.totalAmount) {
+    // Compared in paisa: bKash reports "87.74" for an order stored as 87.74
+    // (or, before totals were rounded, 87.74000000000001).
+    if (!result.trxID || !result.amount || Math.round(Number(result.amount) * 100) !== Math.round(order.totalAmount * 100)) {
       await flagPaymentReview(order._id, "bKash says paid, but the amount or transaction id doesn't match.");
       return "error";
     }

@@ -11,7 +11,7 @@ const errorMessage = (err: unknown, fallback: string) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 
 // One of the signed-in customer's own orders, for /orders/[id]. The API
-// returns 403/404 for anyone else's order; both show "not found".
+// returns 404 for anyone else's order, same as a missing one.
 export function useMyOrder(orderId: string) {
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);

@@ -20,39 +20,62 @@ beforeEach(() => {
 
 describe("claimPromoUse", () => {
   it("does nothing without an applied code", async () => {
-    await claimPromoUse(undefined, "u1", session);
+    await claimPromoUse(undefined, { user: "u1" }, session);
     expect(PromoCode.findOne).not.toHaveBeenCalled();
   });
 
   it("always counts the use, even with no limits (so racing orders conflict)", async () => {
     vi.mocked(PromoCode.findOne).mockReturnValue(withSession(promo()) as never);
-    await claimPromoUse("SAVE10", "u1", session);
+    await claimPromoUse("SAVE10", { user: "u1" }, session);
     expect(PromoCode.updateOne).toHaveBeenCalledWith({ _id: "p1" }, { $inc: { usedCount: 1 } }, { session });
   });
 
   it("only counts the use while under the total cap", async () => {
     vi.mocked(PromoCode.findOne).mockReturnValue(withSession(promo({ maxUses: 5 })) as never);
-    await claimPromoUse("SAVE10", "u1", session);
+    await claimPromoUse("SAVE10", { user: "u1" }, session);
     expect(PromoCode.updateOne).toHaveBeenCalledWith({ _id: "p1", usedCount: { $lt: 5 } }, { $inc: { usedCount: 1 } }, { session });
   });
 
   it("refuses the order once the total cap is reached", async () => {
     vi.mocked(PromoCode.findOne).mockReturnValue(withSession(promo({ maxUses: 5, usedCount: 5 })) as never);
     vi.mocked(PromoCode.updateOne).mockResolvedValue({ modifiedCount: 0 } as never);
-    await expect(claimPromoUse("SAVE10", "u1", session)).rejects.toMatchObject({ status: 409, message: expect.stringMatching(/fully used/) });
+    await expect(claimPromoUse("SAVE10", { user: "u1" }, session)).rejects.toMatchObject({ status: 409, message: expect.stringMatching(/fully used/) });
   });
 
-  it("refuses a customer who already used it the allowed number of times", async () => {
+  it("refuses a customer whose account or phone already used it the allowed number of times", async () => {
     vi.mocked(PromoCode.findOne).mockReturnValue(withSession(promo({ maxUsesPerCustomer: 1 })) as never);
     vi.mocked(Order.countDocuments).mockReturnValue(withSession(1) as never);
-    await expect(claimPromoUse("SAVE10", "u1", session)).rejects.toMatchObject({ status: 409, message: "You've already used this promo code." });
-    expect(Order.countDocuments).toHaveBeenCalledWith({ user: "u1", promoCode: "SAVE10", status: { $ne: "cancelled" } });
+    await expect(claimPromoUse("SAVE10", { user: "u1", phone: "01712345678" }, session)).rejects.toMatchObject({
+      status: 409, message: "This promo code has already been used by this account or phone number.",
+    });
+    expect(Order.countDocuments).toHaveBeenCalledWith({
+      promoCode: "SAVE10", status: { $ne: "cancelled" },
+      $or: [{ user: "u1" }, { "shippingAddress.phone": "01712345678" }],
+    });
     expect(PromoCode.updateOne).not.toHaveBeenCalled();
   });
 
-  it("skips the per-customer check for an order with no customer account", async () => {
+  it("counts a staff-entered order (no account) by its phone", async () => {
+    vi.mocked(PromoCode.findOne).mockReturnValue(withSession(promo({ maxUsesPerCustomer: 2 })) as never);
+    vi.mocked(Order.countDocuments).mockReturnValue(withSession(2) as never);
+    await expect(claimPromoUse("SAVE10", { phone: "01712345678" }, session)).rejects.toMatchObject({
+      status: 409, message: "This promo code has already been used 2 times by this account or phone number.",
+    });
+    expect(Order.countDocuments).toHaveBeenCalledWith({
+      promoCode: "SAVE10", status: { $ne: "cancelled" }, $or: [{ "shippingAddress.phone": "01712345678" }],
+    });
+  });
+
+  it("allows a customer under the per-customer limit", async () => {
+    vi.mocked(PromoCode.findOne).mockReturnValue(withSession(promo({ maxUsesPerCustomer: 2 })) as never);
+    vi.mocked(Order.countDocuments).mockReturnValue(withSession(1) as never);
+    await claimPromoUse("SAVE10", { user: "u1", phone: "01712345678" }, session);
+    expect(PromoCode.updateOne).toHaveBeenCalledOnce();
+  });
+
+  it("skips the per-customer check when nothing identifies the customer", async () => {
     vi.mocked(PromoCode.findOne).mockReturnValue(withSession(promo({ maxUsesPerCustomer: 1 })) as never);
-    await claimPromoUse("SAVE10", undefined, session);
+    await claimPromoUse("SAVE10", {}, session);
     expect(Order.countDocuments).not.toHaveBeenCalled();
     expect(PromoCode.updateOne).toHaveBeenCalledOnce();
   });

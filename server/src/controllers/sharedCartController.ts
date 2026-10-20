@@ -194,7 +194,7 @@ export const payForSharedCart = async (req: Request, res: Response) => {
   try {
     await session.withTransaction(async () => {
       const totals = await computeOrderTotals(sharedCartLines(cart), address.zila, address.upazila, cart.promoCode, session, "bkash", pathaoIds(address));
-      await claimPromoUse(totals.appliedCode, cart.createdBy, session);
+      await claimPromoUse(totals.appliedCode, { user: cart.createdBy, phone: address.phone }, session);
       await decrementStockAtomically(totals.orderItems, session);
       const [created] = await Order.create(
         [

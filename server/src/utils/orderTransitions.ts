@@ -37,8 +37,9 @@ export async function transitionOrder(
       changedFrom = undefined;
       const current = await Order.findById(id).session(session);
       if (!current) throw Object.assign(new Error("Order not found"), { status: 404 });
+      // Someone else's order is "not found", same as a missing one, so ids can't be probed.
       if (options.owner && current.user?.toString() !== options.owner) {
-        throw Object.assign(new Error("Not authorized to change this order"), { status: 403 });
+        throw Object.assign(new Error("Order not found"), { status: 404 });
       }
       if (current.status === status) return current;
       if (current.source === "online" && current.paymentMethod === "bkash" && current.status === "pending" && ["paid", "shipped", "delivered"].includes(status) && !options.transactionId) {

@@ -98,9 +98,10 @@ export const useCartStore = create<CartState>()(
         if (promo.scope === "all") {
           const subtotal = items.reduce((sum, i) => sum + i.quantity * i.price, 0);
           if (subtotal === 0) return 0;
-          return promo.discountType === "percentage"
+          // Whole taka, same as the server's computeOrderTotals.
+          return Math.round(promo.discountType === "percentage"
             ? subtotal * (promo.value / 100)
-            : Math.min(promo.value, subtotal);
+            : Math.min(promo.value, subtotal));
         }
 
         // scope === "product" — only discounts that product's lines (every
@@ -111,9 +112,9 @@ export const useCartStore = create<CartState>()(
         const lines = items.filter((i) => i.productId === promo.productId);
         if (lines.length === 0) return 0;
         const lineTotal = lines.reduce((sum, i) => sum + i.quantity * i.price, 0);
-        return promo.discountType === "percentage"
+        return Math.round(promo.discountType === "percentage"
           ? lineTotal * (promo.value / 100)
-          : Math.min(promo.value, lineTotal);
+          : Math.min(promo.value, lineTotal));
       },
       grandTotal: () => {
         const subtotal = get().totalPrice();

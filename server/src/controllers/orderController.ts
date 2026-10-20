@@ -260,9 +260,12 @@ export async function computeOrderTotals(
     }
   }
 
-  // Whole taka, so the receipt never shows a fraction for it — the
-  // storefront's preview (lib/preorder.ts) rounds the same way.
+  // Whole taka, so the receipt never shows a fraction for either discount
+  // and the total survives bKash's 2-decimal amount unchanged (an unrounded
+  // 18% off 107 left 87.74000000000001, which the payment check rejected).
+  // The storefront's previews (lib/preorder.ts, useCartStore) round the same way.
   preorderDiscount = Math.round(preorderDiscount);
+  discount = Math.round(discount);
   // The two discounts don't stack (WORK-14): the bigger one wins, ties go
   // to the pre-order discount and the promo code isn't recorded as used.
   if (discount > 0 && preorderDiscount > 0) {
@@ -274,7 +277,8 @@ export async function computeOrderTotals(
     }
   }
   const isPreorder = orderItems.some((i) => i.isPreorder);
-  const totalAmount = Math.max(0, itemsTotal + deliveryFee - discount - preorderDiscount);
+  // To the paisa, so float noise from prices like 99.99 never reaches the charge.
+  const totalAmount = Math.max(0, Math.round((itemsTotal + deliveryFee - discount - preorderDiscount) * 100) / 100);
 
   return {
     orderItems,
@@ -522,7 +526,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     await session.withTransaction(async () => {
       const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method, pathaoIds(address));
-      await claimPromoUse(totals.appliedCode, req.userId, session);
+      await claimPromoUse(totals.appliedCode, { user: req.userId, phone: address.phone }, session);
 
       await decrementStockAtomically(totals.orderItems, session);
 
@@ -631,8 +635,9 @@ export const adminCreateOrder = async (req: AuthRequest, res: Response) => {
     await session.withTransaction(async () => {
       const address = readShippingAddress(shippingAddress);
       const totals = await computeOrderTotals(items, address.zila, address.upazila, promoCode, session, method);
-      // A phone/walk-in order has no customer account: only the total cap applies.
-      await claimPromoUse(totals.appliedCode, undefined, session);
+      // A phone/walk-in order has no customer account; the customer's phone
+      // still counts toward the per-customer limit.
+      await claimPromoUse(totals.appliedCode, { phone: address.phone }, session);
 
       await decrementStockAtomically(totals.orderItems, session);
 
@@ -771,7 +776,8 @@ export const getOrderById = async (req: AuthRequest, res: Response) => {
     const requester = await User.findById(req.userId).select("role permissions");
     const canManage =
       !!requester && (requester.role === "admin" || (requester.role === "coadmin" && requester.permissions.includes("orders:manage")));
-    if (!canManage) return res.status(403).json({ message: "Not authorized to view this order" });
+    // Same 404 as a missing order, so order ids can't be probed.
+    if (!canManage) return res.status(404).json({ message: "Order not found" });
   }
 
   // The buyer gets the customer's view even if they are staff; staff looking

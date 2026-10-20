@@ -1497,3 +1497,10 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - SEC-24: banner links/colour validated (server + form); Next image optimizer local-IP exception dev-only and unused hosts removed (checked live data: only Cloudinary + Google avatars); constant-time oauth-sync secret; reviews need a verified email and a real product; wishlist cap 200; return requests claim items in a transaction; Pathao webhook logs which signature form matched, `PATHAO_WEBHOOK_SIGNATURE` pins one. Accepted: login/sign-up still say whether an email has an account.
 - Not done in code (owner's accounts): SEC-13 backup secrets + restore test, SEC-11 Cloudflare in front of the API, Pathao merchant 2FA.
 - Checks: server 571 tests, frontend 113 tests, both typechecks, lint on changed views, `next build`.
+
+## 2026-10-20 (audit: auth, ownership, pricing — SEC-26)
+- Audited password hashing, login rate limits, session expiry and password reset; whether one customer can see or change another's orders/addresses/account; and server-side pricing, quantities and promo reuse. All passed; three follow-ups fixed.
+- Promo discount rounded to whole taka and totals to the paisa in `computeOrderTotals`; bKash amount check compares in paisa (`utils/paymentReconciliation.ts`); cart preview (`useCartStore`) rounds the same way. Before, ~12% of whole-number price/percent combos produced float totals the bKash check would flag.
+- Per-customer promo limit now matches the account or the delivery phone (`claimPromoUse(code, { user, phone }, session)`); staff phone/walk-in orders count by phone.
+- `GET /orders/:id` and cancel return 404 for someone else's order (was 403).
+- Checks: server 580 tests (new `orderLookup.test.ts`, promo/rounding/reconciliation cases), frontend 116 tests (new `useCartStore.test.ts`), both typechecks, lint on changed frontend files.

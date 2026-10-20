@@ -50,7 +50,7 @@ describe("transactional order transitions", () => {
     expect(session.endSession).toHaveBeenCalledOnce();
   });
   it("refuses other owners and pending-only cancellation of paid orders", async () => {
-    await expect(transitionOrder("order", "cancelled", { owner: "attacker" })).rejects.toMatchObject({ status: 403 });
+    await expect(transitionOrder("order", "cancelled", { owner: "attacker" })).rejects.toMatchObject({ status: 404, message: "Order not found" });
     state.order.status = "paid";
     await expect(transitionOrder("order", "cancelled", { owner: "buyer", pendingOnly: true })).rejects.toMatchObject({ status: 409 });
     expect(Product.updateOne).not.toHaveBeenCalled();

@@ -22,6 +22,14 @@ describe("payment reconciliation", () => {
     expect(await reconcilePayment(order, { transactionStatus: "Completed", amount: "100.00", trxID: "trx" })).toBe("success");
     expect(transitionOrder).toHaveBeenCalledWith("order", "paid", { pendingOnly: true, transactionId: "trx" });
   });
+  it("matches the amount to the paisa, ignoring float noise in the stored total", async () => {
+    const noisy = { _id: "order", id: "order", totalAmount: 87.74000000000001 } as unknown as InstanceType<typeof Order>;
+    expect(await reconcilePayment(noisy, { transactionStatus: "Completed", amount: "87.74", trxID: "trx" })).toBe("success");
+  });
+  it("still refuses an amount one paisa short", async () => {
+    expect(await reconcilePayment(order, { transactionStatus: "Completed", amount: "99.99", trxID: "trx" })).toBe("error");
+    expect(transitionOrder).not.toHaveBeenCalled();
+  });
   it("flags a late payment instead of reopening released inventory", async () => {
     vi.mocked(transitionOrder).mockRejectedValue({ status: 409 });
     expect(await reconcilePayment(order, { transactionStatus: "Completed", amount: "100", trxID: "trx" })).toBe("error");

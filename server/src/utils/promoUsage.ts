@@ -16,14 +16,29 @@ export function promoFullyUsed(promo: Pick<IPromoCode, "maxUses" | "usedCount">)
   return !!promo.maxUses && (promo.usedCount ?? 0) >= promo.maxUses;
 }
 
-export async function claimPromoUse(code: string | undefined, user: Types.ObjectId | string | undefined, session: ClientSession) {
+// Who an order is for. A "customer" for the per-customer limit is the
+// account or the delivery phone, so a second account with the same phone
+// can't reuse a one-per-customer code. Phones are stored normalized
+// (normalizeBdPhone), so "+8801712..." and "01712..." are the same number.
+export interface PromoCustomer {
+  user?: Types.ObjectId | string;
+  phone?: string;
+}
+
+export async function claimPromoUse(code: string | undefined, customer: PromoCustomer, session: ClientSession) {
   if (!code) return;
   const promo = await PromoCode.findOne({ code }).session(session);
   if (!promo) return;
-  if (promo.maxUsesPerCustomer && user) {
-    const used = await Order.countDocuments({ user, promoCode: code, status: { $ne: "cancelled" } }).session(session);
+  const sameCustomer = [
+    ...(customer.user ? [{ user: customer.user }] : []),
+    ...(customer.phone ? [{ "shippingAddress.phone": customer.phone }] : []),
+  ];
+  if (promo.maxUsesPerCustomer && sameCustomer.length) {
+    const used = await Order.countDocuments({ promoCode: code, status: { $ne: "cancelled" }, $or: sameCustomer }).session(session);
     if (used >= promo.maxUsesPerCustomer) {
-      throw refused(promo.maxUsesPerCustomer === 1 ? "You've already used this promo code." : `You've already used this promo code ${used} times.`);
+      throw refused(promo.maxUsesPerCustomer === 1
+        ? "This promo code has already been used by this account or phone number."
+        : `This promo code has already been used ${used} times by this account or phone number.`);
     }
   }
   const claimed = await PromoCode.updateOne(
