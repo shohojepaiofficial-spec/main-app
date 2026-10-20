@@ -61,7 +61,9 @@ describe("SEC-02 factor management", () => {
     const accepted = response();
     await verifyTwoFactorLogin(req, accepted as unknown as Response);
     expect(verifyTypedToken(accepted.json.mock.calls[0][0].token, "access")).toMatchObject({ id, role: "admin" });
-    expect(User.updateOne).not.toHaveBeenCalled();
+    // The only write is claiming the code's time step (SEC-23).
+    expect(User.updateOne).toHaveBeenCalledOnce();
+    expect(vi.mocked(User.updateOne).mock.calls[0][1]).toEqual({ $set: { "twoFactor.lastUsedStep": expect.any(Number) } });
   });
 
   it("returns a safe configuration error over HTTP while retaining single-use backup recovery", async () => {

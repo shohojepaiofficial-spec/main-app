@@ -11,6 +11,7 @@ import { encryptSecret } from "../utils/secretEncryption";
 import {
   generateTwoFactorSecret,
   verifyTwoFactorToken,
+  twoFactorTimeStep,
   generateBackupCodes,
   consumeBackupCode,
 } from "../utils/twoFactor";
@@ -219,7 +220,16 @@ export const verifyTwoFactorLogin = async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Account security changed. Please sign in again." });
   }
 
-  const isValidTotp = verifyTwoFactorToken(user.twoFactor.secret, code);
+  const step = twoFactorTimeStep(user.twoFactor.secret, code);
+  const isValidTotp = step !== null;
+  if (isValidTotp) {
+    // Claim this code's time step: the same code can't sign in twice.
+    const claimed = await User.updateOne({
+      _id: user.id, role: staffRoles, "twoFactor.enabled": true, "twoFactor.secret": user.twoFactor.secret,
+      $or: [{ "twoFactor.lastUsedStep": { $exists: false } }, { "twoFactor.lastUsedStep": { $lt: step } }],
+    }, { $set: { "twoFactor.lastUsedStep": step } });
+    if (!claimed.matchedCount) return res.status(401).json({ message: "This code was already used. Wait for the next code in your app." });
+  }
   let remainingBackupHashes: string[] | null = null;
   if (!isValidTotp) {
     remainingBackupHashes = await consumeBackupCode(user.twoFactor.backupCodeHashes ?? [], code);

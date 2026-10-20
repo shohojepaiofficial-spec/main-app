@@ -28,7 +28,7 @@ import {
 import { listSessions, revokeSessionById } from "../controllers/sessionController";
 import { requireInternalSecret } from "../middleware/internalAuth";
 import { protect } from "../middleware/auth";
-import { authLimiter, authTargetLimiter, profileUploadLimiter, twoFactorManagementLimiter, sessionRefreshLimiter } from "../middleware/rateLimit";
+import { authLimiter, authTargetLimiter, profileUploadLimiter, twoFactorManagementLimiter, twoFactorLoginLimiter, sessionRefreshLimiter } from "../middleware/rateLimit";
 import { upload } from "../utils/upload";
 import { auditTrail } from "../middleware/auditTrail";
 
@@ -73,6 +73,6 @@ router.post("/2fa/confirm", protect, twoFactorManagementLimiter, auditAccount("t
 router.post("/2fa/replace", protect, twoFactorManagementLimiter, replaceTwoFactor);
 router.post("/2fa/replace/confirm", protect, twoFactorManagementLimiter, auditAccount("authenticatorApp", undefined, "Replaced"), confirmTwoFactorReplacement);
 router.post("/2fa/disable", protect, twoFactorManagementLimiter, auditAccount("twoStepVerification", "On", "Off"), disableTwoFactor);
-router.post("/2fa/verify-login", authLimiter, verifyTwoFactorLogin);
+router.post("/2fa/verify-login", authLimiter, twoFactorLoginLimiter, verifyTwoFactorLogin);
 
 export default router;

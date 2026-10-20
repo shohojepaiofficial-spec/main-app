@@ -27,9 +27,16 @@ export class TwoFactorUnavailableError extends Error {
 }
 
 export function verifyTwoFactorToken(secret: string, token: string): boolean {
+  return twoFactorTimeStep(secret, token) !== null;
+}
+
+// The 30-second time step a valid code belongs to, or null when the code is
+// wrong. Sign-in stores the last step used so the same code can't be
+// replayed inside its window.
+export function twoFactorTimeStep(secret: string, token: string): number | null {
   // Backup codes have their own verifier and must remain usable during a
   // key/configuration outage. They never need to decrypt the TOTP secret.
-  if (!/^\d{6}$/.test(token)) return false;
+  if (!/^\d{6}$/.test(token)) return null;
   let plaintext: string;
   try {
     plaintext = decryptSecret(secret);
@@ -37,9 +44,11 @@ export function verifyTwoFactorToken(secret: string, token: string): boolean {
     throw new TwoFactorUnavailableError();
   }
   try {
-    return authenticator.verify({ token, secret: plaintext });
+    const delta = authenticator.checkDelta(token, plaintext);
+    if (delta === null) return null;
+    return Math.floor(Date.now() / 1000 / authenticator.allOptions().step) + delta;
   } catch {
-    return false;
+    return null;
   }
 }
 

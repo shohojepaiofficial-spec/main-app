@@ -1483,3 +1483,11 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Cause: while the login is renewed on page load (longest after a long break), the header's auth area rendered the "Sign in" button, which reads as a logout.
 - Fix (`views/Navbar.tsx`, `controllers/useAuthController.ts`): the auth area shows a neutral placeholder while `isHydrating`, then the account menu or "Sign in". Server and first client render agree (both start hydrating).
 - Checks: frontend 113 tests, typecheck. Left: deploy; open the site after a night away and see no "Sign in" flash.
+
+## 2026-10-20 (final pre-launch security check)
+- Automated: `npm audit --omit=dev` 0 findings (server and frontend); no secrets in tracked files or git history; request sanitising (`$`/`.`/prototype keys, sizes) unchanged.
+- Live: security headers on `shohojepai.com` (CSP frame-ancestors, X-Frame-Options, nosniff, Referrer/Permissions-Policy, HSTS); direct API calls 403 except `/api/health`; proxy refuses header-less POSTs (403) and hides `oauth-sync` (404); `/.env`, `/.git/config`, `/uploads/` listing all 404. Checkout offers COD only; `BKASH_ALLOW_SANDBOX` not set in Railway; `TOTP_ALLOW_LEGACY_PLAINTEXT=false`; `SENTRY_DSN` set.
+- Reviewed new code since the 10-19 audit: notifications (WORK-18) — owner-scoped, push endpoints limited to browser push hosts (no SSRF); Pathao checkout locations (WORK-19) — login + rate limit, cache only stores real lists; session renewal grace (ffd8e54) — a stolen pass replayed inside 60 s still ends the session once both sides renew.
+- Fixed SEC-23: per-account limit on the 2FA sign-in step and one-time use of each authenticator code (`twoFactor.lastUsedStep`). Fixed SEC-25: max 10 push devices per account.
+- Still open: SEC-22 (promo codes public, no limits — no active codes live today), SEC-24 low-risk list, SEC-13 backups (restore test), SEC-11 edge/WAF.
+- Checks: server 548 tests, typecheck.

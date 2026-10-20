@@ -148,6 +148,27 @@ describe("login and restricted 2FA enrollment", () => {
     expect(res.json.mock.calls[0][0].token).toBeUndefined();
   });
 
+  it("claims the code's time step so the same code can't sign in twice (SEC-23)", async () => {
+    const user = account("admin", true);
+    vi.mocked(User.findById).mockReturnValue({ select: () => Promise.resolve(user) } as never);
+    const code = authenticator.generate(decryptSecret(user.twoFactor.secret));
+    const first = response();
+    await verifyTwoFactorLogin({ body: { tempToken: signTwoFactorChallenge(id), code } } as Request, first as unknown as Response);
+    expect(first.json.mock.calls[0][0].token).toBeDefined();
+    const claim = vi.mocked(User.updateOne).mock.calls[0];
+    const step = Math.floor(Date.now() / 30_000);
+    expect(claim[0]).toMatchObject({ $or: [{ "twoFactor.lastUsedStep": { $exists: false } }, { "twoFactor.lastUsedStep": { $lt: step } }] });
+    expect(claim[1]).toEqual({ $set: { "twoFactor.lastUsedStep": step } });
+
+    // Replay: the step is already claimed, so the update matches nothing.
+    vi.mocked(User.updateOne).mockResolvedValueOnce({ matchedCount: 0 } as never);
+    const replay = response();
+    await verifyTwoFactorLogin({ body: { tempToken: signTwoFactorChallenge(id), code } } as Request, replay as unknown as Response);
+    expect(replay.status).toHaveBeenCalledWith(401);
+    expect(replay.json.mock.calls[0][0].token).toBeUndefined();
+    expect(AuthSession.create).toHaveBeenCalledOnce();
+  });
+
   it("rejects an access token at the challenge exchange before querying a user", async () => {
     const res = response();
     await verifyTwoFactorLogin({ body: { tempToken: signAccessToken(id, "admin"), code: "123456" } } as Request, res as unknown as Response);

@@ -4,6 +4,7 @@ import { MongoRateStore } from "./mongoRateStore";
 import { clientIpKey } from "./clientIp";
 import { createHash } from "node:crypto";
 import type { AuthRequest } from "./auth";
+import { verifyTypedToken } from "../utils/authTokens";
 let limiterId = 0;
 function rateLimit(options: Partial<Options>) {
   const prefix = `limiter-${++limiterId}`;
@@ -132,4 +133,24 @@ export const profileUploadLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: perAccount,
   message: { message: "Too many profile updates — please try again later." },
+});
+
+// Second step of staff sign-in. authLimiter caps each IP; this caps each
+// account, so many IPs can't share the guessing of one person's code. The
+// challenge token says whose sign-in it is; an unreadable one falls back to
+// the IP (the controller refuses it anyway).
+export function twoFactorChallengeKey(req: Request) {
+  try {
+    const tempToken = req.body?.tempToken;
+    if (typeof tempToken === "string" && tempToken.length <= 4096) return `2fa:${verifyTypedToken(tempToken, "2fa").id}`;
+  } catch { /* fall through */ }
+  return clientIpKey(req);
+}
+export const twoFactorLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: twoFactorChallengeKey,
+  message: { message: "Too many two-step verification attempts. Please try again later." },
 });

@@ -8,6 +8,7 @@ import { parseInput } from "../utils/checkoutValidation";
 import { pushSubscriptionSchema, pushUnsubscribeSchema } from "../utils/notificationValidation";
 
 const LIST_LIMIT = 30;
+export const MAX_PUSH_DEVICES = 10;
 
 // The signed-in person's latest notifications plus their unread count —
 // one call, so the bell can poll it cheaply.
@@ -55,6 +56,10 @@ export const subscribePush = async (req: AuthRequest, res: Response) => {
     { $set: { user: req.userId, endpoint, keys } },
     { upsert: true }
   );
+  // Each notification goes to every device, so an account keeps its newest
+  // few: a script can't pile up thousands for the server to send to.
+  const extra = await PushSubscription.find({ user: req.userId }).sort({ createdAt: -1 }).skip(MAX_PUSH_DEVICES).select("_id").lean();
+  if (extra.length) await PushSubscription.deleteMany({ _id: { $in: extra.map((s) => s._id) } });
   res.status(201).json({ ok: true });
 };
 

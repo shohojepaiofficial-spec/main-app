@@ -73,6 +73,9 @@ export interface IUser extends Document {
     secret?: string;
     // bcrypt-hashed, single-use — see utils/twoFactor.ts#generateBackupCodes.
     backupCodeHashes?: string[];
+    // Time step of the last authenticator code used to sign in; a code is
+    // accepted only for a later step, so it can't be used twice.
+    lastUsedStep?: number;
   };
   createdAt: Date;
   comparePassword: (candidate: string) => Promise<boolean>;
@@ -128,6 +131,7 @@ const userSchema = new Schema<IUser>(
       pendingFactorHash: { type: String, select: false },
       secret: { type: String, select: false },
       backupCodeHashes: { type: [String], select: false },
+      lastUsedStep: { type: Number, select: false },
       _id: false,
     },
   },
