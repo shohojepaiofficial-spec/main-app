@@ -11,9 +11,21 @@ import { toUploadUrl } from "@/lib/api";
 import * as bannerService from "@/services/bannerService";
 import { ManagedBanner, PromoCode } from "@/models";
 
+// Same rule the server enforces (bannerController#isSafeBannerHref).
+const LINK_RULE = "Use a page on this site (starting with /) or an https:// address";
+const isSafeHref = (href: string) => {
+  const value = href.trim();
+  if (value.startsWith("/")) return !value.startsWith("//") && !value.startsWith("/\\");
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 const ctaSchema = z.object({
   label: z.string().min(1, "Label is required"),
-  href: z.string().min(1, "Link is required"),
+  href: z.string().min(1, "Link is required").refine(isSafeHref, LINK_RULE),
 });
 
 const looseCtaSchema = z.object({
@@ -26,7 +38,7 @@ const bannerSchema = z
     title: z.string().min(2, "Title is too short"),
     subtitle: z.string().optional(),
     eyebrow: z.string().optional(),
-    accentColor: z.string().min(1),
+    accentColor: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i, "Pick a colour"),
     isActive: z.boolean(),
     primaryCta: ctaSchema,
     promoCodeId: z.string().optional(),
@@ -53,6 +65,8 @@ const bannerSchema = z
         path: ["secondaryCta", "href"],
         message: "Link is required",
       });
+    } else if (!isSafeHref(values.secondaryCta.href)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["secondaryCta", "href"], message: LINK_RULE });
     }
   });
 

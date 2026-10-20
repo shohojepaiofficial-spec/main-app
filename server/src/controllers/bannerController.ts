@@ -89,14 +89,35 @@ export const getAllBanners = async (_req: AuthRequest, res: Response) => {
   res.json(banners.map(shapeBanner));
 };
 
+// Banners show on the home page to every visitor, so a button link may only
+// be a page on this site ("/shop") or an https address — never
+// "javascript:", "data:" or a protocol-relative "//elsewhere" (SEC-24).
+export function isSafeBannerHref(href: string): boolean {
+  if (href.length > 500) return false;
+  if (href.startsWith("/")) return !href.startsWith("//") && !href.startsWith("/\\");
+  try {
+    return new URL(href).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// Used inside CSS gradients on the home page: a plain hex colour only.
+export const isHexColor = (value: unknown): value is string => typeof value === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
+
 const parseCta = (raw: unknown): CtaLink | undefined => {
   if (typeof raw !== "string" || !raw) return undefined;
   const parsed = JSON.parse(raw);
   if (!parsed || typeof parsed.label !== "string" || typeof parsed.href !== "string") {
     throw new Error("Invalid CTA");
   }
-  return { label: parsed.label, href: parsed.href };
+  const href = parsed.href.trim();
+  if (!isSafeBannerHref(href) || parsed.label.length > 80) throw new Error("Invalid CTA");
+  return { label: parsed.label, href };
 };
+
+const ctaError = "Button links must be a page on this site (starting with /) or an https:// address.";
+const colorError = "Accent colour must be a hex colour like #38bdf8.";
 
 export const createBanner = async (req: AuthRequest, res: Response) => {
   validateControllerInput("createBanner", req);
@@ -109,9 +130,10 @@ export const createBanner = async (req: AuthRequest, res: Response) => {
     primaryCta = parseCta(req.body.primaryCta);
     secondaryCta = parseCta(req.body.secondaryCta);
   } catch {
-    return res.status(400).json({ message: "Invalid CTA data" });
+    return res.status(400).json({ message: ctaError });
   }
   if (!primaryCta) return res.status(400).json({ message: "primaryCta is required" });
+  if (req.body.accentColor !== undefined && !isHexColor(req.body.accentColor)) return res.status(400).json({ message: colorError });
 
   const image = await storeUploadedFile(file);
   const session = await mongoose.startSession();
@@ -158,8 +180,9 @@ export const updateBanner = async (req: AuthRequest, res: Response) => {
     primaryCta = parseCta(req.body.primaryCta);
     secondaryCta = parseCta(req.body.secondaryCta);
   } catch {
-    return res.status(400).json({ message: "Invalid CTA data" });
+    return res.status(400).json({ message: ctaError });
   }
+  if (req.body.accentColor !== undefined && !isHexColor(req.body.accentColor)) return res.status(400).json({ message: colorError });
 
   const update: Record<string, unknown> = {
     eyebrow: req.body.eyebrow,

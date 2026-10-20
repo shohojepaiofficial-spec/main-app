@@ -12,7 +12,9 @@ import { createHmac, createHash, timingSafeEqual } from "node:crypto";
 //   `merchant_order_id`, our order id).
 // Since the signing scheme isn't documented, a signature is accepted if it
 // is the secret itself or an HMAC-SHA256 (hex) of the raw body with it.
-// The first real deliveries are logged so the format can be confirmed.
+// Each accepted delivery logs which one matched; once a real delivery has
+// shown it, set PATHAO_WEBHOOK_SIGNATURE=hmac (or =secret) and the other
+// form is refused (SEC-24).
 
 export const INTEGRATION_HEADER = "X-Pathao-Merchant-Webhook-Integration-Secret";
 
@@ -22,14 +24,22 @@ export function isPathaoWebhookConfigured(): boolean {
 
 const sameText = (a: string, b: string) => timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
 
-export function verifyPathaoSignature(signature: string | undefined, rawBody: Buffer | undefined): boolean {
+export type PathaoSignatureScheme = "secret" | "hmac";
+
+// Which form a signature matched, or null when it is invalid.
+export function pathaoSignatureScheme(signature: string | undefined, rawBody: Buffer | undefined): PathaoSignatureScheme | null {
   const secret = process.env.PATHAO_WEBHOOK_SECRET;
-  if (!secret || !signature) return false;
+  if (!secret || !signature) return null;
   const sent = signature.trim().replace(/^sha256=/i, "");
-  if (sameText(sent, secret)) return true;
-  if (!rawBody) return false;
+  const required = process.env.PATHAO_WEBHOOK_SIGNATURE;
+  if (required !== "hmac" && sameText(sent, secret)) return "secret";
+  if (required === "secret" || !rawBody) return null;
   const hmac = createHmac("sha256", secret).update(rawBody).digest("hex");
-  return sameText(sent.toLowerCase(), hmac);
+  return sameText(sent.toLowerCase(), hmac) ? "hmac" : null;
+}
+
+export function verifyPathaoSignature(signature: string | undefined, rawBody: Buffer | undefined): boolean {
+  return pathaoSignatureScheme(signature, rawBody) !== null;
 }
 
 export interface PathaoWebhookUpdate {

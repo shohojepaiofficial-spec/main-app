@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { Review } from "../models/Review";
 import { User } from "../models/User";
 import { Order } from "../models/Order";
+import { Product } from "../models/Product";
 import { AuthRequest } from "../middleware/auth";
 import { isNonEmptyString } from "../utils/validate";
 import { notifyReviewReply } from "../utils/reviewReplyEmail";
@@ -55,6 +56,12 @@ export const submitReview = async (req: AuthRequest, res: Response) => {
 
   const user = await User.findById(req.userId);
   if (!user) return res.status(401).json({ message: "Not authorized" });
+  // A throwaway address can't post reviews (SEC-24); Google accounts are
+  // verified from the start.
+  if (!user.isEmailVerified) {
+    return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "Verify your email before writing a review. You can resend the verification email from Settings." });
+  }
+  if (!(await Product.exists({ _id: req.params.id }))) return res.status(404).json({ message: "Product not found" });
 
   // A snapshot at submit time, not a live join — see Review.ts's comment.
   const isVerifiedPurchase = await Order.exists({

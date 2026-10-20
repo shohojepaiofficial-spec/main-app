@@ -139,6 +139,9 @@ export interface IOrder extends Document {
   courierDeliveryFee?: number;
   // When staff last asked Pathao for the status (changed or not).
   courierCheckedAt?: Date;
+  // Bumped by every new return request, inside its transaction, so two
+  // requests at once for the same item conflict instead of both passing.
+  returnClaimVersion?: number;
   // Every courier status the order has had, oldest first: Pathao bookings
   // and refreshes, and statuses typed in by hand. Staff-only.
   courierEvents: ICourierEvent[];
@@ -237,6 +240,7 @@ const orderSchema = new Schema<IOrder>(
     courierBookedAt: { type: Date },
     courierDeliveryFee: { type: Number, min: 0 },
     courierCheckedAt: { type: Date },
+    returnClaimVersion: { type: Number, select: false },
     courierEvents: {
       type: [
         new Schema(

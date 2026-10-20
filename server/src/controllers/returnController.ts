@@ -1,4 +1,5 @@
 import { Response } from "express";
+import mongoose from "mongoose";
 import { validateControllerInput } from "../middleware/controllerInput";
 import { AuthRequest } from "../middleware/auth";
 import { Order } from "../models/Order";
@@ -57,19 +58,30 @@ async function createRequest(req: AuthRequest, res: Response, createdBy: "custom
     return res.status(400).json({ message: "Tell us what you'd like instead" });
   }
 
-  const existing = await ReturnRequest.find({ order: order._id }).select("status items");
-  const items = buildReturnItems(order as never, body.items, claimedQuantities(existing));
-
-  const request = await ReturnRequest.create({
-    order: order._id,
-    user: order.user,
-    type: body.type,
-    reason: body.reason,
-    details: body.details || undefined,
-    exchangeFor: body.type === "exchange" ? body.exchangeFor : undefined,
-    items,
-    createdBy,
-  });
+  // Read what's already claimed and save the new request in one
+  // transaction that also writes the order: two requests at once for the
+  // same item then conflict, and the retry sees the first claim (SEC-24).
+  const session = await mongoose.startSession();
+  let request: InstanceType<typeof ReturnRequest> | undefined;
+  try {
+    await session.withTransaction(async () => {
+      await Order.updateOne({ _id: order._id }, { $inc: { returnClaimVersion: 1 } }, { session });
+      const existing = await ReturnRequest.find({ order: order._id }).select("status items").session(session);
+      const items = buildReturnItems(order as never, body.items, claimedQuantities(existing));
+      [request] = await ReturnRequest.create([{
+        order: order._id,
+        user: order.user,
+        type: body.type,
+        reason: body.reason,
+        details: body.details || undefined,
+        exchangeFor: body.type === "exchange" ? body.exchangeFor : undefined,
+        items,
+        createdBy,
+      }], { session });
+    });
+  } finally {
+    await session.endSession();
+  }
   // Staff logging one themselves don't need telling about it.
   if (createdBy === "customer") {
     notifyStaff("orders:manage", staffReturnRequestNotification(String(order._id), order.shippingAddress?.fullName));

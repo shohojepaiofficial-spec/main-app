@@ -7,9 +7,9 @@ import { transitionOrder } from "../utils/orderTransitions";
 import {
   INTEGRATION_HEADER,
   isPathaoWebhookConfigured,
+  pathaoSignatureScheme,
   readPathaoWebhook,
   storeStatusFor,
-  verifyPathaoSignature,
 } from "../integrations/pathaoWebhook";
 
 // The order a Merchant Order ID points at. A Pathao booking matches as
@@ -47,10 +47,13 @@ export const pathaoWebhook = async (req: Request & { rawBody?: Buffer }, res: Re
   // Pathao's "is this URL alive?" check has nothing to record.
   if (!update) return res.status(202).json({ received: true });
 
-  if (!isPathaoWebhookConfigured() || !verifyPathaoSignature(req.get("X-Pathao-Signature"), req.rawBody)) {
+  const scheme = isPathaoWebhookConfigured() ? pathaoSignatureScheme(req.get("X-Pathao-Signature"), req.rawBody) : null;
+  if (!scheme) {
     console.warn("Pathao webhook rejected: missing or invalid signature");
     return res.status(401).json({ message: "Invalid signature" });
   }
+  // Until PATHAO_WEBHOOK_SIGNATURE pins one form, say which one Pathao uses.
+  if (!process.env.PATHAO_WEBHOOK_SIGNATURE) console.log(`Pathao webhook: signature matched as "${scheme}" — set PATHAO_WEBHOOK_SIGNATURE=${scheme}`);
 
   const order =
     (update.consignmentId && (await Order.findOne({ courierConsignmentId: update.consignmentId }))) ||

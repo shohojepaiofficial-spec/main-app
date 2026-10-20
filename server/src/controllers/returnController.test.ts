@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-vi.mock("../models/Order", () => ({ Order: { findById: vi.fn(), exists: vi.fn() } }));
+vi.mock("../models/Order", () => ({ Order: { findById: vi.fn(), exists: vi.fn(), updateOne: vi.fn() } }));
 vi.mock("../models/User", () => ({ User: { findById: vi.fn() } }));
 vi.mock("../models/ReturnRequest", async (original) => ({
   ...(await original<typeof import("../models/ReturnRequest")>()),
@@ -7,7 +7,7 @@ vi.mock("../models/ReturnRequest", async (original) => ({
 }));
 vi.mock("../integrations/bkash", () => ({ isBkashLive: vi.fn(), refundBkashPayment: vi.fn() }));
 vi.mock("../utils/sendEmail", () => ({ sendEmail: vi.fn().mockResolvedValue(undefined) }));
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { Order } from "../models/Order";
 import { ReturnRequest } from "../models/ReturnRequest";
 import { isBkashLive, refundBkashPayment } from "../integrations/bkash";
@@ -30,7 +30,13 @@ const delivered = (overrides: Record<string, unknown> = {}) => ({
 const mockOrder = (order: unknown) => vi.mocked(Order.findById).mockReturnValue({ populate: () => Promise.resolve(order), then: (r: (v: unknown) => unknown) => Promise.resolve(order).then(r) } as never);
 const body = { orderId, type: "return", reason: "damaged", items: [{ orderItemIndex: 0, quantity: 1 }] };
 
-beforeEach(() => { vi.clearAllMocks(); vi.mocked(ReturnRequest.find).mockReturnValue({ select: () => Promise.resolve([]) } as never); });
+const session = { withTransaction: async (work: () => Promise<unknown>) => work(), endSession: vi.fn() };
+const claimedSoFar = (existing: unknown[]) => vi.mocked(ReturnRequest.find).mockReturnValue({ select: () => ({ session: () => Promise.resolve(existing) }) } as never);
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.spyOn(mongoose, "startSession").mockResolvedValue(session as never);
+  claimedSoFar([]);
+});
 
 describe("customer return requests", () => {
   it("hides other customers' orders behind a 404", async () => {
@@ -57,11 +63,24 @@ describe("customer return requests", () => {
   });
   it("creates a request for a delivered order inside the window", async () => {
     mockOrder(delivered());
-    vi.mocked(ReturnRequest.create).mockResolvedValue({ _id: returnId } as never);
+    vi.mocked(ReturnRequest.create).mockResolvedValue([{ _id: returnId }] as never);
     const res = response();
     await createReturnRequest(request(body), res as never);
     expect(res.statusCode).toBe(201);
-    expect(ReturnRequest.create).toHaveBeenCalledWith(expect.objectContaining({ createdBy: "customer", type: "return" }));
+    expect(ReturnRequest.create).toHaveBeenCalledWith([expect.objectContaining({ createdBy: "customer", type: "return" })], { session });
+    expect(session.endSession).toHaveBeenCalledOnce();
+  });
+  it("writes the order inside the same transaction, so two requests at once can't both claim an item (SEC-24)", async () => {
+    mockOrder(delivered());
+    vi.mocked(ReturnRequest.create).mockResolvedValue([{ _id: returnId }] as never);
+    await createReturnRequest(request(body), response() as never);
+    expect(Order.updateOne).toHaveBeenCalledWith({ _id: orderId }, { $inc: { returnClaimVersion: 1 } }, { session });
+    // The item is already claimed by an earlier request: refused, nothing created.
+    vi.clearAllMocks();
+    claimedSoFar([{ status: "requested", items: [{ orderItemIndex: 0, quantity: 1 }] }]);
+    mockOrder(delivered());
+    await expect(createReturnRequest(request(body), response() as never)).rejects.toMatchObject({ status: 400 });
+    expect(ReturnRequest.create).not.toHaveBeenCalled();
   });
 });
 
