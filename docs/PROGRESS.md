@@ -1519,3 +1519,11 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Unsubscribe is now a button on `/unsubscribe` that POSTs (`controllers/useUnsubscribe.ts`, `POST /auth/unsubscribe` with `authLimiter`), instead of a GET fired on page load.
 - Frontend headers add `Cross-Origin-Opener-Policy: same-origin` and HSTS `includeSubDomains`. API `cors()` and the `cors` / `@types/cors` packages removed.
 - Checks: server 590 tests (new `unsubscribe.test.ts`), frontend 119 tests, both typechecks, lint on changed files, `next build`.
+
+## 2026-10-21 (audit: rate limiting, DoS — SEC-29)
+- Audited every limiter (keys, order before body parsing/multer, store failure mode), body/upload/query size caps, upload and image-decode concurrency, server and upstream timeouts, regex search, NextAuth and the open API paths. Live: 20 requests to `https://api.shohojepai.com/api/health` showed remaining 299/298/297/296, i.e. unsigned requests are keyed by ~13 Railway edge-proxy addresses.
+- Page renders skip the shared per-IP `apiLimiter` (`isStorefrontRender` in `middleware/rateLimit.ts`; shared `hasInternalSecret` in `middleware/internalAuth.ts`, now also used by `storefrontOnly`; `signedClientIp` split out of `clientIp.ts`). The `/api/backend` proxy sends `X-Storefront-Proxy: 1` so its requests never count as renders.
+- `/api/health` moved ahead of `storefrontOnly` and the limiter in `app.ts` (removed from `openPaths`).
+- Product page loads its product through React `cache` (metadata + page share one call).
+- `forgotPassword` skips sending within 2 minutes of the last reset email (derived from `resetPasswordExpires`), same reply either way.
+- Checks: server 597 tests (new `storefrontRender.test.ts`, `forgotPasswordCooldown.test.ts`), frontend 119 tests, both typechecks, frontend lint, `next build`.

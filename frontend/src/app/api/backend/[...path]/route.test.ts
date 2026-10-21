@@ -39,6 +39,8 @@ describe("server-managed browser credentials", () => {
     fetchMock.mockResolvedValue(Response.json({}));
     await GET(request("products", { "x-internal-secret": "forged" }, "GET"), context("products"));
     expect(fetchMock.mock.calls[0][1].headers.get("x-internal-secret")).toBe("test-internal-secret");
+    // Marks it as a visitor's request, so the API's per-IP limit applies (SEC-29).
+    expect(fetchMock.mock.calls[0][1].headers.get("x-storefront-proxy")).toBe("1");
     vi.unstubAllEnvs();
   });
   it("ignores a browser-supplied Authorization header", async () => {

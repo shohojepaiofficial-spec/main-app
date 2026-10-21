@@ -1,7 +1,8 @@
 import { Request } from "express";
 import createRateLimit, { type Options } from "express-rate-limit";
 import { MongoRateStore } from "./mongoRateStore";
-import { clientIpKey } from "./clientIp";
+import { clientIpKey, signedClientIp } from "./clientIp";
+import { hasInternalSecret } from "./internalAuth";
 import { createHash } from "node:crypto";
 import type { AuthRequest } from "./auth";
 import { verifyTypedToken } from "../utils/authTokens";
@@ -71,7 +72,18 @@ export const checkoutDailyLimiter = rateLimit({
   message: { message: "You've placed a lot of orders today. Please try again tomorrow or contact us." },
 });
 export const quoteLimiter = rateLimit({ windowMs: 60_000, limit: 30, keyGenerator: perAccount, standardHeaders: true, legacyHeaders: false });
-export const apiLimiter = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: true, legacyHeaders: false });
+
+// The storefront's own server rendering a page (SEC-29): it holds the secret,
+// isn't the browser proxy (which marks its requests and signs the visitor's
+// IP) and so has no visitor IP to key on. Without this, renders were counted
+// against Railway's shared edge-proxy addresses, the same buckets anyone can
+// fill by hitting the API's open paths, so a flood there broke every page.
+// Rendering is bounded by Vercel (cached pages re-render at most once a
+// minute); per-visitor page floods are for its firewall (SEC-11).
+export function isStorefrontRender(req: Request) {
+  return !req.get("X-Storefront-Proxy") && signedClientIp(req) === null && hasInternalSecret(req);
+}
+export const apiLimiter = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: true, legacyHeaders: false, skip: isStorefrontRender });
 
 export const twoFactorManagementLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

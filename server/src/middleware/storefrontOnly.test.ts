@@ -21,9 +21,9 @@ describe("storefront-only API access", () => {
       expect(next).not.toHaveBeenCalled();
     }
   });
-  it("keeps the health check and the bKash return open", () => {
-    expect(run("/health").next).toHaveBeenCalledOnce();
+  it("keeps the bKash return and the Pathao webhook open", () => {
     expect(run("/orders/bkash/callback").next).toHaveBeenCalledOnce();
+    expect(run("/orders/pathao/webhook").next).toHaveBeenCalledOnce();
   });
   it("refuses everything when the secret is not configured", () => {
     vi.stubEnv("INTERNAL_API_SECRET", "");

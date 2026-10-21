@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { cache } from "react";
 import { getProductById, getProducts } from "@/services/productService";
 import { getProductReviews } from "@/services/reviewService";
 import { getActivePromoCodes } from "@/services/promoService";
@@ -19,13 +20,16 @@ import { PromoAutoApply } from "@/views/PromoAutoApply";
 import { ProductClickTracker } from "@/views/ProductClickTracker";
 import { T } from "@/components/ui/T";
 
+// Metadata and the page need the same product: one API call per render, not two.
+const loadProduct = cache(getProductById);
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const product = await getProductById(id);
+  const product = await loadProduct(id);
   if (!product) return { title: "Product not found" };
 
   const description = product.description.slice(0, 155);
@@ -59,7 +63,7 @@ export default async function ProductDetailPage({
 }) {
   const { id } = await params;
   const { promo, variant: variantParam } = await searchParams;
-  const product = await getProductById(id);
+  const product = await loadProduct(id);
   if (!product) notFound();
 
   const initialVariant = product.variants?.find((v) => v._id === variantParam);

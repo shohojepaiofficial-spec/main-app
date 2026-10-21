@@ -51,6 +51,12 @@ app.use(
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
+// The host's health check, answered before the storefront check and the rate
+// limiter: it's public, so counting it would cost a database write per hit
+// (SEC-29).
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
 // No CORS: browsers never call this API directly — every request goes
 // through the storefront's same-origin /api/backend proxy (or its server-side
 // rendering), and <img> tags for /uploads don't need it. Without CORS headers
@@ -76,10 +82,6 @@ app.use((_req, res, next) => {
   next();
 });
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
-
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok" });
-});
 
 // The one place STORE_CITY is defined (see ./utils/store) — the frontend
 // fetches it from here instead of hardcoding its own copy, so the two never

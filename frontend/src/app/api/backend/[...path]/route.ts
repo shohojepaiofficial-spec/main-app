@@ -58,6 +58,9 @@ async function proxy(req: NextRequest, context: { params: Promise<{ path: string
     }
     // The API refuses requests that don't carry this (see the server's storefrontOnly).
     if (process.env.INTERNAL_API_SECRET) headers.set("X-Internal-Secret", process.env.INTERNAL_API_SECRET);
+    // A visitor's request, never a page render: the API's per-IP limit always
+    // applies, even if the IP above couldn't be signed (isStorefrontRender).
+    headers.set("X-Storefront-Proxy", "1");
     if (access) headers.set("Authorization", `Bearer ${access}`);
     for (const name of ["content-type", "idempotency-key", "user-agent"]) {
       const value = req.headers.get(name);

@@ -38,7 +38,7 @@ describe("internal secret check", () => {
   afterEach(() => vi.unstubAllEnvs());
   const run = (sent: unknown) => {
     const res = response(); const next = vi.fn();
-    requireInternalSecret({ headers: { "x-internal-secret": sent } } as unknown as Request, res as unknown as Response, next);
+    requireInternalSecret({ get: (key: string) => key === "X-Internal-Secret" ? sent : undefined } as unknown as Request, res as unknown as Response, next);
     return { res, next };
   };
   it("lets the right secret through and refuses anything else", () => {

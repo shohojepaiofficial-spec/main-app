@@ -18,6 +18,7 @@ import { isBdMobile, normalizeBdPhone } from "../utils/phone";
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000; // 1h
+const RESET_EMAIL_COOLDOWN_MS = 2 * 60 * 1000;
 
 // Shared response shape for "here's who's logged in" — register/login/getMe/
 // updateProfile/oauthSync all return exactly this. Exported so
@@ -405,8 +406,14 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
   // Only a local (email/password) account has a password to reset — an
   // OAuth account signs in through Google, not here.
-  const user = await User.findOne({ email: email.toLowerCase().trim(), provider: "local" });
+  const user = await User.findOne({ email: email.toLowerCase().trim(), provider: "local" }).select("+resetPasswordExpires");
   if (!user) return res.json(genericResponse);
+
+  // One reset email per account per cooldown (SEC-29): the per-email limiter
+  // still allowed ~80 an hour, enough to flood someone's inbox. The link
+  // already sent stays valid, so a real user waiting on it loses nothing.
+  const lastSentAt = user.resetPasswordExpires ? user.resetPasswordExpires.getTime() - PASSWORD_RESET_TTL_MS : 0;
+  if (Date.now() - lastSentAt < RESET_EMAIL_COOLDOWN_MS) return res.json(genericResponse);
 
   const { raw, hash } = generateRawAndHash();
   user.resetPasswordTokenHash = hash;
