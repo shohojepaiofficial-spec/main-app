@@ -1527,3 +1527,6 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Product page loads its product through React `cache` (metadata + page share one call).
 - `forgotPassword` skips sending within 2 minutes of the last reset email (derived from `resetPasswordExpires`), same reply either way.
 - Checks: server 597 tests (new `storefrontRender.test.ts`, `forgotPasswordCooldown.test.ts`), frontend 119 tests, both typechecks, frontend lint, `next build`.
+
+## 2026-10-23
+- Product share previews: product pages now set the full Open Graph/Twitter tags themselves (`type`, `siteName`, `url`, and `card: "summary_large_image"`), because a page-level `openGraph`/`twitter` object replaces the layout's instead of merging. X now shows the large image card, and Facebook groups `?promo=`/`?variant=` links under one URL. Typecheck clean. Left: after deploy, run a product link through the Facebook Sharing Debugger and post a test link on X.

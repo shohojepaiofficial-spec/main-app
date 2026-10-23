@@ -9,7 +9,7 @@ import { toUploadUrl } from "@/lib/api";
 import { hasVariants, variantLabel } from "@/lib/variants";
 import { isOnPreorder, preorderSpotsLeft } from "@/lib/preorder";
 import type { Product } from "@/models";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { toJsonLdScript } from "@/lib/jsonLd";
 import { ProductGallery } from "@/views/ProductGallery";
 import { ProductBuyBox } from "@/views/ProductBuyBox";
@@ -49,8 +49,17 @@ export async function generateMetadata({
     // ?variant= (a shared link to one size/color) and ?promo= are the same
     // page as far as search engines are concerned — one indexed URL.
     alternates: { canonical: `/shop/${product._id}` },
-    openGraph: { title, description, images: [image] },
-    twitter: { title, description, images: [image] },
+    // Spelled out in full: a page-level openGraph/twitter object replaces the
+    // layout's instead of merging, so these would otherwise be lost.
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      url: `/shop/${product._id}`,
+      title,
+      description,
+      images: [image],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
   };
 }
 
