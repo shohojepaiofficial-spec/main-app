@@ -1538,3 +1538,6 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Button links use the same safe-link rule as banners (site path or https).
 - Checks: server 608 tests (new `sitePopupController.test.ts`, route-protection updated), both typechecks, lint on changed files, `git diff --check`.
 - Left: deploy, `npm run sync-translations`, live check. Popup text is not translated (shown as typed).
+
+## 2026-10-26 (category card redesign)
+- `views/CategoryTile.tsx` is now a light card: photo on top (4:3), or a soft tinted panel with the matched icon when a category has no photo; name, product count and an arrow underneath; lifts on hover. Used on the home page and `/categories`. Typecheck and lint clean; not yet checked in a browser.
