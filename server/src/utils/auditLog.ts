@@ -27,6 +27,7 @@ const TRACKED_FIELDS: Record<AuditEntityType, readonly string[]> = {
   account: ["name", "phone", "image"],
   return: ["status", "customerMessage", "staffNote", "restocked", "refund", "replacementOrder"],
   category: ["name", "nameBn", "order", "image"],
+  popup: ["isActive", "title", "message", "image", "button", "version"],
 };
 
 const SENSITIVE_KEY = /password|secret|token|credential|authorization|backup.?code|private.?key/i;

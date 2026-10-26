@@ -2,7 +2,7 @@ import { Document, model, Schema, Types } from "mongoose";
 
 export const AUDIT_ENTITY_TYPES = [
   "product", "banner", "order", "user", "promo", "ad", "campaign",
-  "message", "review", "translation", "analytics", "account", "return", "category",
+  "message", "review", "translation", "analytics", "account", "return", "category", "popup",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

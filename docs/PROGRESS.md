@@ -1530,3 +1530,11 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 
 ## 2026-10-23
 - Product share previews: product pages now set the full Open Graph/Twitter tags themselves (`type`, `siteName`, `url`, and `card: "summary_large_image"`), because a page-level `openGraph`/`twitter` object replaces the layout's instead of merging. X now shows the large image card, and Facebook groups `?promo=`/`?variant=` links under one URL. Typecheck clean. Left: after deploy, run a product link through the Facebook Sharing Debugger and post a test link on X.
+
+## 2026-10-26 (site popup — WORK-20)
+- New storefront popup controlled from the dashboard. Server: `models/SitePopup.ts` (single document, `key: "site"`), `controllers/sitePopupController.ts`, `routes/sitePopupRoutes.ts` at `/api/popup` (public `GET /`, staff `GET /settings` and `PUT /` with `banners:manage`, upload limiter). Audit type `popup` added.
+- `version` goes up whenever the visible content changes or the popup is switched back on; the browser remembers the last closed version (`controllers/useSitePopup.ts`), so closing hides it until the next change.
+- Frontend: `services/popupService.ts`, `controllers/useAdminPopup.ts`, `views/AdminPopupView.tsx`, `views/SitePopup.tsx`, page `/admin/popup` (noindex), sidebar link under Marketing, page help. The public layout fetches the popup server-side with the promos (60s revalidate), so changes appear within about a minute. Title uses a `<p>`, not a heading, so pages keep one `<h1>`.
+- Button links use the same safe-link rule as banners (site path or https).
+- Checks: server 608 tests (new `sitePopupController.test.ts`, route-protection updated), both typechecks, lint on changed files, `git diff --check`.
+- Left: deploy, `npm run sync-translations`, live check. Popup text is not translated (shown as typed).

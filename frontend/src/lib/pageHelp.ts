@@ -234,6 +234,16 @@ const HELP: Record<string, PageHelp> = {
       { term: "CTA", meaning: "Call to action: a button such as \"Shop now\"." },
     ],
   },
+  "/admin/popup": {
+    title: "Site popup",
+    summary: "A message box that pops up for shoppers on the store pages.",
+    expect: [
+      "Write a title and message, and add a picture or a button if you like.",
+      "Tick \"Show the popup to visitors\" to turn it on, untick to turn it off.",
+      "Someone who closes it won't see it again until you change what it says.",
+    ],
+    terms: [{ term: "Button link", meaning: "Where the button goes, e.g. /shop or an https:// address." }],
+  },
   "/admin/analytics": {
     title: "Analytics",
     summary: "How the store is doing over time: visitors, orders and sales.",

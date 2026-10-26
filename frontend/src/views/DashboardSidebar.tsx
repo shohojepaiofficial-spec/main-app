@@ -12,6 +12,7 @@ import {
   Shapes,
   ClipboardList,
   GalleryHorizontal,
+  MessageSquareText,
   Tag,
   BarChart3,
   Megaphone,
@@ -82,6 +83,7 @@ export function DashboardSidebar() {
       title: "Marketing",
       links: [
         hasPermission("banners:manage") && { href: "/admin/banners", label: "Banners", Icon: GalleryHorizontal },
+        hasPermission("banners:manage") && { href: "/admin/popup", label: "Popup", Icon: MessageSquareText },
         hasPermission("promotions:manage") && { href: "/admin/promotions", label: "Promo Codes", Icon: Tag },
         hasPermission("ads:manage") && { href: "/admin/ads", label: "Social Media Ads", Icon: Megaphone },
         hasPermission("marketing:manage") && { href: "/admin/campaigns", label: "Email Campaigns", Icon: Mail },

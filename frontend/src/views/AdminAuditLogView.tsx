@@ -29,6 +29,7 @@ const ENTITY_LABELS: Record<AuditEntityType, string> = {
   account: "Own account",
   return: "Return / exchange",
   category: "Category",
+  popup: "Popup",
 };
 
 const ACTION_LABELS: Record<AuditAction, string> = {

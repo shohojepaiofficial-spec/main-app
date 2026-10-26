@@ -675,7 +675,7 @@ export interface CampaignAudiencePreview {
 // Admin change history (GET /api/audit-logs, full admin only).
 export const AUDIT_ENTITY_TYPES = [
   "product", "banner", "order", "user", "promo", "ad", "campaign",
-  "message", "review", "translation", "analytics", "account", "return", "category",
+  "message", "review", "translation", "analytics", "account", "return", "category", "popup",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
@@ -924,4 +924,22 @@ export interface NotificationList {
 export interface BrowserPushSubscription {
   endpoint: string;
   keys: { p256dh: string; auth: string };
+}
+
+// The storefront popup (GET /api/popup). Visitors get null when it's off.
+export interface PopupButton {
+  label: string;
+  href: string;
+}
+export interface SitePopupContent {
+  title: string;
+  message: string;
+  image?: string;
+  button?: PopupButton;
+  // Goes up when the content changes; a closed popup stays closed per version.
+  version: number;
+}
+// Staff view (GET /api/popup/settings) also shows whether it's switched on.
+export interface SitePopupSettings extends SitePopupContent {
+  isActive: boolean;
 }

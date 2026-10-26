@@ -3,6 +3,8 @@ import { Footer } from "@/views/Footer";
 import { AuthModal } from "@/views/AuthModal";
 import { CartModal } from "@/views/CartModal";
 import { getActivePromoCodes } from "@/services/promoService";
+import { getPublicPopup } from "@/services/popupService";
+import { SitePopup } from "@/views/SitePopup";
 
 // Our API calls go through axios, which Next can't see, so any page here
 // without a request-time API (the homepage, /categories, ...) was prerendered
@@ -13,7 +15,7 @@ import { getActivePromoCodes } from "@/services/promoService";
 export const revalidate = 60;
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const activePromos = await getActivePromoCodes();
+  const [activePromos, popup] = await Promise.all([getActivePromoCodes(), getPublicPopup()]);
   const sitewidePromo = activePromos.find((p) => p.scope === "all") ?? null;
 
   return (
@@ -23,6 +25,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <Footer />
       <AuthModal />
       <CartModal />
+      <SitePopup popup={popup} />
     </>
   );
 }

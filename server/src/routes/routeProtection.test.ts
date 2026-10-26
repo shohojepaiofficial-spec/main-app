@@ -10,6 +10,7 @@ import products from "./productRoutes";
 import orders from "./orderRoutes";
 import users from "./userRoutes";
 import banners from "./bannerRoutes";
+import popup from "./sitePopupRoutes";
 import promos from "./promoCodeRoutes";
 import analytics from "./analyticsRoutes";
 import contact from "./contactRoutes";
@@ -35,10 +36,10 @@ const publicRoutes = new Set([
   "auth POST /verify-email", "auth POST /forgot-password", "auth POST /reset-password",
   "auth POST /unsubscribe", "auth POST /2fa/verify-login",
   "products GET /", "products GET /categories", "products GET /:id", "products GET /:id/reviews",
-  "orders GET /bkash/callback", "orders POST /pathao/webhook", "banners GET /", "promos POST /validate", "promos GET /active",
+  "orders GET /bkash/callback", "orders POST /pathao/webhook", "banners GET /", "popup GET /", "promos POST /validate", "promos GET /active",
   "analytics POST /track", "contact POST /", "shared GET /:link", "shared POST /:link/pay", "translations GET /", "stats GET /",
 ]);
-const routers = { auth, products, orders, users, banners, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, sms, stats, auditLogs, returns, payments, categories, notifications };
+const routers = { auth, products, orders, users, banners, popup, promos, analytics, contact, wishlist, shared, ads, campaigns, translations, reviews, sms, stats, auditLogs, returns, payments, categories, notifications };
 const protectedRoutes: { name: string; method: string; path: string }[] = [];
 const customerRoutes = new Set([
   "auth POST /logout", "auth POST /logout-all", "auth GET /sessions", "auth DELETE /sessions/:sid", "auth GET /me", "auth PATCH /profile", "auth PATCH /password", "auth PATCH /delivery-location",
