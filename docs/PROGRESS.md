@@ -1542,3 +1542,4 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 ## 2026-10-26 (category card redesign)
 - `views/CategoryTile.tsx` is now a light card: photo on top (4:3), or a soft tinted panel with the matched icon when a category has no photo; name, product count and an arrow underneath; lifts on hover. Used on the home page and `/categories`. Typecheck and lint clean; not yet checked in a browser.
 - Fix: the dashboard Popup page failed to load/save because the `/api/backend` proxy allowlist (`app/api/backend/[...path]/route.ts`) did not include `popup`. Added it.
+- Popup dashboard page now matches the other admin pages: same header/subtitle, bordered card, button style, a Live/Off badge, and the `banners:manage` session check the other pages use (was missing).

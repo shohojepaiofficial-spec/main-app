@@ -7,6 +7,7 @@ import { z } from "zod";
 import toast from "react-hot-toast";
 import { IMAGE_ACCEPT, imageUploadError } from "@/lib/imageUpload";
 import { toUploadUrl } from "@/lib/api";
+import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAdminPopup } from "@/controllers/useAdminPopup";
 import { SitePopupSettings } from "@/models";
 import { PopupInput } from "@/services/popupService";
@@ -81,7 +82,7 @@ function PopupForm({ settings, onSave }: PopupFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex max-w-lg flex-col gap-3">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <label className="flex items-center gap-2 text-sm font-medium">
         <input type="checkbox" {...register("isActive")} />
         Show the popup to visitors
@@ -154,7 +155,7 @@ function PopupForm({ settings, onSave }: PopupFormProps) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="bg-primary text-primary-foreground rounded px-3 py-2 font-normal hover:bg-primary-hover disabled:opacity-50"
+        className="self-start bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium hover:bg-primary-hover disabled:opacity-50"
       >
         {isSubmitting ? "Saving..." : "Save popup"}
       </button>
@@ -163,18 +164,46 @@ function PopupForm({ settings, onSave }: PopupFormProps) {
 }
 
 export function AdminPopupView() {
+  const { isChecking, isAllowed } = useRequirePermission("banners:manage");
   const { settings, isLoading, save } = useAdminPopup();
 
+  if (isChecking || !isAllowed) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted">
+        Checking your session...
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-medium">Site popup</h1>
+    <main className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold mb-1">Site popup</h1>
+          <p className="text-sm text-muted">
+            A message that pops up for shoppers on the store pages.
+          </p>
+        </div>
+        {settings && (
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+              settings.isActive ? "bg-primary/10 text-primary" : "bg-border text-muted"
+            }`}
+          >
+            {settings.isActive ? "Live" : "Off"}
+          </span>
+        )}
+      </div>
+
       {isLoading ? (
-        <p className="text-muted">Loading...</p>
+        <p className="text-sm text-muted">Loading popup...</p>
       ) : settings ? (
-        <PopupForm key={settings.version} settings={settings} onSave={save} />
+        <div className="max-w-2xl rounded-md border border-border bg-surface p-4">
+          <PopupForm key={settings.version} settings={settings} onSave={save} />
+        </div>
       ) : (
-        <p className="text-muted">Couldn&apos;t load the popup settings.</p>
+        <p className="text-sm text-muted">Couldn&apos;t load the popup settings.</p>
       )}
-    </div>
+    </main>
   );
 }
