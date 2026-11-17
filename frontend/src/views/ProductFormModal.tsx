@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { IMAGE_ACCEPT, MAX_IMAGE_MB, splitValidImages } from "@/lib/imageUpload";
+import { IMAGE_ACCEPT, MAX_IMAGE_FILES, MAX_IMAGE_MB, splitValidImages } from "@/lib/imageUpload";
 import { X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { toUploadUrl } from "@/lib/api";
@@ -55,7 +55,7 @@ const productSchema = z.object({
 
 type ProductFormValues = z.infer<typeof productSchema>;
 
-const MAX_IMAGES = 5;
+const MAX_IMAGES = MAX_IMAGE_FILES;
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (

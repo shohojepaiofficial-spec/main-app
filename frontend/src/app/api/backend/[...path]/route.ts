@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { browserSessionMarker } from "@/lib/browserSession";
+import { MAX_MULTIPART_BYTES } from "@/lib/imageUpload";
 import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
 
@@ -35,7 +36,7 @@ async function boundedBody(req: NextRequest) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > 4 * 1024 * 1024) { await reader.cancel(); throw new Error("BODY_LIMIT"); }
+    if (size > MAX_MULTIPART_BYTES) { await reader.cancel(); throw new Error("BODY_LIMIT"); }
     chunks.push(value);
   }
   return Buffer.concat(chunks);
