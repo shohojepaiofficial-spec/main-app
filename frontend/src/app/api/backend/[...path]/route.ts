@@ -12,6 +12,20 @@ const refreshName = secure ? "__Host-backend-refresh" : "backend-refresh";
 const allowed = new Set(["auth", "products", "orders", "users", "banners", "popup", "promo-codes", "analytics", "contact", "wishlist", "shared-carts", "ads", "campaigns", "sms", "translations", "reviews", "stats", "config", "audit-logs", "returns", "payments", "categories", "notifications"]);
 const fail = (message: string, status: number) => NextResponse.json({ message }, { status, headers: { "Cache-Control": "no-store" } });
 
+// req.nextUrl.origin is only reliable on platforms (like Vercel) that resolve
+// it from the real public request. Railway runs `next start` as a plain
+// self-hosted server behind its own edge + Cloudflare, where it instead
+// resolves to the container's internal bind address — so compare against the
+// x-forwarded-host/proto the edge sets instead, which carry the real values
+// on every platform we deploy to. No proxy hop (nothing but Cloudflare/the
+// platform edge can reach this server) means these are safe to trust.
+function expectedOrigin(req: NextRequest) {
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  if (!forwardedHost) return req.nextUrl.origin;
+  const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || (secure ? "https" : "http");
+  return `${forwardedProto}://${forwardedHost}`;
+}
+
 async function boundedBody(req: NextRequest) {
   const reader = req.body?.getReader();
   if (!reader) return undefined;
@@ -33,7 +47,7 @@ async function proxy(req: NextRequest, context: { params: Promise<{ path: string
   const route = path.join("/");
   if (route === "auth/oauth-sync" || route === "orders/bkash/callback" || route === "orders/pathao/webhook") return fail("Not found", 404);
   const mutation = !["GET", "HEAD"].includes(req.method);
-  if (mutation && (req.headers.get("origin") !== req.nextUrl.origin || req.headers.get("x-requested-with") !== "ecommerce")) return fail("Invalid request origin", 403);
+  if (mutation && (req.headers.get("origin") !== expectedOrigin(req) || req.headers.get("x-requested-with") !== "ecommerce")) return fail("Invalid request origin", 403);
   if (req.headers.get("sec-fetch-site") === "cross-site") return fail("Invalid request origin", 403);
   let access = req.cookies.get(accessName)?.value;
   let refresh = req.cookies.get(refreshName)?.value;

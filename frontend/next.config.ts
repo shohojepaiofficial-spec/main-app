@@ -5,13 +5,6 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // Railway runs `next start` as a plain self-hosted server behind its own
-  // edge proxy (Vercel's platform didn't need this). Without this flag,
-  // Next.js computes req.nextUrl.origin from the container's own internal
-  // bind address instead of the public Host header, so it never matches the
-  // browser's real Origin header — the same-origin check in
-  // app/api/backend/[...path]/route.ts then 403s every mutating request.
-  experimental: { trustHostHeader: true },
   headers: async () => [{ source: "/:path*", headers: securityHeaders }],
   images: {
     // Dev only: the backend serving /uploads is our own localhost:5000, and
