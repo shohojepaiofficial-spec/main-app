@@ -27,7 +27,9 @@ const shapeFull = (settings: ISiteSettings | null) => ({
   emailRouting: {
     contact: settings?.emailRouting?.contact ?? "",
     transactional: settings?.emailRouting?.transactional ?? "",
+    transactionalName: settings?.emailRouting?.transactionalName ?? "",
     marketing: settings?.emailRouting?.marketing ?? "",
+    marketingName: settings?.emailRouting?.marketingName ?? "",
   },
 });
 
@@ -76,6 +78,8 @@ export const updateSiteSettings = async (req: AuthRequest, res: Response) => {
     }
     if (value) emails[key] = value.toLowerCase();
   }
+  const transactionalName = text(emailIn.transactionalName);
+  const marketingName = text(emailIn.marketingName);
 
   const current = await SiteSettings.findOne({ key: "site" });
 
@@ -85,7 +89,9 @@ export const updateSiteSettings = async (req: AuthRequest, res: Response) => {
   if (!whatsappNumber) unset["social.whatsappNumber"] = 1;
   if (!emails.contact) unset["emailRouting.contact"] = 1;
   if (!emails.transactional) unset["emailRouting.transactional"] = 1;
+  if (!transactionalName) unset["emailRouting.transactionalName"] = 1;
   if (!emails.marketing) unset["emailRouting.marketing"] = 1;
+  if (!marketingName) unset["emailRouting.marketingName"] = 1;
 
   const updated = await SiteSettings.findOneAndUpdate(
     { key: "site" },
@@ -96,7 +102,9 @@ export const updateSiteSettings = async (req: AuthRequest, res: Response) => {
         ...(whatsappNumber ? { "social.whatsappNumber": whatsappNumber } : {}),
         ...(emails.contact ? { "emailRouting.contact": emails.contact } : {}),
         ...(emails.transactional ? { "emailRouting.transactional": emails.transactional } : {}),
+        ...(transactionalName ? { "emailRouting.transactionalName": transactionalName } : {}),
         ...(emails.marketing ? { "emailRouting.marketing": emails.marketing } : {}),
+        ...(marketingName ? { "emailRouting.marketingName": marketingName } : {}),
       },
       ...(Object.keys(unset).length ? { $unset: unset } : {}),
     },

@@ -733,7 +733,9 @@ export interface SiteSocialLinks {
 export interface SiteEmailRouting {
   contact: string;
   transactional: string;
+  transactionalName: string;
   marketing: string;
+  marketingName: string;
 }
 
 export interface SiteSettings {

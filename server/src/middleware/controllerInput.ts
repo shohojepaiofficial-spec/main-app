@@ -41,7 +41,9 @@ const siteSettingsInput = z.object({
   emailRouting: z.object({
     contact: z.string().max(200).optional(),
     transactional: z.string().max(200).optional(),
+    transactionalName: z.string().max(100).optional(),
     marketing: z.string().max(200).optional(),
+    marketingName: z.string().max(100).optional(),
   }).strict().optional(),
 }).strict();
 

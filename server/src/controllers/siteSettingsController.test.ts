@@ -41,7 +41,7 @@ describe("admin settings", () => {
     await getSiteSettings(req, res);
     expect(json).toHaveBeenCalledWith({
       social: { facebookUrl: "", instagramUrl: "", whatsappNumber: "" },
-      emailRouting: { contact: "", transactional: "", marketing: "" },
+      emailRouting: { contact: "", transactional: "", transactionalName: "", marketing: "", marketingName: "" },
     });
   });
 });

@@ -1560,3 +1560,9 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - `views/AdminSiteSettingsView.tsx` (`controllers/useAdminSiteSettings.ts`), page `/admin/settings` (noindex, already covered by `robots.ts`'s `/admin` disallow), sidebar link under Site (admin-only, like Users/Change History), `/api/backend` proxy allowlist, audit-log entity label, and page help all added.
 - Checks: server 619 tests (new `siteSettingsController.test.ts`), server typecheck clean; frontend 120 tests, frontend typecheck clean, `next build`.
 - Left: deploy; set real Namecheap Private Email addresses in Site Settings (contact/transactional/marketing all live on the same Resend-verified domain, so no new domain verification is needed); confirm a contact-form submission and an order-status email after changing the addresses.
+
+## 2026-11-18 (site settings — from-name fields, WORK-22 follow-up)
+- Bug: emails from the dashboard's `transactional`/`marketing` addresses showed the bare address as the sender, not "Shohoje Pai" — because `<input type="email">` on `AdminSiteSettingsView.tsx` rejects the combined `"Name <address>"` format Resend's `from` expects, so there was no way to enter a display name there.
+- Fix: `emailRouting.transactionalName`/`emailRouting.marketingName` added as separate fields (`SiteSettings.ts`, `controllerInput.ts`'s zod schema, `siteSettingsController.ts`'s shape/update, frontend `SiteEmailRouting` model, a second text input next to each address field). `utils/emailRouting.ts#getEmailFrom` combines name + address into `"Name <address>"` when a name is set.
+- Checks: server `siteSettingsController.test.ts` (6 tests) passes.
+- Left: deploy; set the display name + address for transactional/marketing at `/admin/settings`; confirm a new order-status email shows "Shohoje Pai" as the sender.

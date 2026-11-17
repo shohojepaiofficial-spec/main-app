@@ -75,28 +75,44 @@ function SettingsForm({ settings, onSave }: { settings: SiteSettings; onSave: (i
           </div>
           <div>
             <label className="text-sm font-medium" htmlFor="transactionalEmail">Account &amp; order emails</label>
-            <input
-              id="transactionalEmail"
-              type="email"
-              {...register("emailRouting.transactional")}
-              placeholder="orders@yourdomain.com"
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm"
-            />
+            <div className="mt-1 flex gap-2">
+              <input
+                id="transactionalName"
+                {...register("emailRouting.transactionalName")}
+                placeholder="Display name, e.g. Shohoje Pai"
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
+              />
+              <input
+                id="transactionalEmail"
+                type="email"
+                {...register("emailRouting.transactional")}
+                placeholder="orders@yourdomain.com"
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
             <p className="mt-1 text-xs text-muted">
-              Sends as this address: verification, password reset, order status, 2FA, review replies, role changes,
-              sign-in alerts and return updates.
+              Sends as this name and address: verification, password reset, order status, 2FA, review replies, role
+              changes, sign-in alerts and return updates.
             </p>
           </div>
           <div>
             <label className="text-sm font-medium" htmlFor="marketingEmail">Marketing campaigns</label>
-            <input
-              id="marketingEmail"
-              type="email"
-              {...register("emailRouting.marketing")}
-              placeholder="news@yourdomain.com"
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm"
-            />
-            <p className="mt-1 text-xs text-muted">Sends as this address: email campaigns sent from Email Campaigns.</p>
+            <div className="mt-1 flex gap-2">
+              <input
+                id="marketingName"
+                {...register("emailRouting.marketingName")}
+                placeholder="Display name, e.g. Shohoje Pai"
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
+              />
+              <input
+                id="marketingEmail"
+                type="email"
+                {...register("emailRouting.marketing")}
+                placeholder="news@yourdomain.com"
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted">Sends as this name and address: email campaigns sent from Email Campaigns.</p>
           </div>
         </div>
       </fieldset>
