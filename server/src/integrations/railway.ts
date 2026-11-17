@@ -43,10 +43,14 @@ async function graphql<T>(query: string, variables: Record<string, unknown> = {}
 async function resolveWorkspaceId(): Promise<string> {
   const configured = process.env.RAILWAY_WORKSPACE_ID?.trim();
   if (configured) return configured;
-  const data = await graphql<{ me: { workspaces: { id: string }[] } }>(
-    `query Me { me { workspaces { id } } }`
+  // `me` only works for Account tokens. A Workspace token (RAILWAY_API_TOKEN
+  // starting with "rlwy_wksp_") isn't authorized to call it — Railway
+  // returns a "Not Authorized" GraphQL error — so its workspace has to come
+  // from `apiToken` instead, which reflects the token itself.
+  const data = await graphql<{ apiToken: { workspaces: { id: string }[] } }>(
+    `query TokenWorkspaces { apiToken { workspaces { id } } }`
   );
-  const id = data.me.workspaces[0]?.id;
+  const id = data.apiToken.workspaces[0]?.id;
   if (!id) throw new Error("No Railway workspace found for this token");
   return id;
 }

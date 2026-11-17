@@ -32,6 +32,19 @@ const numeric = new Set(["rating", "value", "cityId", "zoneId", "areaId", "weigh
 const booleans = new Set(["isRead", "sms", "confirmMismatch", "showOnSite"]);
 const strings = z.string().max(32_768);
 
+const siteSettingsInput = z.object({
+  social: z.object({
+    facebookUrl: z.string().max(300).optional(),
+    instagramUrl: z.string().max(300).optional(),
+    whatsappNumber: z.string().max(20).optional(),
+  }).strict().optional(),
+  emailRouting: z.object({
+    contact: z.string().max(200).optional(),
+    transactional: z.string().max(200).optional(),
+    marketing: z.string().max(200).optional(),
+  }).strict().optional(),
+}).strict();
+
 export function validateControllerInput(name: string, req: Request) {
   for (const [key, value] of Object.entries(req.params ?? {})) {
     if (["id", "reviewId", "productId"].includes(key)) parseInput(objectId, value);
@@ -40,6 +53,7 @@ export function validateControllerInput(name: string, req: Request) {
   assertSafeInput(req.body);
   if (["createProduct", "updateProduct"].includes(name)) { productInput(req.body); return; }
   if (name === "createOrder" || name === "adminCreateOrder") { parseInput(checkoutSchema, req.body); return; }
+  if (name === "updateSiteSettings") { parseInput(siteSettingsInput, req.body); return; }
   if (name in notificationInputs) { parseInput(notificationInputs[name], req.body ?? {}); return; }
   if (name in returnInputs) {
     if (!["GET", "HEAD"].includes(req.method ?? "GET")) parseInput(returnInputs[name], req.body ?? {});

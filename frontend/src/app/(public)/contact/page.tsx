@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ContactView } from "@/views/ContactView";
+import { getSocialLinks } from "@/services/siteSettingsService";
 
 const title = "Contact Us";
 const description = "Get in touch with our team.";
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
   twitter: { title, description, images: ["/og-image.png"] },
 };
 
-export default function ContactPage() {
-  return <ContactView />;
+export default async function ContactPage() {
+  const social = await getSocialLinks();
+  return <ContactView whatsappNumber={social.whatsappNumber} />;
 }

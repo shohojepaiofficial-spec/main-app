@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { FaFacebookMessenger, FaWhatsapp } from "react-icons/fa6";
 import { openWhatsAppDirect } from "@/lib/whatsapp";
-import { MESSENGER_CHAT_URL, MESSENGER_INBOX_URL, WHATSAPP_NUMBER } from "@/lib/contact";
+import { MESSENGER_CHAT_URL, MESSENGER_INBOX_URL } from "@/lib/contact";
 import { useTranslations } from "@/controllers/useTranslations";
 import { useAuthController } from "@/controllers/useAuthController";
 
@@ -15,14 +15,14 @@ const MENU_ID = "chat-options";
 // opens a small menu with WhatsApp and Messenger. Messenger starts a chat
 // with the Page, except for admin/coadmin, who get the Page's inbox instead
 // so they can reply.
-export function ChatButtons() {
+export function ChatButtons({ whatsappNumber }: { whatsappNumber: string }) {
   const { t } = useTranslations();
   const { user } = useAuthController();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isStaff = user?.role === "admin" || user?.role === "coadmin";
   const message = t("whatsapp.defaultMessage", DEFAULT_MESSAGE);
-  const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  const whatsappHref = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
   useEffect(() => {
     if (!isOpen) return;

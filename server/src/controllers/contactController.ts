@@ -4,6 +4,7 @@ import { validateControllerInput } from "../middleware/controllerInput";
 import { Request, Response } from "express";
 import { ContactMessage } from "../models/ContactMessage";
 import { sendEmail } from "../utils/sendEmail";
+import { getContactNotifyEmail } from "../utils/emailRouting";
 import { escapeHtml } from "../utils/escapeHtml";
 import { isNonEmptyString } from "../utils/validate";
 import { AuthRequest } from "../middleware/auth";
@@ -37,7 +38,10 @@ export const submitContactMessage = async (req: Request, res: Response) => {
     message: message.trim(),
   });
 
-  const notifyEmail = process.env.CONTACT_EMAIL;
+  // Site Settings dashboard can redirect this to a specific mailbox (e.g. a
+  // Namecheap Private Email address dedicated to customer messages); falls
+  // back to the env default when that hasn't been set.
+  const notifyEmail = (await getContactNotifyEmail()) || process.env.CONTACT_EMAIL;
   if (notifyEmail) {
     // Anyone on the internet can submit this form — name/subject/message are
     // attacker-controlled, so they're HTML-escaped before going into the

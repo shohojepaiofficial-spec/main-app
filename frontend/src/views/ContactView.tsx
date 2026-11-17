@@ -13,7 +13,6 @@ import {
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL,
-  WHATSAPP_NUMBER,
 } from "@/lib/contact";
 import { T } from "@/components/ui/T";
 import { openWhatsAppDirect } from "@/lib/whatsapp";
@@ -102,8 +101,8 @@ function ContactForm() {
   );
 }
 
-export function ContactView() {
-  const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}`;
+export function ContactView({ whatsappNumber }: { whatsappNumber: string }) {
+  const whatsappHref = `https://wa.me/${whatsappNumber}`;
 
   return (
     <main className="mx-auto max-w-5xl px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">

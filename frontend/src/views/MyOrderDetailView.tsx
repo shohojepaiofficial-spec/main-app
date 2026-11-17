@@ -11,7 +11,6 @@ import { useTranslations } from "@/controllers/useTranslations";
 import { openWhatsAppDirect } from "@/lib/whatsapp";
 import { formatCurrency } from "@/lib/currency";
 import { toUploadUrl } from "@/lib/api";
-import { WHATSAPP_NUMBER } from "@/lib/contact";
 import { toOrderWhatsAppLink } from "@/lib/phone";
 import { ORDER_STATUS_CLASS, customerStatusLabel } from "@/lib/orderStatus";
 import { Modal } from "@/components/ui/Modal";
@@ -29,7 +28,7 @@ const orderNumber = (order: Order) => order._id.slice(-6).toUpperCase();
 // The customer's own order, on its own page: where it is, what's in it,
 // where it's going, and what they can do (cancel while pending, pay online,
 // return after delivery, message the store).
-export function MyOrderDetailView({ orderId }: { orderId: string }) {
+export function MyOrderDetailView({ orderId, whatsappNumber }: { orderId: string; whatsappNumber: string }) {
   const { order, isLoading, notFound, isCancelling, cancel } = useMyOrder(orderId);
   const { requestsByOrder, eligibilityByOrder, windowDays, reload: reloadReturns } = useMyReturns();
   // The order list's "Return" button links here with #return.
@@ -145,7 +144,7 @@ export function MyOrderDetailView({ orderId }: { orderId: string }) {
 
       <div className="flex flex-wrap gap-2">
         <a
-          href={toOrderWhatsAppLink(WHATSAPP_NUMBER, helpMessage)}
+          href={toOrderWhatsAppLink(whatsappNumber, helpMessage)}
           onClick={openWhatsAppDirect}
           target="_blank"
           rel="noopener noreferrer"

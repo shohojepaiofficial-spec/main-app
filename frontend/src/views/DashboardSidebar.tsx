@@ -28,6 +28,7 @@ import {
   Wallet,
   AtSign,
   ExternalLink,
+  Globe,
 } from "lucide-react";
 import { STAFF_MAILBOXES, WEBMAIL_LOGIN_URL } from "@/lib/contact";
 import { useAuthController } from "@/controllers/useAuthController";
@@ -100,6 +101,7 @@ export function DashboardSidebar() {
       title: "Site",
       links: [
         hasPermission("translations:manage") && { href: "/admin/translations", label: "Translations", Icon: Languages },
+        user?.role === "admin" && { href: "/admin/settings", label: "Site Settings", Icon: Globe },
         user?.role === "admin" && { href: "/admin/audit-log", label: "Change History", Icon: History },
       ],
     },

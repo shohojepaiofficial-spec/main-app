@@ -4,6 +4,7 @@ import { AuthModal } from "@/views/AuthModal";
 import { CartModal } from "@/views/CartModal";
 import { getActivePromoCodes } from "@/services/promoService";
 import { getPublicPopup } from "@/services/popupService";
+import { getSocialLinks } from "@/services/siteSettingsService";
 import { SitePopup } from "@/views/SitePopup";
 
 // Our API calls go through axios, which Next can't see, so any page here
@@ -15,14 +16,14 @@ import { SitePopup } from "@/views/SitePopup";
 export const revalidate = 60;
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const [activePromos, popup] = await Promise.all([getActivePromoCodes(), getPublicPopup()]);
+  const [activePromos, popup, social] = await Promise.all([getActivePromoCodes(), getPublicPopup(), getSocialLinks()]);
   const sitewidePromo = activePromos.find((p) => p.scope === "all") ?? null;
 
   return (
     <>
-      <Navbar sitewidePromo={sitewidePromo} />
+      <Navbar sitewidePromo={sitewidePromo} social={social} />
       {children}
-      <Footer />
+      <Footer social={social} />
       <AuthModal />
       <CartModal />
       <SitePopup popup={popup} />

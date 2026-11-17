@@ -339,6 +339,20 @@ const HELP: Record<string, PageHelp> = {
       { term: "Permission", meaning: "One area a co-admin may manage, e.g. Manage orders." },
     ],
   },
+  "/admin/settings": {
+    title: "Site settings",
+    summary: "Social links shown on the storefront, and which mailbox each kind of email uses.",
+    expect: [
+      "Facebook, Instagram and WhatsApp links, used across the navbar, footer and chat button.",
+      "Which business mailbox each kind of email sends from (or arrives at), e.g. a Private Email address on your own domain.",
+      "A blank field keeps using the site's current default. Only a full admin can open this page.",
+    ],
+    terms: [
+      { term: "Contact-form messages", meaning: "Where a customer's message from the Contact page is sent." },
+      { term: "Account & order emails", meaning: "Verification, password reset, order status, 2FA, review replies and more." },
+      { term: "Marketing campaigns", meaning: "Emails sent from Email Campaigns." },
+    ],
+  },
   "/admin/audit-log": {
     title: "Change History",
     summary: "A record of every change staff made, with before and after values.",

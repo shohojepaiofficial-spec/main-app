@@ -112,7 +112,7 @@ export const createCampaign = async (req: AuthRequest, res: Response) => {
         const unsubscribeUrl = `${CLIENT_URL}/unsubscribe?uid=${recipient.id}&token=${generateUnsubscribeToken(recipient.id as string)}`;
         const bodyWithFooter = `${emailBody!.trim()}<hr style="margin-top:24px;border:none;border-top:1px solid #e5e5e5" /><p style="font-size:11px;color:#888">Don't want these emails? <a href="${unsubscribeUrl}">Unsubscribe</a></p>`;
         try {
-          await sendEmail({ to: recipient.email, subject: emailSubject!.trim(), html: bodyWithFooter });
+          await sendEmail({ to: recipient.email, subject: emailSubject!.trim(), html: bodyWithFooter, purpose: "marketing" });
           recipientLog.push({ user: recipient.id, name: recipient.name, channel: "email", status: "sent" });
         } catch (err) {
           recipientLog.push({

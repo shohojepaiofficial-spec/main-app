@@ -17,12 +17,14 @@ export const STAFF_MAILBOXES = [CONTACT_EMAIL];
 // Digits only, with country code, no "+" — what wa.me links expect.
 export const WHATSAPP_NUMBER = "8801700502013";
 
-// Real social profiles, shared by Navbar/Footer and the homepage's
-// Organization JSON-LD `sameAs` — which must only ever list genuine profiles,
-// so add a network here only once its page actually exists.
+// Default social links and WhatsApp number — the real, current source of
+// truth is the admin's Site Settings page (server/src/models/SiteSettings.ts,
+// GET /api/settings), which services/siteSettingsService.ts#getSocialLinks
+// falls back to these for until an admin sets them there, and on any
+// request failure. Nothing in Navbar/Footer/ChatButtons/the homepage's
+// Organization JSON-LD reads these constants directly anymore.
 export const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61594292297060";
 export const INSTAGRAM_URL = "https://www.instagram.com/shohoje.pai/";
-export const SOCIAL_PROFILE_URLS = [FACEBOOK_URL, INSTAGRAM_URL];
 
 // Starts a Messenger chat with the Page (the id is the one in FACEBOOK_URL)
 // — what a customer gets from the chat button's Messenger option.

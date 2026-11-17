@@ -8,17 +8,19 @@ import { getPublicBanners } from "@/services/bannerService";
 import { getProductCategories, getProducts } from "@/services/productService";
 import { getStoreCity } from "@/services/configService";
 import { getStoreStats } from "@/services/statsService";
+import { getSocialLinks } from "@/services/siteSettingsService";
 import { visibleStats } from "@/lib/storeStats";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
-import { CONTACT_PHONE_TEL, CONTACT_EMAIL, SOCIAL_PROFILE_URLS } from "@/lib/contact";
+import { CONTACT_PHONE_TEL, CONTACT_EMAIL } from "@/lib/contact";
 import { toJsonLdScript } from "@/lib/jsonLd";
+import { SiteSocialLinks } from "@/models";
 
 // Organization + WebSite JSON-LD (site identity, for a knowledge-panel /
 // sitelinks-searchbox rich result — separate from ordinary indexing, which
 // sitemap.ts/robots.ts already cover). Lives on the homepage, matching where
 // FAQSection's own JSON-LD sits, rather than the root layout, since it's a
 // once-per-site declaration, not per-page.
-const organizationJsonLd = {
+const organizationJsonLd = (social: SiteSocialLinks) => ({
   "@context": "https://schema.org",
   "@type": "Organization",
   name: SITE_NAME,
@@ -31,9 +33,10 @@ const organizationJsonLd = {
     contactType: "customer service",
     areaServed: "BD",
   },
-  // Only genuine profiles belong here — see SOCIAL_PROFILE_URLS in lib/contact.ts.
-  sameAs: SOCIAL_PROFILE_URLS,
-};
+  // Only genuine profiles belong here — Site Settings in the admin
+  // dashboard is where these are kept up to date.
+  sameAs: [social.facebookUrl, social.instagramUrl].filter(Boolean),
+});
 
 const websiteJsonLd = {
   "@context": "https://schema.org",
@@ -50,12 +53,13 @@ const websiteJsonLd = {
 // route through the `%s | ${SITE_NAME}` template instead, which reads worse
 // on the homepage than anywhere else.
 export default async function Home() {
-  const [slides, categories, featuredResult, storeCity, stats] = await Promise.all([
+  const [slides, categories, featuredResult, storeCity, stats, social] = await Promise.all([
     getPublicBanners(),
     getProductCategories(),
     getProducts({ featured: true, limit: 8 }),
     getStoreCity(),
     getStoreStats(),
+    getSocialLinks(),
   ]);
 
   // Nothing marked featured yet (a fresh store) shouldn't mean an empty
@@ -72,7 +76,7 @@ export default async function Home() {
     <main className="pt-[var(--navbar-height)]">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: toJsonLdScript(organizationJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLdScript(organizationJsonLd(social)) }}
       />
       <script
         type="application/ld+json"

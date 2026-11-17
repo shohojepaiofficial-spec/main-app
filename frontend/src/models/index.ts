@@ -691,7 +691,7 @@ export interface CampaignAudiencePreview {
 // Admin change history (GET /api/audit-logs, full admin only).
 export const AUDIT_ENTITY_TYPES = [
   "product", "banner", "order", "user", "promo", "ad", "campaign",
-  "message", "review", "translation", "analytics", "account", "return", "category", "popup",
+  "message", "review", "translation", "analytics", "account", "return", "category", "popup", "settings",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
@@ -717,6 +717,28 @@ export interface AuditEntry {
   entityName: string;
   changes: AuditChange[];
   createdAt: string;
+}
+
+// Site Settings (GET /api/settings, admin GET /api/settings/admin, PUT
+// /api/settings, full admin only) — social links shown on the storefront
+// and which mailbox each kind of email sends/arrives at. See
+// docs/ARCHITECTURE.md's "Site settings" section.
+export interface SiteSocialLinks {
+  facebookUrl: string;
+  instagramUrl: string;
+  // "8801XXXXXXXXX" digits-only, same convention as WHATSAPP_NUMBER.
+  whatsappNumber: string;
+}
+
+export interface SiteEmailRouting {
+  contact: string;
+  transactional: string;
+  marketing: string;
+}
+
+export interface SiteSettings {
+  social: SiteSocialLinks;
+  emailRouting: SiteEmailRouting;
 }
 
 export interface AuditActor {

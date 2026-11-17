@@ -7,12 +7,11 @@ import {
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL,
-  FACEBOOK_URL,
-  INSTAGRAM_URL,
 } from "@/lib/contact";
 import { Logo } from "@/views/Logo";
 import { SITE_NAME } from "@/lib/seo";
 import { T } from "@/components/ui/T";
+import { SiteSocialLinks } from "@/models";
 
 const SHOP_LINKS = [
   { href: "/shop", key: "nav.shop", label: "Shop" },
@@ -28,12 +27,12 @@ const COMPANY_LINKS = [
   { href: "/terms", key: "footer.terms", label: "Terms of Service" },
 ];
 
-const SOCIAL_LINKS = [
-  { href: FACEBOOK_URL, label: "Facebook", Icon: FaFacebookF },
-  { href: INSTAGRAM_URL, label: "Instagram", Icon: FaInstagram },
-];
+export function Footer({ social }: { social: SiteSocialLinks }) {
+  const socialLinks = [
+    { href: social.facebookUrl, label: "Facebook", Icon: FaFacebookF },
+    { href: social.instagramUrl, label: "Instagram", Icon: FaInstagram },
+  ].filter((link) => link.href);
 
-export function Footer() {
   return (
     <footer className="bg-foreground text-background/80 mt-16">
       <div className="mx-auto max-w-7xl px-4 lg:px-8 py-10 grid grid-cols-2 gap-8 sm:grid-cols-4">
@@ -43,7 +42,7 @@ export function Footer() {
             <T k="footer.blurb">Quality products, fast shipping, and a storefront you can trust.</T>
           </p>
           <div className="flex items-center gap-3 mt-4">
-            {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+            {socialLinks.map(({ href, label, Icon }) => (
               <a
                 key={label}
                 href={href}

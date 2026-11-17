@@ -10,7 +10,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const secure = process.env.NODE_ENV === "production";
 const accessName = secure ? "__Host-backend-access" : "backend-access";
 const refreshName = secure ? "__Host-backend-refresh" : "backend-refresh";
-const allowed = new Set(["auth", "products", "orders", "users", "banners", "popup", "promo-codes", "analytics", "contact", "wishlist", "shared-carts", "ads", "campaigns", "sms", "translations", "reviews", "stats", "config", "audit-logs", "returns", "payments", "categories", "notifications"]);
+const allowed = new Set(["auth", "products", "orders", "users", "banners", "popup", "promo-codes", "analytics", "contact", "wishlist", "shared-carts", "ads", "campaigns", "sms", "translations", "reviews", "stats", "config", "audit-logs", "returns", "payments", "categories", "notifications", "settings"]);
 const fail = (message: string, status: number) => NextResponse.json({ message }, { status, headers: { "Cache-Control": "no-store" } });
 
 // req.nextUrl.origin is only reliable on platforms (like Vercel) that resolve

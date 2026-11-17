@@ -7,6 +7,7 @@ import { ChatButtons } from "@/views/ChatButtons";
 import { ConfirmDialog } from "@/views/ConfirmDialog";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { GTM_ID, isGtmConfigured } from "@/lib/gtm";
+import { getSocialLinks } from "@/services/siteSettingsService";
 import "./globals.css";
 
 const inter = Inter({
@@ -62,11 +63,12 @@ export const viewport: Viewport = {
   themeColor: "#15914f",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const social = await getSocialLinks();
   return (
     <html lang="en">
       {isGtmConfigured() && (
@@ -91,7 +93,7 @@ export default function RootLayout({
         )}
         <Providers>
           {children}
-          <ChatButtons />
+          <ChatButtons whatsappNumber={social.whatsappNumber} />
           <ConfirmDialog />
           <Toaster position="top-center" />
         </Providers>
