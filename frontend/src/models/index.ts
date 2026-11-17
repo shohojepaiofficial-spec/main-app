@@ -374,6 +374,22 @@ export interface SmsBalance {
   balance: number | null;
 }
 
+// Remaining Railway (hosting) credit — full admin only, see
+// server's railwayController#getUsage. Amounts are USD.
+export interface RailwayUsage {
+  planName: string | null;
+  currentUsage: number;
+  creditBalance: number;
+  remainingUsageCreditBalance: number;
+  usageLimit: { softLimit: number | null; hardLimit: number | null; isOverLimit: boolean } | null;
+  billingPeriod: { start: string; end: string } | null;
+}
+
+export interface RailwayUsageResponse {
+  configured: boolean;
+  usage: RailwayUsage | null;
+}
+
 export interface OrderStats {
   pendingCount: number;
   totalOrders: number;

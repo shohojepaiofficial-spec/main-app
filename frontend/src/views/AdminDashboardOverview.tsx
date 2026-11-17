@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ClipboardList, Boxes, AlertTriangle, Wallet, ArrowRight, MessageSquare } from "lucide-react";
+import { ClipboardList, Boxes, AlertTriangle, Wallet, ArrowRight, MessageSquare, Server } from "lucide-react";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useSmsBalance } from "@/controllers/useSmsBalance";
+import { useRailwayUsage } from "@/controllers/useRailwayUsage";
 import * as orderService from "@/services/orderService";
 import * as productService from "@/services/productService";
 import { formatCurrency } from "@/lib/currency";
 import { OrderStats, ProductStats } from "@/models";
+
+// Railway bills in USD, unlike the rest of this store (Taka) — formatCurrency
+// would mislabel the amount with the wrong symbol.
+const formatUsd = (amount: number) => `$${amount.toFixed(2)}`;
 
 function StatTile({
   label,
@@ -46,8 +51,10 @@ export function AdminDashboardOverview() {
   const { user, hasPermission } = useAuthController();
   const canSeeOrders = hasPermission("orders:manage");
   const canSeeProducts = hasPermission("products:manage");
+  const isAdmin = user?.role === "admin";
 
   const { smsBalance, hasError: smsBalanceError } = useSmsBalance(canSeeOrders);
+  const { railwayUsage, hasError: railwayUsageError } = useRailwayUsage(isAdmin);
 
   const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
   const [productStats, setProductStats] = useState<ProductStats | null>(null);
@@ -158,6 +165,41 @@ export function AdminDashboardOverview() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {isAdmin && (
+            <div className="mb-8">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Infrastructure</h2>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <StatTile
+                  label="Railway credit"
+                  value={
+                    railwayUsageError
+                      ? "Unavailable"
+                      : !railwayUsage
+                        ? "…"
+                        : !railwayUsage.configured || !railwayUsage.usage
+                          ? "Not connected"
+                          : formatUsd(railwayUsage.usage.remainingUsageCreditBalance)
+                  }
+                  Icon={Server}
+                  tone={
+                    railwayUsageError ||
+                    (railwayUsage?.usage?.remainingUsageCreditBalance ?? Infinity) < 5 ||
+                    railwayUsage?.usage?.usageLimit?.isOverLimit
+                      ? "warning"
+                      : undefined
+                  }
+                  hint={
+                    railwayUsage?.usage?.billingPeriod
+                      ? `This period's usage: ${formatUsd(railwayUsage.usage.currentUsage)}`
+                      : undefined
+                  }
+                />
+              </div>
             </div>
           )}
 
