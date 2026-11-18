@@ -1,7 +1,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import { ensureSession, writeSessionCookies, withSessionLock } from "./sessionClient";
-import { validateMultipartSize } from "./imageUpload";
+import { validateMultipartSize, MAX_GALLERY_MULTIPART_BYTES } from "./imageUpload";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -31,7 +31,10 @@ api.defaults.adapter = config => {
 };
 
 api.interceptors.request.use(async (config) => {
-  if (typeof FormData !== "undefined" && config.data instanceof FormData) validateMultipartSize(config.data);
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    const isGalleryUpload = /\/products\/[^/]+\/gallery$/.test(config.url ?? "");
+    validateMultipartSize(config.data, isGalleryUpload ? MAX_GALLERY_MULTIPART_BYTES : undefined);
+  }
   const credentialRequest = /^\/auth\/(login|register|forgot-password|reset-password|2fa\/verify-login)(?:$|\?)/.test(config.url ?? "");
   const token = credentialRequest ? undefined : (await ensureSession())?.token;
   if (token && config.headers) {

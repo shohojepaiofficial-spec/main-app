@@ -1587,3 +1587,12 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Checks: server/frontend typecheck, new controller + link-util tests.
 - Left: deploy; confirm a real multi-image upload, tag edit, share-link creation and the
   public share page's downloads against Cloudinary-hosted URLs.
+
+## 2026-11-18 (gallery batch upload cap, WORK-23)
+- The gallery's 30-file batch upload was still being rejected by the storefront proxy's
+  multipart body cap, which was sized for the old 5-image product form
+  (`MAX_MULTIPART_BYTES` = 5 files x 4MB + headroom, ~22MB). Made the cap route-aware
+  instead of raising it globally: added `MAX_GALLERY_MULTIPART_BYTES` (30 files x 4MB +
+  headroom) to `frontend/src/lib/imageUpload.ts`, applied by both the browser-side
+  `validateMultipartSize` check (`lib/api.ts`) and the proxy's `boundedBody` (`app/api/backend/[...path]/route.ts`)
+  whenever the request targets `products/:id/gallery`. Per-image size (4MB) is unchanged.

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { browserSessionMarker } from "@/lib/browserSession";
-import { MAX_MULTIPART_BYTES } from "@/lib/imageUpload";
+import { MAX_MULTIPART_BYTES, MAX_GALLERY_MULTIPART_BYTES } from "@/lib/imageUpload";
 import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
 
@@ -27,7 +27,7 @@ function expectedOrigin(req: NextRequest) {
   return `${forwardedProto}://${forwardedHost}`;
 }
 
-async function boundedBody(req: NextRequest) {
+async function boundedBody(req: NextRequest, maxBytes: number) {
   const reader = req.body?.getReader();
   if (!reader) return undefined;
   const chunks: Uint8Array[] = [];
@@ -36,11 +36,16 @@ async function boundedBody(req: NextRequest) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_MULTIPART_BYTES) { await reader.cancel(); throw new Error("BODY_LIMIT"); }
+    if (size > maxBytes) { await reader.cancel(); throw new Error("BODY_LIMIT"); }
     chunks.push(value);
   }
   return Buffer.concat(chunks);
 }
+
+// The product gallery (WORK-23) accepts a bigger batch per upload than the
+// 5-image product form — keep in sync with MAX_GALLERY_UPLOAD_FILES in
+// server/src/utils/upload.ts and frontend/src/lib/imageUpload.ts.
+const GALLERY_UPLOAD_ROUTE = /^products\/[^/]+\/gallery$/;
 
 async function proxy(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
@@ -81,7 +86,8 @@ async function proxy(req: NextRequest, context: { params: Promise<{ path: string
       const value = req.headers.get(name);
       if (value) headers.set(name, value);
     }
-    let body: Buffer | string | undefined = mutation ? await boundedBody(req) : undefined;
+    const maxBodyBytes = req.method === "POST" && GALLERY_UPLOAD_ROUTE.test(route) ? MAX_GALLERY_MULTIPART_BYTES : MAX_MULTIPART_BYTES;
+    let body: Buffer | string | undefined = mutation ? await boundedBody(req, maxBodyBytes) : undefined;
     if (upstreamRoute === "auth/refresh") {
       if (!refresh) { console.warn(`Session refresh refused: no refresh cookie (${route})`); return fail("Session expired", 401); }
       headers.set("content-type", "application/json");
