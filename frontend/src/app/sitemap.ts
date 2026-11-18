@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   "",
   "/shop",
   "/categories",
+  "/store-locations",
   "/about",
   "/contact",
   "/shipping",

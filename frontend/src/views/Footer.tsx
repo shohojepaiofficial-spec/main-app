@@ -20,6 +20,7 @@ const SHOP_LINKS = [
 
 const COMPANY_LINKS = [
   { href: "/about", key: "nav.about", label: "About" },
+  { href: "/store-locations", key: "nav.storeLocations", label: "Our Stores" },
   { href: "/contact", key: "nav.contact", label: "Contact" },
   { href: "/shipping", key: "footer.shipping", label: "Shipping & Delivery" },
   { href: "/returns", key: "footer.returns", label: "Returns & Exchanges" },

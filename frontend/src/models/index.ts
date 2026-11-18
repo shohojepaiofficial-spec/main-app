@@ -11,6 +11,7 @@ export const ALL_PERMISSIONS = [
   "messages:manage",
   "reviews:manage",
   "translations:manage",
+  "locations:manage",
 ] as const;
 export type Permission = (typeof ALL_PERMISSIONS)[number];
 
@@ -25,6 +26,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "messages:manage": "Read contact messages",
   "reviews:manage": "Moderate product reviews",
   "translations:manage": "Edit Bangla translations",
+  "locations:manage": "Manage store locations",
 };
 
 export type UserRole = "user" | "coadmin" | "admin";
@@ -178,6 +180,19 @@ export interface ManagedCategory {
   image?: string;
   order: number;
   productCount: number;
+}
+
+// A physical store location, shown on the storefront's "Our Stores" page and
+// managed at /admin/store-locations.
+export interface StoreLocation {
+  id: string;
+  name: string;
+  address: string;
+  phone?: string;
+  mapUrl?: string;
+  images: string[];
+  order: number;
+  isActive: boolean;
 }
 
 export interface Review {

@@ -27,6 +27,7 @@ const fields: Record<string, string> = {
   updateUserAccess: "role permissions", updateTranslation: "bn", moveBanner: "direction",
   updateSitePopup: "isActive title message buttonLabel buttonHref removeImage",
   createCategory: "name nameBn", updateCategory: "name nameBn removeImage", moveCategory: "direction",
+  createStoreLocation: "name address phone mapUrl", updateStoreLocation: "name address phone mapUrl removeImages isActive", moveStoreLocation: "direction",
   submitContactMessage: "name email subject message", markMessageRead: "isRead",
 };
 const numeric = new Set(["rating", "value", "cityId", "zoneId", "areaId", "weightKg"]);
@@ -81,6 +82,8 @@ export function validateControllerInput(name: string, req: Request) {
     if (field === "pathao") schema = pathaoRefSchema;
     if (field === "provider" && name === "updateCourierInfo") schema = z.enum(["pathao", "other"]);
     if (field === "ids" || field === "imageIds") schema = z.array(objectId).min(1).max(100);
+    if (field === "removeImages") schema = z.union([z.string().max(500), z.array(z.string().max(500)).max(30)]);
+    if (field === "mapUrl" || field === "phone") schema = z.string().max(500);
     // Comma-separated on the multipart upload (uploadGalleryImages), an
     // array on the JSON tag-edit endpoint (updateGalleryImageTags) — same
     // body key, two call sites, so both shapes are accepted here.

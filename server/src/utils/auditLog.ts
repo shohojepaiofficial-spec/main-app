@@ -29,6 +29,7 @@ const TRACKED_FIELDS: Record<AuditEntityType, readonly string[]> = {
   category: ["name", "nameBn", "order", "image"],
   popup: ["isActive", "title", "message", "image", "button", "version"],
   settings: ["social", "emailRouting"],
+  storeLocation: ["name", "address", "phone", "mapUrl", "order", "isActive", "images"],
 };
 
 const SENSITIVE_KEY = /password|secret|token|credential|authorization|backup.?code|private.?key/i;

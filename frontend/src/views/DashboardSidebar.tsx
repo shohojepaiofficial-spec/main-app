@@ -28,6 +28,7 @@ import {
   Wallet,
   AtSign,
   ExternalLink,
+  MapPin,
   Globe,
 } from "lucide-react";
 import { STAFF_MAILBOXES, WEBMAIL_LOGIN_URL } from "@/lib/contact";
@@ -85,6 +86,7 @@ export function DashboardSidebar() {
       links: [
         hasPermission("banners:manage") && { href: "/admin/banners", label: "Banners", Icon: GalleryHorizontal },
         hasPermission("banners:manage") && { href: "/admin/popup", label: "Popup", Icon: MessageSquareText },
+        hasPermission("locations:manage") && { href: "/admin/store-locations", label: "Store Locations", Icon: MapPin },
         hasPermission("promotions:manage") && { href: "/admin/promotions", label: "Promo Codes", Icon: Tag },
         hasPermission("ads:manage") && { href: "/admin/ads", label: "Social Media Ads", Icon: Megaphone },
         hasPermission("marketing:manage") && { href: "/admin/campaigns", label: "Email Campaigns", Icon: Mail },

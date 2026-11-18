@@ -13,6 +13,7 @@ export const PERMISSIONS = [
   "messages:manage",
   "reviews:manage",
   "translations:manage",
+  "locations:manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

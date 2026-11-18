@@ -27,6 +27,7 @@ import paymentRoutes from "./routes/paymentRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import siteSettingsRoutes from "./routes/siteSettingsRoutes";
 import productGalleryRoutes from "./routes/productGalleryRoutes";
+import storeLocationRoutes from "./routes/storeLocationRoutes";
 import { notFound, errorHandler, twoFactorUnavailableResponse } from "./middleware/errorHandler";
 import { STORE_CITY } from "./utils/store";
 import { liveOnlinePaymentMethods } from "./utils/paymentMethods";
@@ -121,6 +122,7 @@ app.use("/api/settings", siteSettingsRoutes);
 // Own prefixes (/products/:id/gallery*, /gallery-shares/:link) — no
 // collision with app.use("/api/products", productRoutes) above.
 app.use("/api", productGalleryRoutes);
+app.use("/api/store-locations", storeLocationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

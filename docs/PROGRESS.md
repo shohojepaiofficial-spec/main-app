@@ -1603,3 +1603,17 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
   (frontend/src/lib/imageUpload.ts) from 4 to 12 — applies to both the 5-image product form
   and the gallery, kept in sync as the comments on each require. The derived multipart body
   caps (`MAX_MULTIPART_BYTES`, `MAX_GALLERY_MULTIPART_BYTES`) scale with it automatically.
+
+## 2026-11-18 (store locations, WORK-24)
+- Added a staff-managed "Store Locations" system: a new `StoreLocation` model (name, address,
+  phone, Google Maps link, up to 5 photos, display order, active/hidden toggle), full CRUD at
+  `/admin/store-locations` (new `locations:manage` permission, delegable to coadmins), and a
+  public, no-login storefront page at `/store-locations` ("Our Stores" in the footer) listing
+  only active locations with their photos, address, phone and map link. Mirrors the Categories
+  feature's shape (model/controller/routes/service/controller-hook/view/form-modal), including
+  reordering and Change History entries (`storeLocation` entity type).
+- Checks: server/frontend typecheck clean, existing `routeProtection.test.ts` (187 tests) still
+  passes.
+- Left: deploy; `npm run sync-translations` not run (English-only for now, matching WORK-18's
+  precedent); as admin add a location with photos, edit/reorder/hide it, then confirm it shows
+  on the live `/store-locations` page and in the sitemap.
