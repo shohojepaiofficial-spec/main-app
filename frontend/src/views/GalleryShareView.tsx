@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, Loader2, X, ZoomIn } from "lucide-react";
 import { toUploadUrl } from "@/lib/api";
 import { GalleryShareView as GalleryShareData } from "@/models";
 
@@ -27,6 +27,16 @@ async function downloadImage(url: string, filename: string) {
 
 export function GalleryShareView({ share }: GalleryShareViewProps) {
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (zoomedIndex === null) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomedIndex(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [zoomedIndex]);
 
   const downloadAll = async () => {
     setIsDownloadingAll(true);
@@ -60,8 +70,18 @@ export function GalleryShareView({ share }: GalleryShareViewProps) {
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         {share.images.map((image, i) => (
           <div key={image.id} className="overflow-hidden rounded-lg border border-border">
-            {/* eslint-disable-next-line @next/next/no-img-element -- public share page, arbitrary Cloudinary/local URLs */}
-            <img src={toUploadUrl(image.url)} alt="" className="aspect-square w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => setZoomedIndex(i)}
+              className="group relative block aspect-square w-full cursor-zoom-in overflow-hidden"
+              aria-label="Zoom in on image"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- public share page, arbitrary Cloudinary/local URLs */}
+              <img src={toUploadUrl(image.url)} alt="" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
+              <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity duration-150 group-hover:bg-black/20 group-hover:opacity-100">
+                <ZoomIn size={28} className="text-white drop-shadow" />
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => downloadImage(toUploadUrl(image.url), `${share.productName.replace(/\W+/g, "-")}-${i + 1}.webp`)}
@@ -72,6 +92,29 @@ export function GalleryShareView({ share }: GalleryShareViewProps) {
           </div>
         ))}
       </div>
+
+      {zoomedIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setZoomedIndex(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setZoomedIndex(null)}
+            aria-label="Close zoomed image"
+            className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+          >
+            <X size={20} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element -- public share page, arbitrary Cloudinary/local URLs */}
+          <img
+            src={toUploadUrl(share.images[zoomedIndex].url)}
+            alt=""
+            className="max-h-full max-w-full cursor-zoom-out rounded-md object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
