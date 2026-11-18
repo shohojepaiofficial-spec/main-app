@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import { getStoreLocations } from "@/services/storeLocationService";
 import { StoreLocationsView } from "@/views/StoreLocationsView";
 
+// Render on request instead of at build time — a build-time fetch here
+// raced the backend during a deploy and stopped static generation partway
+// through (20 of 42 pages), most likely because this was the only public
+// page fetching from a brand-new backend route while that backend was
+// mid-redeploy on the same push.
+export const dynamic = "force-dynamic";
+
 const title = "Our Stores";
 const description = "Find our store locations, addresses and photos.";
 
