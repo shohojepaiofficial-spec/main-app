@@ -1566,3 +1566,24 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Fix: `emailRouting.transactionalName`/`emailRouting.marketingName` added as separate fields (`SiteSettings.ts`, `controllerInput.ts`'s zod schema, `siteSettingsController.ts`'s shape/update, frontend `SiteEmailRouting` model, a second text input next to each address field). `utils/emailRouting.ts#getEmailFrom` combines name + address into `"Name <address>"` when a name is set.
 - Checks: server `siteSettingsController.test.ts` (6 tests) passes.
 - Left: deploy; set the display name + address for transactional/marketing at `/admin/settings`; confirm a new order-status email shows "Shohoje Pai" as the sender.
+
+## 2026-11-18 (product photo gallery + share links, WORK-23)
+- Staff struggled to find/share a product's non-featured photos scattered in local
+  folders/phones; added a per-product gallery (`ProductGalleryImage`, unlimited uploads,
+  free-text tags, filterable) separate from the 5 featured `Product.images`, reusing
+  `utils/upload.ts`'s `storeUploadedFile`/`sanitizeImage`/`deleteUploadedFile` with a new
+  uncapped `galleryUpload` multer instance (30/request batch cap, not a per-product cap).
+- Sharing: multi-select in the gallery grid -> `POST /api/products/:id/gallery/share` creates
+  a `GalleryShare` (image ids + 30-day expiry) and returns one signed link
+  (`utils/galleryShareLinks.ts`, same HMAC-id scheme as `utils/paymentLinks.ts`) to a public,
+  no-login page (`/gallery/[link]`) listing just the selected images with per-image downloads
+  and a client-side "download all" (sequential blob fetch — no zip dependency added).
+- Frontend: new admin page `/admin/products/[id]/gallery` (not a `ProductFormModal` tab — needs
+  its own multi-select UI and only applies to existing products), linked from a new "Gallery"
+  icon on Manage Products; types added to `models/index.ts`,
+  `services/productGalleryService.ts` + `services/galleryShareService.ts`,
+  `controllers/useProductGallery.ts`, `views/ProductGalleryView.tsx` + `views/GalleryShareView.tsx`.
+  Added `gallery-shares` to the storefront proxy's route allowlist.
+- Checks: server/frontend typecheck, new controller + link-util tests.
+- Left: deploy; confirm a real multi-image upload, tag edit, share-link creation and the
+  public share page's downloads against Cloudinary-hosted URLs.

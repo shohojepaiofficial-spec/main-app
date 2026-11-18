@@ -983,3 +983,30 @@ export interface SitePopupContent {
 export interface SitePopupSettings extends SitePopupContent {
   isActive: boolean;
 }
+
+// --- Product photo gallery & share links (WORK-23) — see server's
+// ProductGalleryImage/GalleryShare models ---
+
+// An extra product photo beyond the 5 featured Product.images — staff-only,
+// unlimited, tagged by product.
+export interface ProductGalleryImage {
+  _id: string;
+  product: string;
+  url: string;
+  tags: string[];
+  uploadedBy: string;
+  createdAt: string;
+}
+
+// What a multi-select "create link" action gets back — the signed link
+// (`/gallery/<link>`), never the bare share id.
+export interface GalleryShareResult {
+  link: string;
+}
+
+// What the public, no-login share page sees — just the selected photos,
+// no price/order data.
+export interface GalleryShareView {
+  productName: string;
+  images: { id: string; url: string; tags: string[] }[];
+}

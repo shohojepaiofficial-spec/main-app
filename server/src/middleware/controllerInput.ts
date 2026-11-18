@@ -14,6 +14,7 @@ const fields: Record<string, string> = {
   setupTwoFactor: "", replaceTwoFactor: "code", confirmTwoFactor: "code", confirmTwoFactorReplacement: "code",
   disableTwoFactor: "code", verifyTwoFactorLogin: "tempToken code",
   createSharedCart: "items shippingAddress promoCode", payForSharedCart: "", getDeliveryQuote: "items zila upazila pathao",
+  uploadGalleryImages: "tags", listGalleryImages: "", updateGalleryImageTags: "tags", deleteGalleryImage: "", createGalleryShare: "imageIds", getGalleryShare: "",
   updateOrderStatus: "status", bulkUpdateStatus: "ids status", updateOrderNote: "note",
   updateCourierInfo: "provider courierName consignmentId trackingStatus note confirmMismatch", removeCourierBooking: "", bookPathaoOrder: "cityId zoneId areaId weightKg description specialInstruction",
   createAd: "title sourceType productId promoCode caption link platforms", publishAd: "platforms",
@@ -49,7 +50,7 @@ const siteSettingsInput = z.object({
 
 export function validateControllerInput(name: string, req: Request) {
   for (const [key, value] of Object.entries(req.params ?? {})) {
-    if (["id", "reviewId", "productId"].includes(key)) parseInput(objectId, value);
+    if (["id", "reviewId", "productId", "imageId"].includes(key)) parseInput(objectId, value);
     else if (typeof value !== "string" || value.length > 200) throw Object.assign(new Error("Invalid route parameter"), { status: 400 });
   }
   assertSafeInput(req.body);
@@ -79,7 +80,11 @@ export function validateControllerInput(name: string, req: Request) {
     if (field === "shippingAddress") schema = checkoutSchema.shape.shippingAddress;
     if (field === "pathao") schema = pathaoRefSchema;
     if (field === "provider" && name === "updateCourierInfo") schema = z.enum(["pathao", "other"]);
-    if (field === "ids") schema = z.array(objectId).min(1).max(100);
+    if (field === "ids" || field === "imageIds") schema = z.array(objectId).min(1).max(100);
+    // Comma-separated on the multipart upload (uploadGalleryImages), an
+    // array on the JSON tag-edit endpoint (updateGalleryImageTags) — same
+    // body key, two call sites, so both shapes are accepted here.
+    if (field === "tags") schema = z.union([z.string().max(500), z.array(z.string().max(40)).max(30)]);
     if (field === "permissions" || field === "channels") schema = z.array(z.string().max(100)).max(30);
     if (field === "platforms") schema = z.union([z.array(z.string().max(100)).max(10), z.string().max(500)]);
     if (field === "expiresAt") schema = z.string().datetime().nullable();

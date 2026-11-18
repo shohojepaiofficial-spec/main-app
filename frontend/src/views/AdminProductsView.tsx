@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2, Loader2, Plus, Star, X, Megaphone, History } from "lucide-react";
+import { Pencil, Trash2, Loader2, Plus, Star, X, Megaphone, History, Images } from "lucide-react";
 import { useRequirePermission } from "@/controllers/useRequirePermission";
 import { useAuthController } from "@/controllers/useAuthController";
 import { useAdminProducts, ProductFilters } from "@/controllers/useAdminProducts";
@@ -296,6 +296,14 @@ export function AdminProductsView() {
                   </td>
                   <td className="py-3 pr-4 align-top">
                     <div className="flex items-center gap-3">
+                      <Link
+                        href={`/admin/products/${product._id}/gallery`}
+                        aria-label={`Photo gallery for ${product.name}`}
+                        title="Photo gallery"
+                        className="text-muted hover:text-foreground"
+                      >
+                        <Images size={16} />
+                      </Link>
                       {canManageAds && (
                         <Link
                           href={`/admin/ads?productId=${product._id}`}

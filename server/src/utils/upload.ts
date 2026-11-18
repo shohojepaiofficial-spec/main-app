@@ -52,6 +52,16 @@ export const upload = multer({
   limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: MAX_UPLOAD_FILES, fields: 30, fieldSize: 128 * 1024, parts: 35, fieldNameSize: 100 },
 });
 
+// For the product gallery (WORK-23): "unlimited" per product, but each HTTP
+// request still needs a sane multipart cap to bound multer's own
+// unbounded-files surface — staff can just upload again for more.
+export const MAX_GALLERY_UPLOAD_FILES = 30;
+export const galleryUpload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: MAX_GALLERY_UPLOAD_FILES, fields: 10, fieldSize: 128 * 1024, parts: 40, fieldNameSize: 100 },
+});
+
 let activeDecodes = 0;
 export async function sanitizeImage(buffer: Buffer) {
   if (activeDecodes >= 4) throw Object.assign(new Error("Image processing is busy; please retry"), { status: 429 });
