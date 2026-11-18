@@ -3,7 +3,7 @@
 // upload. The server enforces the same rules (server/src/utils/upload.ts) —
 // keep the two in sync.
 
-export const MAX_IMAGE_MB = 4;
+export const MAX_IMAGE_MB = 12;
 export const MAX_IMAGE_FILES = 5;
 // 5 images at MAX_IMAGE_MB each, plus headroom for multipart boundaries and
 // other form fields. Used to be capped at 4 MB total to fit under Vercel's

@@ -1596,3 +1596,10 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
   headroom) to `frontend/src/lib/imageUpload.ts`, applied by both the browser-side
   `validateMultipartSize` check (`lib/api.ts`) and the proxy's `boundedBody` (`app/api/backend/[...path]/route.ts`)
   whenever the request targets `products/:id/gallery`. Per-image size (4MB) is unchanged.
+
+## 2026-11-18 (raise per-image upload cap, WORK-23)
+- 4MB per image was rejecting ordinary unedited phone photos (commonly 6-8MB). Raised
+  `MAX_UPLOAD_MB` (server/src/utils/upload.ts) and `MAX_IMAGE_MB`
+  (frontend/src/lib/imageUpload.ts) from 4 to 12 — applies to both the 5-image product form
+  and the gallery, kept in sync as the comments on each require. The derived multipart body
+  caps (`MAX_MULTIPART_BYTES`, `MAX_GALLERY_MULTIPART_BYTES`) scale with it automatically.

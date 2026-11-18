@@ -14,11 +14,12 @@ const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
 // itself needing to know which one it'll be.
 const storage = multer.memoryStorage();
 
-// Per image. Plenty for a sharp product photo (Cloudinary resizes/compresses
-// on delivery anyway), while a raw 20MB+ camera file is refused. Mirrored in
+// Per image. Comfortably covers an unedited phone photo (commonly 6-8MB),
+// while a raw 20MB+ DSLR/RAW-adjacent file is still refused — Cloudinary
+// resizes/compresses on delivery anyway. Mirrored in
 // frontend/src/lib/imageUpload.ts, which checks before uploading — keep the
 // two in sync.
-export const MAX_UPLOAD_MB = 4;
+export const MAX_UPLOAD_MB = 12;
 export const MAX_UPLOAD_FILES = 5;
 
 const ALLOWED_EXTENSIONS = new Set([".jpeg", ".jpg", ".png", ".webp", ".gif"]);
