@@ -51,7 +51,7 @@ function TagEditor({ image, onUpdate }: { image: ProductGalleryImage; onUpdate: 
 export function ProductGalleryView({ productId }: ProductGalleryViewProps) {
   const { isChecking, isAllowed } = useRequirePermission("products:manage");
   const {
-    images, isLoading, tagFilter, selectedIds, isUploading, isCreatingLink, shareLink,
+    images, isLoading, tagFilter, selectedIds, isUploading, deletingIds, isCreatingLink, shareLink,
     setTagFilter, toggleSelect, clearSelection, upload, updateTags, remove, createShareLink, closeShareLink,
   } = useProductGallery(productId);
   const [uploadTags, setUploadTags] = useState("");
@@ -141,11 +141,13 @@ export function ProductGalleryView({ productId }: ProductGalleryViewProps) {
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {images.map((image) => {
             const selected = selectedIds.has(image._id);
+            const isDeleting = deletingIds.has(image._id);
             return (
-              <div key={image._id} className={`rounded-lg border p-2 ${selected ? "border-primary ring-2 ring-primary/30" : "border-border"}`}>
+              <div key={image._id} className={`rounded-lg border p-2 ${selected ? "border-primary ring-2 ring-primary/30" : "border-border"} ${isDeleting ? "opacity-50" : ""}`}>
                 <button
                   type="button"
                   onClick={() => toggleSelect(image._id)}
+                  disabled={isDeleting}
                   className="relative block aspect-square w-full overflow-hidden rounded-md bg-primary/5"
                   aria-pressed={selected}
                   aria-label={selected ? "Deselect image" : "Select image"}
@@ -160,9 +162,11 @@ export function ProductGalleryView({ productId }: ProductGalleryViewProps) {
                 <button
                   type="button"
                   onClick={() => remove(image._id)}
-                  className="mt-1.5 inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
+                  disabled={isDeleting}
+                  className="mt-1.5 inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
                 >
-                  <Trash2 size={12} /> Delete
+                  {isDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  {isDeleting ? "Deleting..." : "Delete"}
                 </button>
               </div>
             );

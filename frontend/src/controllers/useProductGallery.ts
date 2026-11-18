@@ -12,6 +12,7 @@ export function useProductGallery(productId: string) {
   const [tagFilter, setTagFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
 
@@ -79,6 +80,7 @@ export function useProductGallery(productId: string) {
   }, [productId]);
 
   const remove = useCallback(async (imageId: string) => {
+    setDeletingIds((prev) => new Set(prev).add(imageId));
     try {
       await productGalleryService.deleteGalleryImage(productId, imageId);
       setImages((prev) => prev.filter((img) => img._id !== imageId));
@@ -89,6 +91,12 @@ export function useProductGallery(productId: string) {
       });
     } catch {
       toast.error("Failed to delete image");
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(imageId);
+        return next;
+      });
     }
   }, [productId]);
 
@@ -109,7 +117,7 @@ export function useProductGallery(productId: string) {
   }, [productId, selectedIds]);
 
   return {
-    images, isLoading, tagFilter, selectedIds, isUploading, isCreatingLink, shareLink,
+    images, isLoading, tagFilter, selectedIds, isUploading, deletingIds, isCreatingLink, shareLink,
     setTagFilter: applyTagFilter, toggleSelect, clearSelection, upload, updateTags, remove, createShareLink,
     closeShareLink: () => setShareLink(null),
   };
