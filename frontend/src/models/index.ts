@@ -753,9 +753,19 @@ export interface SiteEmailRouting {
   marketingName: string;
 }
 
+// Public contact details shown in the navbar top bar, footer, and the
+// Contact/About pages — a blank field falls back to lib/contact.ts's
+// hardcoded default (see siteSettingsService.ts#getContactInfo).
+export interface SiteContactInfo {
+  phone: string;
+  email: string;
+  address: string;
+}
+
 export interface SiteSettings {
   social: SiteSocialLinks;
   emailRouting: SiteEmailRouting;
+  contact: SiteContactInfo;
 }
 
 export interface AuditActor {

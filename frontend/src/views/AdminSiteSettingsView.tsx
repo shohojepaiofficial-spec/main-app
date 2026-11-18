@@ -56,6 +56,46 @@ function SettingsForm({ settings, onSave }: { settings: SiteSettings; onSave: (i
       </fieldset>
 
       <fieldset className="rounded-md border border-border bg-surface p-4">
+        <legend className="px-1 text-sm font-semibold">Contact details</legend>
+        <p className="mb-3 text-xs text-muted">
+          Shown in the navbar top bar, footer, and the Contact/About pages. Leave a field blank
+          to keep showing the default.
+        </p>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="text-sm font-medium" htmlFor="contactPhone">Phone number</label>
+            <input
+              id="contactPhone"
+              {...register("contact.phone")}
+              placeholder="+880 1700-502013"
+              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-muted">Shown as typed; also used for the tap-to-call link.</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium" htmlFor="contactPhoneEmail">Email</label>
+            <input
+              id="contactPhoneEmail"
+              type="email"
+              {...register("contact.email")}
+              placeholder="hello@yourdomain.com"
+              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium" htmlFor="contactAddress">Address</label>
+            <textarea
+              id="contactAddress"
+              {...register("contact.address")}
+              rows={2}
+              placeholder="Shop/house, road, area, city"
+              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset className="rounded-md border border-border bg-surface p-4">
         <legend className="px-1 text-sm font-semibold">Email routing</legend>
         <p className="mb-3 text-xs text-muted">
           Which business mailbox (e.g. a Namecheap Private Email address on your own domain) each kind of email
@@ -144,7 +184,7 @@ export function AdminSiteSettingsView() {
     <main className="p-6">
       <div className="mb-6">
         <h1 className="mb-1 text-xl font-semibold">Site settings</h1>
-        <p className="text-sm text-muted">Social links and which mailbox each kind of email uses.</p>
+        <p className="text-sm text-muted">Social links, contact details and which mailbox each kind of email uses.</p>
       </div>
 
       {isLoading ? (

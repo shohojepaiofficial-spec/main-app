@@ -1,6 +1,9 @@
 import { api } from "@/lib/api";
-import { SiteEmailRouting, SiteSettings, SiteSocialLinks } from "@/models";
-import { FACEBOOK_URL, INSTAGRAM_URL, WHATSAPP_NUMBER } from "@/lib/contact";
+import { SiteContactInfo, SiteEmailRouting, SiteSettings, SiteSocialLinks } from "@/models";
+import {
+  FACEBOOK_URL, INSTAGRAM_URL, WHATSAPP_NUMBER,
+  CONTACT_PHONE_DISPLAY, CONTACT_EMAIL, CONTACT_ADDRESS,
+} from "@/lib/contact";
 
 // Used by the public layout/pages and the WhatsApp chat button. Fails soft
 // (the hardcoded defaults in lib/contact.ts) so a backend hiccup never
@@ -19,6 +22,22 @@ export const getSocialLinks = async (): Promise<SiteSocialLinks> => {
   }
 };
 
+// Same fallback-to-hardcoded-default convention as getSocialLinks above,
+// for the navbar top bar / footer / Contact / About pages' phone, email
+// and address.
+export const getContactInfo = async (): Promise<SiteContactInfo> => {
+  try {
+    const { data } = await api.get<{ contact: Partial<SiteContactInfo> }>("/settings");
+    return {
+      phone: data.contact.phone || CONTACT_PHONE_DISPLAY,
+      email: data.contact.email || CONTACT_EMAIL,
+      address: data.contact.address || CONTACT_ADDRESS,
+    };
+  } catch {
+    return { phone: CONTACT_PHONE_DISPLAY, email: CONTACT_EMAIL, address: CONTACT_ADDRESS };
+  }
+};
+
 // Full admin only, from here down.
 export const getAdminSiteSettings = async (): Promise<SiteSettings> => {
   const { data } = await api.get<SiteSettings>("/settings/admin");
@@ -28,6 +47,7 @@ export const getAdminSiteSettings = async (): Promise<SiteSettings> => {
 export interface SiteSettingsInput {
   social: SiteSocialLinks;
   emailRouting: SiteEmailRouting;
+  contact: SiteContactInfo;
 }
 
 export const updateSiteSettings = async (input: SiteSettingsInput): Promise<SiteSettings> => {

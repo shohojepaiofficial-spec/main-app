@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Store } from "lucide-react";
-import {
-  CONTACT_ADDRESS,
-  CONTACT_EMAIL,
-  CONTACT_PHONE_DISPLAY,
-  CONTACT_PHONE_TEL,
-} from "@/lib/contact";
 import { T } from "@/components/ui/T";
 import { toJsonLdScript } from "@/lib/jsonLd";
+import { toTelLink } from "@/lib/phone";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { getContactInfo } from "@/services/siteSettingsService";
 
 const title = "About Us";
 const description =
@@ -50,7 +46,9 @@ const breadcrumbJsonLd = {
   ],
 };
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const contact = await getContactInfo();
+
   return (
     <main className="mx-auto max-w-3xl px-6 pb-16 pt-[calc(var(--navbar-height)+2rem)]">
       <script
@@ -134,23 +132,28 @@ export default function AboutPage() {
           <h2 className="mb-1 text-base font-semibold text-foreground">
             <T k="about.find.title">Where to find us</T>
           </h2>
-          <address className="not-italic">{CONTACT_ADDRESS}</address>
+          <address className="not-italic">{contact.address}</address>
           <ul className="mt-2 flex flex-col gap-1">
             <li>
               <T k="about.find.phone">Phone</T>:{" "}
-              <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-primary underline">
-                {CONTACT_PHONE_DISPLAY}
+              <a href={toTelLink(contact.phone)} className="text-primary underline">
+                {contact.phone}
               </a>
             </li>
             <li>
               <T k="about.find.email">Email</T>:{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline">
-                {CONTACT_EMAIL}
+              <a href={`mailto:${contact.email}`} className="text-primary underline">
+                {contact.email}
               </a>
             </li>
             <li>
               <Link href="/contact" className="text-primary underline">
                 <T k="about.find.contactLink">Send us a message</T>
+              </Link>
+            </li>
+            <li>
+              <Link href="/store-locations" className="text-primary underline">
+                <T k="about.find.storeLocationsLink">See our store locations</T>
               </Link>
             </li>
           </ul>

@@ -1,17 +1,11 @@
 import Link from "next/link";
 import { Phone, Mail, MapPin } from "lucide-react";
 import { FaFacebookF, FaInstagram } from "react-icons/fa6";
-import {
-  CONTACT_ADDRESS,
-  CONTACT_ADDRESS_KEY,
-  CONTACT_EMAIL,
-  CONTACT_PHONE_DISPLAY,
-  CONTACT_PHONE_TEL,
-} from "@/lib/contact";
 import { Logo } from "@/views/Logo";
 import { SITE_NAME } from "@/lib/seo";
 import { T } from "@/components/ui/T";
-import { SiteSocialLinks } from "@/models";
+import { toTelLink } from "@/lib/phone";
+import { SiteContactInfo, SiteSocialLinks } from "@/models";
 
 const SHOP_LINKS = [
   { href: "/shop", key: "nav.shop", label: "Shop" },
@@ -28,7 +22,7 @@ const COMPANY_LINKS = [
   { href: "/terms", key: "footer.terms", label: "Terms of Service" },
 ];
 
-export function Footer({ social }: { social: SiteSocialLinks }) {
+export function Footer({ social, contact }: { social: SiteSocialLinks; contact: SiteContactInfo }) {
   const socialLinks = [
     { href: social.facebookUrl, label: "Facebook", Icon: FaFacebookF },
     { href: social.instagramUrl, label: "Instagram", Icon: FaInstagram },
@@ -95,21 +89,19 @@ export function Footer({ social }: { social: SiteSocialLinks }) {
           <ul className="flex flex-col gap-2 text-sm">
             <li className="flex items-center gap-2">
               <Phone size={14} className="shrink-0" />
-              <a href={`tel:${CONTACT_PHONE_TEL}`} className="hover:text-background">
-                {CONTACT_PHONE_DISPLAY}
+              <a href={toTelLink(contact.phone)} className="hover:text-background">
+                {contact.phone}
               </a>
             </li>
             <li className="flex items-center gap-2">
               <Mail size={14} className="shrink-0" />
-              <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-background">
-                {CONTACT_EMAIL}
+              <a href={`mailto:${contact.email}`} className="hover:text-background">
+                {contact.email}
               </a>
             </li>
             <li className="flex items-center gap-2">
               <MapPin size={14} className="shrink-0" />
-              <span>
-                <T k={CONTACT_ADDRESS_KEY}>{CONTACT_ADDRESS}</T>
-              </span>
+              <span>{contact.address}</span>
             </li>
           </ul>
         </div>

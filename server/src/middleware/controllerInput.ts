@@ -47,6 +47,11 @@ const siteSettingsInput = z.object({
     marketing: z.string().max(200).optional(),
     marketingName: z.string().max(100).optional(),
   }).strict().optional(),
+  contact: z.object({
+    phone: z.string().max(20).optional(),
+    email: z.string().max(200).optional(),
+    address: z.string().max(300).optional(),
+  }).strict().optional(),
 }).strict();
 
 export function validateControllerInput(name: string, req: Request) {

@@ -28,6 +28,19 @@ export interface ISiteSettings extends Document {
     // Display name paired with `marketing`, same reasoning as transactionalName.
     marketingName?: string;
   };
+  // Public contact details shown in the navbar top bar, footer, the Contact
+  // and About pages — previously hardcoded in frontend/src/lib/contact.ts.
+  // A blank field falls back to that file's default (see
+  // siteSettingsService.ts#getContactInfo), same convention as `social`.
+  contact: {
+    // Stored exactly as typed (e.g. "+880 1700-502013"); a `tel:` link is
+    // built by stripping everything but digits and a leading "+" — not
+    // restricted to a Bangladeshi mobile number, since a store line can be
+    // a landline or a different country's number.
+    phone?: string;
+    email?: string;
+    address?: string;
+  };
 }
 
 const socialSchema = new Schema(
@@ -50,11 +63,21 @@ const emailRoutingSchema = new Schema(
   { _id: false }
 );
 
+const contactSchema = new Schema(
+  {
+    phone: { type: String, trim: true, maxlength: 20 },
+    email: { type: String, trim: true, lowercase: true, maxlength: 200 },
+    address: { type: String, trim: true, maxlength: 300 },
+  },
+  { _id: false }
+);
+
 const siteSettingsSchema = new Schema<ISiteSettings>(
   {
     key: { type: String, enum: ["site"], default: "site", unique: true },
     social: { type: socialSchema, default: () => ({}) },
     emailRouting: { type: emailRoutingSchema, default: () => ({}) },
+    contact: { type: contactSchema, default: () => ({}) },
   },
   { timestamps: true }
 );

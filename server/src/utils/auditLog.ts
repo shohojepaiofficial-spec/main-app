@@ -28,7 +28,7 @@ const TRACKED_FIELDS: Record<AuditEntityType, readonly string[]> = {
   return: ["status", "customerMessage", "staffNote", "restocked", "refund", "replacementOrder"],
   category: ["name", "nameBn", "order", "image"],
   popup: ["isActive", "title", "message", "image", "button", "version"],
-  settings: ["social", "emailRouting"],
+  settings: ["social", "emailRouting", "contact"],
   storeLocation: ["name", "address", "phone", "mapUrl", "order", "isActive", "images"],
 };
 

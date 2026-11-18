@@ -1617,3 +1617,21 @@ A code + light live audit found four issues; all fixed in code, none deployed ye
 - Left: deploy; `npm run sync-translations` not run (English-only for now, matching WORK-18's
   precedent); as admin add a location with photos, edit/reorder/hide it, then confirm it shows
   on the live `/store-locations` page and in the sitemap.
+
+## 2026-11-18 (editable contact details in Site Settings, WORK-22 follow-up)
+- The navbar top bar's phone number, the footer's phone/email/address, the Contact page's
+  three contact cards and the About page's "Where to find us" block were all hardcoded from
+  `frontend/src/lib/contact.ts`. Added a `contact` section (phone, email, address) to
+  `SiteSettings` (same `/api/settings` GET/PUT endpoints WORK-22 added), editable at
+  `/admin/settings`'s new "Contact details" fieldset. A blank field falls back to
+  `lib/contact.ts`'s default, same convention as the existing social-links section
+  (`siteSettingsService.ts#getContactInfo`). Phone is stored and shown exactly as typed (not
+  restricted to a Bangladeshi mobile number, since a store line can be a landline); a `tel:`
+  link is built by stripping non-digit/`+` characters (`lib/phone.ts#toTelLink`).
+- Left as still-hardcoded on purpose (lower-traffic/legal pages, out of this change's scope):
+  the homepage's Organization JSON-LD, the order print view, and the Terms/Privacy/Shipping/
+  Returns pages.
+- Checks: server/frontend typecheck and lint clean, full backend suite (634 tests, incl. 2 new
+  contact-field cases in `siteSettingsController.test.ts`) passes.
+- Left: deploy; set a phone/email/address at `/admin/settings` and confirm the navbar, footer,
+  Contact and About pages pick it up, and that leaving a field blank keeps the old default.

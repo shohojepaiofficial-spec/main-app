@@ -7,15 +7,9 @@ import toast from "react-hot-toast";
 import { Phone, Mail, MapPin } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import * as contactService from "@/services/contactService";
-import {
-  CONTACT_ADDRESS,
-  CONTACT_ADDRESS_KEY,
-  CONTACT_EMAIL,
-  CONTACT_PHONE_DISPLAY,
-  CONTACT_PHONE_TEL,
-} from "@/lib/contact";
-import { T } from "@/components/ui/T";
+import { toTelLink } from "@/lib/phone";
 import { openWhatsAppDirect } from "@/lib/whatsapp";
+import { SiteContactInfo } from "@/models";
 
 function extractErrorMessage(err: unknown, fallback: string) {
   return (
@@ -101,7 +95,7 @@ function ContactForm() {
   );
 }
 
-export function ContactView({ whatsappNumber }: { whatsappNumber: string }) {
+export function ContactView({ whatsappNumber, contact }: { whatsappNumber: string; contact: SiteContactInfo }) {
   const whatsappHref = `https://wa.me/${whatsappNumber}`;
 
   return (
@@ -118,23 +112,23 @@ export function ContactView({ whatsappNumber }: { whatsappNumber: string }) {
 
         <div className="flex flex-col gap-4">
           <a
-            href={`tel:${CONTACT_PHONE_TEL}`}
+            href={toTelLink(contact.phone)}
             className="flex items-center gap-3 rounded-md border border-border bg-surface p-4 hover:bg-background"
           >
             <Phone size={18} className="shrink-0 text-primary" />
             <div>
               <p className="text-sm font-medium">Phone</p>
-              <p className="text-sm text-muted">{CONTACT_PHONE_DISPLAY}</p>
+              <p className="text-sm text-muted">{contact.phone}</p>
             </div>
           </a>
           <a
-            href={`mailto:${CONTACT_EMAIL}`}
+            href={`mailto:${contact.email}`}
             className="flex items-center gap-3 rounded-md border border-border bg-surface p-4 hover:bg-background"
           >
             <Mail size={18} className="shrink-0 text-primary" />
             <div>
               <p className="text-sm font-medium">Email</p>
-              <p className="text-sm text-muted">{CONTACT_EMAIL}</p>
+              <p className="text-sm text-muted">{contact.email}</p>
             </div>
           </a>
           <a
@@ -154,9 +148,7 @@ export function ContactView({ whatsappNumber }: { whatsappNumber: string }) {
             <MapPin size={18} className="shrink-0 text-primary" />
             <div>
               <p className="text-sm font-medium">Address</p>
-              <p className="text-sm text-muted">
-                <T k={CONTACT_ADDRESS_KEY}>{CONTACT_ADDRESS}</T>
-              </p>
+              <p className="text-sm text-muted">{contact.address}</p>
             </div>
           </div>
         </div>

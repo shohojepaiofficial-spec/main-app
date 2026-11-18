@@ -14,8 +14,8 @@ import { Logo } from "@/views/Logo";
 import { ProfileDropdown } from "@/views/ProfileDropdown";
 import { NotificationBell } from "@/views/NotificationBell";
 import { PromoAnnouncementBar } from "@/views/PromoAnnouncementBar";
-import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/contact";
-import { AppliedPromo, SiteSocialLinks } from "@/models";
+import { toTelLink } from "@/lib/phone";
+import { AppliedPromo, SiteContactInfo, SiteSocialLinks } from "@/models";
 
 const SCROLL_THRESHOLD = 80;
 
@@ -27,7 +27,7 @@ const NAV_LINKS = [
   { href: "/contact", key: "nav.contact", label: "Contact" },
 ];
 
-function TopBar({ social }: { social: SiteSocialLinks }) {
+function TopBar({ social, contact }: { social: SiteSocialLinks; contact: SiteContactInfo }) {
   const socialLinks = [
     { href: social.facebookUrl, label: "Facebook", Icon: FaFacebookF },
     { href: social.instagramUrl, label: "Instagram", Icon: FaInstagram },
@@ -35,9 +35,9 @@ function TopBar({ social }: { social: SiteSocialLinks }) {
 
   return (
     <div className="flex items-center justify-between px-4 lg:px-8 py-1.5 text-xs bg-foreground text-background/80">
-      <a href={`tel:${CONTACT_PHONE_TEL}`} className="flex items-center gap-1.5 hover:opacity-80">
+      <a href={toTelLink(contact.phone)} className="flex items-center gap-1.5 hover:opacity-80">
         <Phone size={12} />
-        <span className="hidden sm:inline">{CONTACT_PHONE_DISPLAY}</span>
+        <span className="hidden sm:inline">{contact.phone}</span>
       </a>
       <div className="flex items-center gap-4">
         <LanguageSwitcher />
@@ -118,7 +118,7 @@ function isNavLinkActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Navbar({ sitewidePromo, social }: { sitewidePromo?: AppliedPromo | null; social: SiteSocialLinks }) {
+export function Navbar({ sitewidePromo, social, contact }: { sitewidePromo?: AppliedPromo | null; social: SiteSocialLinks; contact: SiteContactInfo }) {
   const pathname = usePathname();
   const { t } = useTranslations();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -167,7 +167,7 @@ export function Navbar({ sitewidePromo, social }: { sitewidePromo?: AppliedPromo
     >
       <div ref={barRef}>
         <PromoAnnouncementBar promo={sitewidePromo ?? null} />
-        <TopBar social={social} />
+        <TopBar social={social} contact={contact} />
 
         <nav className="flex items-center justify-between px-4 lg:px-8 py-3 gap-4">
           <Logo />

@@ -30,7 +30,10 @@ describe("public settings", () => {
     });
     const { req, res, json } = call();
     await getPublicSiteSettings(req as unknown as never, res);
-    expect(json).toHaveBeenCalledWith({ social: { facebookUrl: "https://facebook.com/x", instagramUrl: "", whatsappNumber: "" } });
+    expect(json).toHaveBeenCalledWith({
+      social: { facebookUrl: "https://facebook.com/x", instagramUrl: "", whatsappNumber: "" },
+      contact: { phone: "", email: "", address: "" },
+    });
   });
 });
 
@@ -41,6 +44,7 @@ describe("admin settings", () => {
     await getSiteSettings(req, res);
     expect(json).toHaveBeenCalledWith({
       social: { facebookUrl: "", instagramUrl: "", whatsappNumber: "" },
+      contact: { phone: "", email: "", address: "" },
       emailRouting: { contact: "", transactional: "", transactionalName: "", marketing: "", marketingName: "" },
     });
   });
@@ -67,6 +71,24 @@ describe("updating settings", () => {
     const { req, res, status } = call({ emailRouting: { contact: "not-an-email" } });
     await updateSiteSettings(req, res);
     expect(status).toHaveBeenCalledWith(400);
+  });
+
+  it("refuses an invalid contact email address", async () => {
+    mocks.SiteSettings.findOne.mockResolvedValue(null);
+    const { req, res, status } = call({ contact: { email: "not-an-email" } });
+    await updateSiteSettings(req, res);
+    expect(status).toHaveBeenCalledWith(400);
+  });
+
+  it("saves contact phone/email/address and records the change", async () => {
+    mocks.SiteSettings.findOne.mockResolvedValue(doc({ social: {}, emailRouting: {}, contact: {} }));
+    const { req, res, json } = call({ contact: { phone: "+880 1700-502013", email: "Hello@Example.com", address: "Main road, Sylhet" } });
+    await updateSiteSettings(req, res);
+    const update = mocks.SiteSettings.findOneAndUpdate.mock.calls[0][1];
+    expect(update.$set["contact.phone"]).toBe("+880 1700-502013");
+    expect(update.$set["contact.email"]).toBe("hello@example.com");
+    expect(update.$set["contact.address"]).toBe("Main road, Sylhet");
+    expect(json).toHaveBeenCalled();
   });
 
   it("normalizes a valid WhatsApp number and records the change", async () => {

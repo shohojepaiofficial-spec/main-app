@@ -22,8 +22,15 @@ const shapeSocial = (settings: ISiteSettings | null) => ({
   whatsappNumber: settings?.social?.whatsappNumber ?? "",
 });
 
+const shapeContact = (settings: ISiteSettings | null) => ({
+  phone: settings?.contact?.phone ?? "",
+  email: settings?.contact?.email ?? "",
+  address: settings?.contact?.address ?? "",
+});
+
 const shapeFull = (settings: ISiteSettings | null) => ({
   social: shapeSocial(settings),
+  contact: shapeContact(settings),
   emailRouting: {
     contact: settings?.emailRouting?.contact ?? "",
     transactional: settings?.emailRouting?.transactional ?? "",
@@ -34,11 +41,13 @@ const shapeFull = (settings: ISiteSettings | null) => ({
 });
 
 // Public — only what the storefront needs (Footer/Navbar icons, the
-// WhatsApp chat button, the homepage's Organization JSON-LD). Email routing
-// is never exposed here.
+// WhatsApp chat button, the homepage's Organization JSON-LD, and now the
+// public contact details shown in the navbar/footer/Contact/About pages).
+// Email routing is never exposed here.
 export const getPublicSiteSettings = async (_req: Request, res: Response) => {
   const settings = await SiteSettings.findOne({ key: "site" }).lean();
-  res.json({ social: shapeSocial(settings as ISiteSettings | null) });
+  const typed = settings as ISiteSettings | null;
+  res.json({ social: shapeSocial(typed), contact: shapeContact(typed) });
 };
 
 // Full admin only — includes email routing.
@@ -51,6 +60,7 @@ export const updateSiteSettings = async (req: AuthRequest, res: Response) => {
   const body = req.body as Record<string, unknown>;
   const socialIn = (body.social ?? {}) as Record<string, unknown>;
   const emailIn = (body.emailRouting ?? {}) as Record<string, unknown>;
+  const contactIn = (body.contact ?? {}) as Record<string, unknown>;
 
   const facebookUrl = text(socialIn.facebookUrl);
   const instagramUrl = text(socialIn.instagramUrl);
@@ -81,6 +91,13 @@ export const updateSiteSettings = async (req: AuthRequest, res: Response) => {
   const transactionalName = text(emailIn.transactionalName);
   const marketingName = text(emailIn.marketingName);
 
+  const contactPhone = text(contactIn.phone);
+  const contactEmail = text(contactIn.email).toLowerCase();
+  const contactAddress = text(contactIn.address);
+  if (contactEmail && !EMAIL_RE.test(contactEmail)) {
+    return res.status(400).json({ message: "The contact email address isn't valid." });
+  }
+
   const current = await SiteSettings.findOne({ key: "site" });
 
   const unset: Record<string, 1> = {};
@@ -92,6 +109,9 @@ export const updateSiteSettings = async (req: AuthRequest, res: Response) => {
   if (!transactionalName) unset["emailRouting.transactionalName"] = 1;
   if (!emails.marketing) unset["emailRouting.marketing"] = 1;
   if (!marketingName) unset["emailRouting.marketingName"] = 1;
+  if (!contactPhone) unset["contact.phone"] = 1;
+  if (!contactEmail) unset["contact.email"] = 1;
+  if (!contactAddress) unset["contact.address"] = 1;
 
   const updated = await SiteSettings.findOneAndUpdate(
     { key: "site" },
@@ -105,6 +125,9 @@ export const updateSiteSettings = async (req: AuthRequest, res: Response) => {
         ...(transactionalName ? { "emailRouting.transactionalName": transactionalName } : {}),
         ...(emails.marketing ? { "emailRouting.marketing": emails.marketing } : {}),
         ...(marketingName ? { "emailRouting.marketingName": marketingName } : {}),
+        ...(contactPhone ? { "contact.phone": contactPhone } : {}),
+        ...(contactEmail ? { "contact.email": contactEmail } : {}),
+        ...(contactAddress ? { "contact.address": contactAddress } : {}),
       },
       ...(Object.keys(unset).length ? { $unset: unset } : {}),
     },
